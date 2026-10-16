@@ -42,7 +42,6 @@ class DependentMemberData {
   final TextEditingController contactCtrl;
   final TextEditingController phicNoCtrl;
   DateTime? birthDate;
-  DateTime membershipDate = phToday();
   // Used to scroll this row back into view after a voter search
   final GlobalKey cardKey = GlobalKey();
   final Set<String> sectors = {'General'};
@@ -120,7 +119,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   final _phicNoCtrl = TextEditingController();
 
   DateTime? _birthDate;
-  DateTime _membershipDate = phToday();
+  // Starts at today, except when joining a household (left blank so staff enter it deliberately)
+  DateTime? _membershipDate = phToday();
 
   // Sectors
   final Set<String> _selectedSectors = {'General'};
@@ -166,6 +166,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   String? _avatarName;
   bool _isUploadingPhoto = false;
   bool _isSaving = false;
+  // Last member saved in this dialog; returned on close so the caller (e.g. household view) refreshes
+  FamilyMember? _savedMember;
 
   // Layout state
   bool _showMoreDetails = false; // optional contact / TRU Care / PhilHealth fields
@@ -314,6 +316,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       // New Member Registration: Step 1 Search First!
       _currentStep = MemberFormStep.voterSearch;
       if (widget.presetHousehold != null) {
+        _membershipDate = null;
         _lgu = widget.presetHousehold!.lgu.trim().toUpperCase();
         _barangay = widget.presetHousehold!.barangay.trim().toUpperCase();
         _purok = widget.presetHousehold!.purok.trim();
@@ -524,7 +527,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       if (voter.birthDate != null) {
         _birthDate = DateTime.tryParse(voter.birthDate!);
       }
-      if (voter.membershipDate != null) {
+      // Joining a household: membership date stays blank for staff to enter
+      if (voter.membershipDate != null && !_joiningHousehold) {
         _membershipDate = DateTime.tryParse(voter.membershipDate!) ?? phToday();
       }
 
@@ -720,7 +724,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       if (last.isEmpty) 'last name',
       if (first.isEmpty) 'first name',
       if (d.sectors.contains('Student') && d.yearLevel == null) 'year level',
-      if (d.birthdayInvalid) 'birthday',
+      if (d.birthdayInvalid || d.birthDate == null) 'birthday',
       if (d.gender == null) 'gender',
       if (_contactError(d.contactCtrl.text) != null) 'contact number',
     ];
@@ -811,6 +815,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
           }
         });
         _revealDependent(_dependentMembers[incomplete.first]);
+        // Once the reopened cards are built, mark their empty/invalid fields in red too
+        WidgetsBinding.instance.addPostFrameCallback((_) => _formKey.currentState?.validate());
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Complete household member ${incomplete.map((i) => '#${i + 1}').join(', ')}: '
               '${_dependentProblems(_dependentMembers[incomplete.first]).join(', ')}.'),
@@ -894,10 +900,15 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
         createdBy: widget.existing?.createdBy ?? 'Admin',
       );
 
+      // The notifier swallows errors (null / false), so surface them as a failed save
       if (widget.existing == null) {
-        await ref.read(memberListNotifierProvider.notifier).addMember(primaryMember);
+        final created = await ref.read(memberListNotifierProvider.notifier).addMember(primaryMember);
+        if (created == null) throw Exception('the member could not be saved');
+        _savedMember = created;
       } else {
-        await ref.read(memberListNotifierProvider.notifier).updateMember(primaryMember);
+        final ok = await ref.read(memberListNotifierProvider.notifier).updateMember(primaryMember);
+        if (!ok) throw Exception('the changes could not be saved');
+        _savedMember = primaryMember;
       }
 
       // Save additional dependent rows if entered (only when this member leads the household)
@@ -922,7 +933,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             yearLevel: d.sectors.contains('Student') ? d.yearLevel : null,
             gender: d.gender,
             birthDate: d.birthDate,
-            membershipDate: d.membershipDate,
+            membershipDate: _membershipDate, // household members share the leader's membership date
             age: depAge,
             isHouseholdLeader: false,
             isCooperativeMember: true,
@@ -976,7 +987,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       _contactCtrl.clear();
       _phicNoCtrl.clear();
       _birthDate = null;
-      _membershipDate = phToday();
+      _membershipDate = _joiningHousehold ? null : phToday();
       _selectedSectors.clear();
       _selectedSectors.add('General');
       _seniorAutoChecked = false;
@@ -1084,7 +1095,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                   IconButton(
                     icon: Icon(Icons.close, color: subtextCol, size: 22),
                     tooltip: 'Close',
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () => Navigator.of(context).pop(_savedMember),
                   ),
                 ],
               ),
@@ -1615,6 +1626,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                     date: _membershipDate,
                                     hint: 'mm/dd/yyyy',
                                     onDateSelected: (d) => setState(() => _membershipDate = d),
+                                    onCleared: () => setState(() => _membershipDate = null),
                                     textCol: textCol,
                                     borderCol: borderCol,
                                     fillCol: inputFill,
@@ -1964,7 +1976,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                   side: BorderSide(color: borderCol),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () => Navigator.of(context).pop(_savedMember),
                 child: Text('Cancel', style: GoogleFonts.inter(color: textCol, fontWeight: FontWeight.w500)),
               ),
               const SizedBox(width: 12),
@@ -2012,7 +2024,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                         final nav = Navigator.of(context);
                         final success = await _saveMemberRecord();
                         if (success && mounted) {
-                          nav.pop();
+                          nav.pop(_savedMember);
                         }
                       },
               ),
@@ -2575,7 +2587,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
               const SizedBox(width: 10),
               Expanded(
                 child: _buildDatePickerField(
-                  label: 'Birthday',
+                  label: 'Birthday *',
                   date: dep.birthDate,
                   hint: 'mm/dd/yyyy',
                   isBirthDate: true,
@@ -2595,63 +2607,10 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
           ),
           const SizedBox(height: 14),
 
-          // Gender (required)
-          _buildGenderField(
-            // Keyed per row so each card keeps its own field state
-            key: ValueKey('gender-${identityHashCode(dep)}'),
-            value: dep.gender,
-            onChanged: (g) => setState(() => dep.gender = g),
-            textCol: textCol,
-            borderCol: borderCol,
-            primaryCol: primaryCol,
-            subtextCol: subtextCol,
-          ),
-          const SizedBox(height: 14),
-
-          // Row 2: Sector chips (more than one can apply, e.g. Student + PWD)
-          Text('Sector', style: GoogleFonts.inter(fontSize: 11.5, fontWeight: FontWeight.w500, color: subtextCol)),
-          const SizedBox(height: 8),
-          _buildSectorChips(
-            selected: dep.sectors,
-            onToggle: (sector, selected) => _setDependentSector(dep, sector, selected),
-            textCol: textCol,
-            borderCol: borderCol,
-            primaryCol: primaryCol,
-          ),
-          _buildSectorWarnings(_sectorAgeWarnings(dep.sectors, dep.birthDate)),
-          const SizedBox(height: 14),
-
-          // Row 3: Membership Date, Year Level (students), Contact, PHIC No.
+          // Row 2: Contact No., Gender (membership date is the leader's, set on save)
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: _buildDatePickerField(
-                  label: 'Membership Date *',
-                  date: dep.membershipDate,
-                  hint: 'mm/dd/yyyy',
-                  onDateSelected: (d) => setState(() => dep.membershipDate = d),
-                  textCol: textCol,
-                  borderCol: borderCol,
-                  fillCol: inputFill,
-                  primaryCol: primaryCol,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: dep.sectors.contains('Student')
-                    ? _buildYearLevelField(
-                        value: dep.yearLevel,
-                        onChanged: (v) => setState(() => dep.yearLevel = v),
-                        isDark: isDark,
-                        textCol: textCol,
-                        borderCol: borderCol,
-                        primaryCol: primaryCol,
-                        subtextCol: subtextCol,
-                      )
-                    : const SizedBox.shrink(),
-              ),
-              const SizedBox(width: 10),
               Expanded(
                 child: _buildTextField(
                   controller: dep.contactCtrl,
@@ -2668,20 +2627,73 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: moreOpen && dep.phicMember
-                    ? _buildTextField(
-                        controller: dep.phicNoCtrl,
-                        label: 'PhilHealth (PHIC) No.',
-                        hint: '12-digit number',
-                        textCol: textCol,
-                        borderCol: borderCol,
-                        fillCol: inputFill,
-                        primaryCol: primaryCol,
-                      )
-                    : const SizedBox.shrink(),
+                flex: 3,
+                child: _buildGenderField(
+                  // Keyed per row so each card keeps its own field state
+                  key: ValueKey('gender-${identityHashCode(dep)}'),
+                  value: dep.gender,
+                  onChanged: (g) => setState(() => dep.gender = g),
+                  textCol: textCol,
+                  borderCol: borderCol,
+                  primaryCol: primaryCol,
+                  subtextCol: subtextCol,
+                ),
               ),
             ],
           ),
+          const SizedBox(height: 14),
+
+          // Sector chips (more than one can apply, e.g. Student + PWD)
+          Text('Sector', style: GoogleFonts.inter(fontSize: 11.5, fontWeight: FontWeight.w500, color: subtextCol)),
+          const SizedBox(height: 8),
+          _buildSectorChips(
+            selected: dep.sectors,
+            onToggle: (sector, selected) => _setDependentSector(dep, sector, selected),
+            textCol: textCol,
+            borderCol: borderCol,
+            primaryCol: primaryCol,
+          ),
+          _buildSectorWarnings(_sectorAgeWarnings(dep.sectors, dep.birthDate)),
+          const SizedBox(height: 14),
+
+          // Row 3 (only when needed): Year Level (students), PHIC No.
+          if (dep.sectors.contains('Student') || (moreOpen && dep.phicMember)) ...[
+            const SizedBox(height: 14),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: dep.sectors.contains('Student')
+                      ? _buildYearLevelField(
+                          value: dep.yearLevel,
+                          onChanged: (v) => setState(() => dep.yearLevel = v),
+                          isDark: isDark,
+                          textCol: textCol,
+                          borderCol: borderCol,
+                          primaryCol: primaryCol,
+                          subtextCol: subtextCol,
+                        )
+                      : const SizedBox.shrink(),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: moreOpen && dep.phicMember
+                      ? _buildTextField(
+                          controller: dep.phicNoCtrl,
+                          label: 'PhilHealth (PHIC) No.',
+                          hint: '12-digit number',
+                          textCol: textCol,
+                          borderCol: borderCol,
+                          fillCol: inputFill,
+                          primaryCol: primaryCol,
+                        )
+                      : const SizedBox.shrink(),
+                ),
+                const SizedBox(width: 10),
+                const Expanded(flex: 2, child: SizedBox.shrink()),
+              ],
+            ),
+          ],
           if (moreOpen) ...[
             const SizedBox(height: 12),
             Wrap(
@@ -2898,6 +2910,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       (label: 'Last and first name', done: hasName),
       (label: 'Birthday', done: _birthDate != null),
       (label: 'Gender', done: _gender != null),
+      (label: 'Membership date', done: _membershipDate != null),
       if (_selectedSectors.contains('Student')) (label: 'Year level', done: _yearLevel != null),
       (label: 'LGU and barangay', done: _lgu.isNotEmpty && _barangay.isNotEmpty),
       (label: 'Purok', done: _purok.isNotEmpty),

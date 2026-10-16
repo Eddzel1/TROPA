@@ -170,6 +170,12 @@ class MemberListNotifier extends StateNotifier<AsyncValue<List<FamilyMember>>> {
     }
   }
 
+  /// Returns whether the member's old household was deleted; throws if the transfer failed.
+  Future<bool> transferMember(String memberId, String targetHouseholdId) {
+    final service = ref.read(supabaseServiceProvider);
+    return service.transferMember(memberId: memberId, targetHouseholdId: targetHouseholdId);
+  }
+
   Future<bool> deleteMember(String id) async {
     try {
       final service = ref.read(supabaseServiceProvider);

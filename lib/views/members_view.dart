@@ -11,6 +11,7 @@ import '../models/models.dart';
 import '../providers/auth_provider.dart';
 import '../providers/member_provider.dart';
 import '../widgets/member_form_dialog.dart';
+import '../widgets/transfer_member_dialog.dart';
 import '../core/ph_time.dart';
 
 class MembersView extends ConsumerStatefulWidget {
@@ -485,6 +486,14 @@ class _MembersViewState extends ConsumerState<MembersView> {
                                   icon: Icon(Icons.edit_outlined, size: 18, color: isDark ? null : Colors.grey[700]),
                                   tooltip: 'Edit TROPA Member',
                                   onPressed: () => _openMemberDialog(m),
+                                ),
+                                IconButton(
+                                  icon: Icon(Icons.swap_horiz, size: 18, color: isDark ? null : Colors.grey[700]),
+                                  tooltip: 'Transfer to Household',
+                                  onPressed: () => showDialog<bool>(
+                                    context: context,
+                                    builder: (_) => TransferMemberDialog(member: m),
+                                  ),
                                 ),
                                 IconButton(
                                   icon: const Icon(Icons.delete_outline, size: 18, color: TropaColors.error),

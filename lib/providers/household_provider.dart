@@ -6,22 +6,26 @@ import 'auth_provider.dart';
 
 class HouseholdFilter {
   final String query;
+  final String lgu;
   final String barangay;
   final int page;
 
   const HouseholdFilter({
     this.query = '',
+    this.lgu = 'All',
     this.barangay = 'All',
     this.page = 0,
   });
 
   HouseholdFilter copyWith({
     String? query,
+    String? lgu,
     String? barangay,
     int? page,
   }) {
     return HouseholdFilter(
       query: query ?? this.query,
+      lgu: lgu ?? this.lgu,
       barangay: barangay ?? this.barangay,
       page: page ?? this.page,
     );
@@ -37,6 +41,7 @@ final householdsAsyncProvider = FutureProvider<List<Household>>((ref) async {
   final filter = ref.watch(householdFilterProvider);
   return service.getHouseholds(
     query: filter.query,
+    lgu: filter.lgu == 'All' ? null : filter.lgu,
     barangay: filter.barangay == 'All' ? null : filter.barangay,
     page: filter.page,
     pageSize: 50,
@@ -84,6 +89,7 @@ class HouseholdListNotifier extends StateNotifier<AsyncValue<List<Household>>> {
       final filter = ref.read(householdFilterProvider);
       final list = await service.getHouseholds(
         query: filter.query,
+        lgu: filter.lgu == 'All' ? null : filter.lgu,
         barangay: filter.barangay == 'All' ? null : filter.barangay,
         page: filter.page,
       );

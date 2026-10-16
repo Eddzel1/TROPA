@@ -78,15 +78,15 @@
     "semantic_hash": ""
   },
   "lib/providers/household_provider.dart": {
-    "mtime": 1791949439.3376558,
-    "seen": 1791949448.3617332,
-    "ast_hash": "f685c8a21cbeac981e5a6dbaada4d7b1",
+    "mtime": 1792127322.0986507,
+    "seen": 1792127340.678439,
+    "ast_hash": "7b56e87ddcbce320da1bc637a8c4277a",
     "semantic_hash": ""
   },
   "lib/providers/member_provider.dart": {
-    "mtime": 1791949046.0200891,
-    "seen": 1791949448.361734,
-    "ast_hash": "6d04e90d7623bdf940cb2de9223abdb2",
+    "mtime": 1792124092.819799,
+    "seen": 1792124138.11123,
+    "ast_hash": "be58e38286cf65d5fd9fb1eba22e67ae",
     "semantic_hash": ""
   },
   "lib/providers/voter_provider.dart": {
@@ -108,9 +108,9 @@
     "semantic_hash": "d34bcb48339eb642fe79df1daded427e"
   },
   "lib/services/supabase_service.dart": {
-    "mtime": 1792111099.7019954,
-    "seen": 1792111142.295212,
-    "ast_hash": "082a504b457e896d022f7fbcf9e8e134",
+    "mtime": 1792127322.0989919,
+    "seen": 1792127340.6784441,
+    "ast_hash": "b861c20f6c9a56f8f49c4ffda4c7d3cd",
     "semantic_hash": ""
   },
   "lib/views/audit_logs_view.dart": {
@@ -138,9 +138,9 @@
     "semantic_hash": ""
   },
   "lib/views/households_view.dart": {
-    "mtime": 1792111099.6110022,
-    "seen": 1792111142.2952151,
-    "ast_hash": "517227e324fb1c3b330ba7ca99f67f6b",
+    "mtime": 1792127333.8524766,
+    "seen": 1792127340.6784482,
+    "ast_hash": "8c043ff48b1a87951a89b5b0af5f569f",
     "semantic_hash": ""
   },
   "lib/views/login_view.dart": {
@@ -150,9 +150,9 @@
     "semantic_hash": ""
   },
   "lib/views/members_view.dart": {
-    "mtime": 1792111099.6262724,
-    "seen": 1792111142.295216,
-    "ast_hash": "f7f002dbe62d78f9abe94475b08a49fe",
+    "mtime": 1792124125.090887,
+    "seen": 1792124138.111238,
+    "ast_hash": "0c727a708db7365842fcbe52439b9a4a",
     "semantic_hash": ""
   },
   "lib/views/reports_view.dart": {
@@ -186,15 +186,15 @@
     "semantic_hash": ""
   },
   "lib/widgets/household_view_dialog.dart": {
-    "mtime": 1792113264.907616,
-    "seen": 1792113267.886284,
-    "ast_hash": "8a02406d799cc8fdfc436778a895c184",
+    "mtime": 1792124125.0912077,
+    "seen": 1792124138.1112452,
+    "ast_hash": "0b8f1bb005b2b96b3571007edf756faf",
     "semantic_hash": ""
   },
   "lib/widgets/member_form_dialog.dart": {
-    "mtime": 1792112988.8214939,
-    "seen": 1792113013.274543,
-    "ast_hash": "c984e2b53ee4dcd329d3193ecd6e12cc",
+    "mtime": 1792127002.743115,
+    "seen": 1792127040.743958,
+    "ast_hash": "e8406682d879d64ec18af5a62676d8b0",
     "semantic_hash": ""
   },
   "lib/widgets/tropa_map_widget.dart": {
@@ -543,6 +543,18 @@
     "mtime": 1792112921.635287,
     "seen": 1792112975.49656,
     "ast_hash": "2f46a6f706ca0b8166f6efe6d556c40b",
+    "semantic_hash": ""
+  },
+  "lib/widgets/transfer_member_dialog.dart": {
+    "mtime": 1792124114.7607594,
+    "seen": 1792124138.111247,
+    "ast_hash": "ccbdc8540c888911e36d11f70011e367",
+    "semantic_hash": ""
+  },
+  "vercel.json": {
+    "mtime": 1792117391.66294,
+    "seen": 1792124138.111259,
+    "ast_hash": "a29fc16e182c94a1bdc816f5ebe00864",
     "semantic_hash": ""
   }
 }

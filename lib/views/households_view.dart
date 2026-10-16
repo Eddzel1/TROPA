@@ -300,6 +300,37 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
     );
   }
 
+  void _applyFilter(HouseholdFilter Function(HouseholdFilter) update) {
+    ref.read(householdFilterProvider.notifier).update(update);
+    ref.read(householdListNotifierProvider.notifier).refresh();
+  }
+
+  Widget _filterDropdown({
+    required String value,
+    required String allLabel,
+    required List<String> options,
+    required ValueChanged<String> onChanged,
+  }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textCol = isDark ? TropaColors.darkOnSurface : TropaColors.lightOnSurface;
+    // Keep the selection valid while locations are still loading
+    final items = ['All', ...options, if (value != 'All' && !options.contains(value)) value];
+    return DropdownButtonFormField<String>(
+      value: value,
+      isExpanded: true,
+      icon: Icon(Icons.keyboard_arrow_down, size: 18, color: textCol),
+      dropdownColor: isDark ? TropaColors.darkSurface8dp : Colors.white,
+      style: TropaStyles.fieldText(context),
+      decoration: TropaStyles.filterField(context),
+      items: items
+          .map((o) => DropdownMenuItem(value: o, child: Text(o == 'All' ? allLabel : o, overflow: TextOverflow.ellipsis)))
+          .toList(),
+      onChanged: (v) {
+        if (v != null) onChanged(v);
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final filter = ref.watch(householdFilterProvider);
@@ -310,6 +341,13 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
     final borderCol = isDark ? TropaColors.darkOutlineVariant : const Color(0xFFE2E8F0);
     final textCol = isDark ? TropaColors.darkOnSurface : TropaColors.lightOnSurface;
     final subtextCol = isDark ? TropaColors.darkOnSurfaceVariant : TropaColors.lightOnSurfaceVariant;
+    final locations = ref.watch(locationsProvider).valueOrNull ?? const <LocationOption>[];
+    final lgus = ({for (final l in locations) if (l.lgu.isNotEmpty) l.lgu}).toList()..sort();
+    final barangays = ({
+      for (final l in locations)
+        if (l.barangay.isNotEmpty && (filter.lgu == 'All' || l.lgu == filter.lgu)) l.barangay
+    }).toList()
+      ..sort();
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -367,24 +405,22 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
                 const SizedBox(width: 14),
                 Expanded(
                   flex: 2,
-                  child: DropdownButtonFormField<String>(
+                  child: _filterDropdown(
+                    value: filter.lgu,
+                    allLabel: 'All LGUs',
+                    options: lgus,
+                    // Barangay list depends on the LGU, so reset it when the LGU changes
+                    onChanged: (v) => _applyFilter((f) => f.copyWith(lgu: v, barangay: 'All')),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  flex: 2,
+                  child: _filterDropdown(
                     value: filter.barangay,
-                    isExpanded: true,
-                    icon: Icon(Icons.keyboard_arrow_down, size: 18, color: textCol),
-                    dropdownColor: isDark ? TropaColors.darkSurface8dp : Colors.white,
-                    style: TropaStyles.fieldText(context),
-                    decoration: TropaStyles.filterField(context),
-                    items: _barangays
-                        .map((b) => DropdownMenuItem(value: b, child: Text(b == 'All' ? 'All Barangays' : b, overflow: TextOverflow.ellipsis)))
-                        .toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        ref.read(householdFilterProvider.notifier).update(
-                          (s) => s.copyWith(barangay: val),
-                        );
-                        ref.read(householdListNotifierProvider.notifier).refresh();
-                      }
-                    },
+                    allLabel: 'All Barangays',
+                    options: barangays,
+                    onChanged: (v) => _applyFilter((f) => f.copyWith(barangay: v)),
                   ),
                 ),
                 const SizedBox(width: 12),

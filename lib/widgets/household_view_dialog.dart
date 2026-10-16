@@ -7,6 +7,7 @@ import '../providers/household_provider.dart';
 import '../providers/member_provider.dart';
 import 'bulk_add_member_dialog.dart';
 import 'member_form_dialog.dart';
+import 'transfer_member_dialog.dart';
 
 class HouseholdViewDialog extends ConsumerStatefulWidget {
   final Household household;
@@ -79,6 +80,20 @@ class _HouseholdViewDialogState extends ConsumerState<HouseholdViewDialog> {
       _fetchRoster();
       ref.read(householdListNotifierProvider.notifier).refresh();
     }
+  }
+
+  void _openTransferMember(FamilyMember member) async {
+    final moved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => TransferMemberDialog(member: member),
+    );
+    if (moved != true || !mounted) return;
+    // The household closes itself when its last member leaves (it was deleted by the transfer).
+    if (_roster.length <= 1) {
+      Navigator.of(context).pop();
+      return;
+    }
+    _fetchRoster();
   }
 
   @override
@@ -430,6 +445,11 @@ class _HouseholdViewDialogState extends ConsumerState<HouseholdViewDialog> {
                                         icon: const Icon(Icons.edit_outlined, size: 16),
                                         tooltip: 'Edit Dependent',
                                         onPressed: () => _openEditMember(m),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.swap_horiz, size: 16),
+                                        tooltip: 'Transfer to Household',
+                                        onPressed: () => _openTransferMember(m),
                                       ),
                                       IconButton(
                                         icon: const Icon(Icons.delete_outline, size: 16, color: TropaColors.error),
