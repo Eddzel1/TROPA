@@ -1,0 +1,39 @@
+# Netlify has no Flutter SDK, so the build clones the pinned Flutter version first. The .env asset
+# is written from the SUPABASE_URL / SUPABASE_ANON_KEY / POWERSYNC_URL site environment variables.
+[build]
+  command = """
+    ([ -x /tmp/flutter/bin/flutter ] || git clone --depth 1 --branch 3.47.7 https://github.com/flutter/flutter.git /tmp/flutter) && \
+    /tmp/flutter/bin/flutter config --no-analytics --enable-web && \
+    printf 'SUPABASE_URL=%s\\nSUPABASE_ANON_KEY=%s\\nPOWERSYNC_URL=%s\\n' "$SUPABASE_URL" "$SUPABASE_ANON_KEY" "$POWERSYNC_URL" > .env && \
+    PATH=/tmp/flutter/bin:$PATH bash scripts/build_web.sh
+  """
+  publish = "build/web"
+
+# Single-page app: unknown paths serve index.html (existing files still win, since this isn't forced).
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*.wasm"
+  [headers.values]
+    Content-Type = "application/wasm"
+
+# Files that must be re-checked on every launch so new deploys (and the offline worker) are picked up.
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+[[headers]]
+  for = "/flutter_bootstrap.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+[[headers]]
+  for = "/version.json"
+  [headers.values]
+    Cache-Control = "no-cache"
