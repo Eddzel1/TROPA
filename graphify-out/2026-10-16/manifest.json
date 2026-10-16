@@ -564,9 +564,9 @@
     "semantic_hash": ""
   },
   "lib/services/fallback_sync.dart": {
-    "mtime": 1792141487.80682,
-    "seen": 1792141535.235476,
-    "ast_hash": "2d3c9bdcb0e123ec66315c2b07912075",
+    "mtime": 1792142703.3463812,
+    "seen": 1792142713.7355661,
+    "ast_hash": "61885232d27327f58e48005acaf59121",
     "semantic_hash": ""
   },
   "supabase/migrations/20261016000000_fallback_sync.sql": {

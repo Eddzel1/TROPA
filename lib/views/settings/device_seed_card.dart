@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -78,7 +79,8 @@ class _DeviceSeedCardState extends ConsumerState<DeviceSeedCard> {
       context,
       title: 'Download starter database',
       message: 'Replaces the data on this device with the published starter database, then catches up '
-          'with recent changes. The app reloads when it finishes.',
+          'with recent changes. The app reloads when it finishes.'
+          '${kIsWeb ? '\n\nClose any other TROPA tabs in this browser first.' : ''}',
       confirmLabel: 'Download',
     );
     if (!ok || !mounted) return;
@@ -124,7 +126,8 @@ class _DeviceSeedCardState extends ConsumerState<DeviceSeedCard> {
             label: const Text('Download starter database'),
           ),
           FilledButton.icon(
-            onPressed: !deviceSeedSupported || busy || installProgress != null ? null : _publish,
+            // Publishing copies the database file, which only the desktop app can do.
+            onPressed: kIsWeb || busy || installProgress != null ? null : _publish,
             icon: const Icon(Icons.publish, size: 18),
             label: const Text('Publish starter database'),
           ),
@@ -159,10 +162,11 @@ class _DeviceSeedCardState extends ConsumerState<DeviceSeedCard> {
                 ],
               ),
             ],
-            if (!deviceSeedSupported) ...[
+            if (kIsWeb) ...[
               const SizedBox(height: 8),
-              Text('Available in the desktop app only.', style: p.meta),
-            ] else if (pending > 0) ...[
+              Text('Publishing needs the desktop app; downloading works here.', style: p.meta),
+            ],
+            if (pending > 0) ...[
               const SizedBox(height: 8),
               Text('Download is disabled while $pending change${pending == 1 ? '' : 's'} on this device wait to upload.',
                   style: p.meta),

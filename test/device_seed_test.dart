@@ -13,6 +13,15 @@ void main() {
     ]);
   });
 
+  test('accepts starter databases from the same or an older PowerSync core', () {
+    expect(coreVersionAccepts(device: '0.4.11/024d5eb0', seed: '0.4.11/024d5eb0'), isTrue);
+    expect(coreVersionAccepts(device: '0.4.11/aaaa', seed: '0.4.11/bbbb'), isTrue, reason: 'build hash ignored');
+    expect(coreVersionAccepts(device: '0.4.12/x', seed: '0.4.11/y'), isTrue);
+    expect(coreVersionAccepts(device: '0.5.0/x', seed: '0.4.11/y'), isTrue);
+    expect(coreVersionAccepts(device: '0.4.10/x', seed: '0.4.11/y'), isFalse);
+    expect(coreVersionAccepts(device: '0.4.11/x', seed: ''), isFalse);
+  });
+
   test('exact multiples and small files', () {
     expect(seedPartRanges(80, 40), [(start: 0, end: 40), (start: 40, end: 80)]);
     expect(seedPartRanges(10, 40), [(start: 0, end: 10)]);

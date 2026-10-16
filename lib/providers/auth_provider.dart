@@ -55,13 +55,6 @@ class AppUserNotifier extends StateNotifier<AsyncValue<AppUser?>> {
       final res = await _service.client.auth.signInWithPassword(email: email, password: password);
       final userId = res.user!.id;
 
-      final owner = await OfflineAuth.localDbOwner();
-      if (owner != null && owner != userId && await pendingUploadCount() > 0) {
-        // Switching users wipes the local database; don't throw away the previous user's edits.
-        await _endSession();
-        return 'The previous user has changes on this device that have not synced yet. '
-            'Sign in as that user while online so they upload, then try again.';
-      }
       // Check the profile before setting up local data (falls back to Supabase on a fresh device).
       final profile = await _service.getCurrentAppUser();
       if (profile == null || profile.status != 'active') {

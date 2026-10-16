@@ -111,16 +111,16 @@ Future<void> openLocalDatabase() async {
 
   auth.onAuthStateChange.listen((data) {
     // The session was ended (explicitly or revoked server-side). Keep the local data for offline
-    // use; it is only wiped when a different user signs in (see [useLocalDbFor]).
+    // use and for whoever signs in next (see [useLocalDbFor]).
     if (data.event == AuthChangeEvent.signedOut) localDb.disconnect().ignore();
   });
 }
 
-/// Points the local database at [userId]'s data and starts syncing. If another user's data is on
-/// this device it is wiped first, so users never see each other's local copy.
+/// Starts syncing the local database for [userId]. The sync rules give every user the same data,
+/// so the local copy is shared by everyone on this device and kept when users switch: wiping it
+/// would only force another full download. Edits still waiting to upload go out with the new
+/// session.
 Future<void> useLocalDbFor(String userId) async {
-  final owner = await OfflineAuth.localDbOwner();
-  if (owner != null && owner != userId) await localDb.disconnectAndClear();
   await OfflineAuth.setLocalDbOwner(userId);
   // A fresh device starts from the published starter database instead of a full PowerSync
   // download (no-op otherwise, and falls back to a full sync on any problem).

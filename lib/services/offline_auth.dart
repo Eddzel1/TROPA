@@ -21,7 +21,7 @@ class OfflineAuth {
   static Future<void> setLocked(bool locked) async =>
       (await SharedPreferences.getInstance()).setBool(_lockedKey, locked);
 
-  /// Supabase user id whose data is in the local database, or null if it has never synced.
+  /// Supabase user id that last used the local database on this device, or null if none has.
   static Future<String?> localDbOwner() async => (await SharedPreferences.getInstance()).getString(_ownerKey);
 
   static Future<void> setLocalDbOwner(String userId) async =>
