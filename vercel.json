@@ -1,0 +1,18 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "(command -v unzip >/dev/null || dnf install -y unzip xz) && git clone --depth 1 --branch 3.47.7 https://github.com/flutter/flutter.git /tmp/flutter && /tmp/flutter/bin/flutter config --no-analytics --enable-web && /tmp/flutter/bin/flutter pub get",
+  "buildCommand": "printf 'SUPABASE_URL=%s\\nSUPABASE_ANON_KEY=%s\\nPOWERSYNC_URL=%s\\n' \"$SUPABASE_URL\" \"$SUPABASE_ANON_KEY\" \"$POWERSYNC_URL\" > .env && PATH=/tmp/flutter/bin:$PATH bash scripts/build_web.sh",
+  "outputDirectory": "build/web",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
+  "headers": [
+    {
+      "source": "/(.*)\\.wasm",
+      "headers": [{ "key": "Content-Type", "value": "application/wasm" }]
+    },
+    {
+      "source": "/(index.html|sw.js|flutter_service_worker.js|flutter_bootstrap.js|version.json)",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
+    }
+  ]
+}
