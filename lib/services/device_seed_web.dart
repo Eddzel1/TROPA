@@ -25,6 +25,35 @@ Future<Uint8List> _gunzip(Uint8List gz) async {
   return buffer.toDart.asUint8List();
 }
 
+/// The storage holding PowerSync's existing `tropa.db`, so the starter file replaces that one.
+///
+/// PowerSync opens its (empty) database at app start, so on a new browser exactly one exists.
+/// Letting the browser "recommend" a storage can pick a different one (OPFS while PowerSync uses
+/// IndexedDB), and PowerSync would never see the file. If an earlier attempt left copies in
+/// several storages, IndexedDB is kept (where PowerSync has been observed to live) and the other
+/// copies are deleted so the next open is unambiguous.
+Future<DatabaseImplementation?> _powerSyncStorage(WebSqlite sqlite) async {
+  final features = await sqlite.runFeatureDetection(databaseName: localDbPath);
+  debugPrint('Starter database: browser storage $features');
+  final existing = {for (final (storage, name) in features.existingDatabases) if (name == localDbPath) storage};
+  if (existing.isEmpty) return null;
+
+  final target = existing.contains(StorageMode.indexedDb) ? StorageMode.indexedDb : existing.first;
+  for (final other in existing.where((s) => s != target)) {
+    try {
+      await sqlite.deleteDatabase(name: localDbPath, storage: other);
+      debugPrint('Starter database: removed a stray copy in ${other.name} storage.');
+    } catch (e) {
+      debugPrint('Starter database: could not remove the copy in ${other.name} storage: $e');
+    }
+  }
+
+  final candidates = features.availableImplementations.where((i) => i.storage == target).toList()
+    // Prefer the shared worker, which is how PowerSync opens IndexedDB databases across tabs.
+    ..sort((a, b) => (a.access == AccessMode.throughSharedWorker ? 0 : 1) - (b.access == AccessMode.throughSharedWorker ? 0 : 1));
+  return candidates.isEmpty ? null : candidates.first;
+}
+
 bool _installing = false;
 
 /// Browser version of the desktop install: same checks, then the downloaded file replaces the
@@ -43,8 +72,13 @@ Future<bool> installDeviceSeed({required bool force}) async {
     deviceSeedProgress.value = 'Setting up this device: unpacking starter data…';
     final bytes = await _gunzip(gz.takeBytes());
 
+    debugPrint('Starter database: unpacked ${seedMb(bytes.length)} MB.');
+
     // Re-check right before swapping: the app may have been used while this downloaded.
-    if (await pendingUploadCount() > 0 || (!force && !await isFreshLocalDb())) return false;
+    if (await pendingUploadCount() > 0 || (!force && !await isFreshLocalDb())) {
+      debugPrint('Starter database: skipped, this device changed while downloading.');
+      return false;
+    }
 
     deviceSeedProgress.value = 'Setting up this device: installing starter data…';
     await localDb.disconnect();
@@ -57,13 +91,17 @@ Future<bool> installDeviceSeed({required bool force}) async {
         worker: Uri.parse('powersync_db.worker.js'),
         wasmModule: Uri.parse('sqlite3.wasm'),
       );
-      final storage = await sqlite.connectToRecommended(localDbPath, onlyOpenVfs: true);
-      await storage.database.fileSystem.writeFile(FileType.journal, Uint8List(0));
-      await storage.database.fileSystem.writeFile(FileType.database, bytes);
-      await storage.database.fileSystem.flush();
+      final implementation = await _powerSyncStorage(sqlite);
+      debugPrint('Starter database: writing into ${implementation?.name ?? 'recommended'} storage.');
+      final database = implementation == null
+          ? (await sqlite.connectToRecommended(localDbPath, onlyOpenVfs: true)).database
+          : await sqlite.connect(localDbPath, implementation, onlyOpenVfs: true);
+      await database.fileSystem.writeFile(FileType.journal, Uint8List(0));
+      await database.fileSystem.writeFile(FileType.database, bytes);
+      await database.fileSystem.flush();
       replaced = true;
       try {
-        await storage.database.dispose();
+        await database.dispose();
       } catch (_) {
         // sqlite3_web 0.4.1 throws "Null check operator used on a null value" when closing a
         // storage-only (onlyOpenVfs) connection, because no database was opened on it. The file is

@@ -77,13 +77,18 @@ Future<bool> isFreshLocalDb() async {
 /// With [force] (the Settings button) the reason is thrown instead of returning null.
 Future<Map<String, dynamic>?> seedManifestToInstall({required bool force}) async {
   if (await pendingUploadCount() > 0) {
+    debugPrint('Starter database: skipped, changes are waiting to upload.');
     if (force) throw StateError('This device has changes that have not uploaded yet. Wait until they sync.');
     return null;
   }
-  if (!force && !await isFreshLocalDb()) return null;
+  if (!force && !await isFreshLocalDb()) {
+    debugPrint('Starter database: skipped, this device already has synced data.');
+    return null;
+  }
 
   final manifest = await fetchDeviceSeedManifest(Supabase.instance.client);
   if (manifest == null) {
+    debugPrint('Starter database: skipped, none published (or no connection).');
     if (force) throw StateError('No starter database has been published yet (or there is no connection).');
     return null;
   }
@@ -94,6 +99,7 @@ Future<Map<String, dynamic>?> seedManifestToInstall({required bool force}) async
     if (force) throw StateError('The starter database was published by a newer app version. Update the app.');
     return null;
   }
+  debugPrint('Starter database: installing ${manifest['version']} (${seedMb((manifest['bytes'] as num?)?.toInt() ?? 0)} MB).');
   return manifest;
 }
 
@@ -130,6 +136,14 @@ Future<void> reopenLocalDb({required bool replaced}) async {
   await localDb.initialize();
   if (replaced) {
     await localDb.execute("INSERT OR REPLACE INTO ps_kv (key, value) VALUES ('client_id', ?)", [const Uuid().v4()]);
+  }
+  try {
+    final check = await localDb.get("SELECT (SELECT COUNT(*) FROM ps_buckets WHERE name <> '\$local') AS buckets, "
+        '(SELECT COUNT(*) FROM family_members) AS members, (SELECT COUNT(*) FROM households) AS households');
+    debugPrint('Starter database: reopened (replaced: $replaced) with ${check['buckets']} sync bucket(s), '
+        '${check['members']} members, ${check['households']} households.');
+  } catch (e) {
+    debugPrint('Starter database: reopened (replaced: $replaced), check failed: $e');
   }
   dbGeneration.value++;
 }
