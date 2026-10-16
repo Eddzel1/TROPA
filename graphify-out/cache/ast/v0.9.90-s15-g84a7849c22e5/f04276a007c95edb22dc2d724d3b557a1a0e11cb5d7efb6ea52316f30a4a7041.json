@@ -1,0 +1,1 @@
+{"nodes": [{"id": "$graphify-root$_supabase_migrations_20261014000000_powersync_puroks_sql", "label": "20261014000000_powersync_puroks.sql", "file_type": "code", "source_file": "supabase/migrations/20261014000000_powersync_puroks.sql", "source_location": null}], "edges": []}

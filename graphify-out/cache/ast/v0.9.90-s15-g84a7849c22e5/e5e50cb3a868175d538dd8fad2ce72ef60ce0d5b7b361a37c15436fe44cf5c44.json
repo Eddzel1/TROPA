@@ -1,0 +1,1 @@
+{"nodes": [{"id": "$graphify-root$_supabase_migrations_20261014030000_kalilangan_barangay_coordinates_sql", "label": "20261014030000_kalilangan_barangay_coordinates.sql", "file_type": "code", "source_file": "supabase/migrations/20261014030000_kalilangan_barangay_coordinates.sql", "source_location": null}], "edges": []}

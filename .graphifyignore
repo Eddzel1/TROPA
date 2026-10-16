@@ -1,0 +1,17 @@
+# Build / tooling output
+build/
+.dart_tool/
+.idea/
+.flutter-plugins-dependencies
+pubspec.lock
+*.iml
+# Platform scaffolding (generated)
+macos/
+windows/
+web/
+# Secrets
+.env
+.env.*
+# Design screenshots
+*.png
+graphify-out/

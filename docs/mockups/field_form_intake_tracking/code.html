@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Manrope:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "error-container": "#93000a", "surface-container-highest": "#2d3449", "secondary-fixed": "#6ffbbe", "error": "#ffb4ab", "on-error": "#690005", "primary-container": "#38bdf8", "on-tertiary-container": "#613b00", "background": "#0b1326", "inverse-primary": "#00668a", "inverse-on-surface": "#283044", "surface-bright": "#31394d", "on-tertiary": "#472a00", "surface-dim": "#0b1326", "on-primary-fixed-variant": "#004c69", "surface-variant": "#2d3449", "secondary-fixed-dim": "#4edea3", "on-surface-variant": "#bdc8d1", "on-tertiary-fixed-variant": "#653e00", "secondary": "#4edea3", "on-secondary-container": "#00311f", "on-surface": "#dae2fd", "secondary-container": "#00a572", "primary": "#8ed5ff", "on-primary": "#00354a", "surface-tint": "#7bd0ff", "outline-variant": "#3e484f", "tertiary": "#ffc174", "surface-container-low": "#131b2e", "surface": "#0b1326", "tertiary-container": "#f59e0b", "surface-container": "#171f33", "on-primary-container": "#004965", "tertiary-fixed-dim": "#ffb95f", "on-background": "#dae2fd", "on-secondary-fixed-variant": "#005236", "primary-fixed": "#c4e7ff", "surface-container-high": "#222a3d", "inverse-surface": "#dae2fd", "on-secondary": "#003824", "on-tertiary-fixed": "#2a1700", "tertiary-fixed": "#ffddb8", "primary-fixed-dim": "#7bd0ff", "on-secondary-fixed": "#002113", "on-error-container": "#ffdad6", "surface-container-lowest": "#060e20", "outline": "#87929a", "on-primary-fixed": "#001e2c" }, "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" }, "spacing": { "gutter-mobile": "0.75rem", "space-xl": "2.5rem", "margin-mobile": "1rem", "space-lg": "1.5rem", "space-xs": "0.25rem", "margin": "2rem", "space-sm": "0.5rem", "space-md": "1rem", "gutter": "1.5rem" }, "fontFamily": { "body-md": ["Inter"], "body-lg": ["Inter"], "headline-xl-mobile": ["Manrope"], "headline-xl": ["Manrope"], "headline-md": ["Manrope"], "label-md": ["JetBrains Mono"], "label-lg": ["Inter"], "body-sm": ["Inter"], "label-sm": ["JetBrains Mono"], "headline-lg": ["Manrope"] }, "fontSize": { "body-md": ["0.875rem", { "lineHeight": "1.25rem", "fontWeight": "400" }], "body-lg": ["1rem", { "lineHeight": "1.5rem", "fontWeight": "400" }], "headline-xl-mobile": ["1.75rem", { "lineHeight": "2.25rem", "letterSpacing": "-0.01em", "fontWeight": "700" }], "headline-xl": ["2.25rem", { "lineHeight": "2.75rem", "letterSpacing": "-0.02em", "fontWeight": "700" }], "headline-md": ["1.25rem", { "lineHeight": "1.75rem", "fontWeight": "600" }], "label-md": ["0.75rem", { "lineHeight": "1rem", "letterSpacing": "0.02em", "fontWeight": "500" }], "label-lg": ["0.875rem", { "lineHeight": "1.25rem", "fontWeight": "500" }], "body-sm": ["0.75rem", { "lineHeight": "1rem", "fontWeight": "400" }], "label-sm": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.04em", "fontWeight": "400" }], "headline-lg": ["1.5rem", { "lineHeight": "2rem", "letterSpacing": "-0.015em", "fontWeight": "600" }] } } } }</script></head><body class="bg-surface font-body-md text-on-surface antialiased"><aside class="fixed left-0 top-0 h-full w-72 bg-surface-container-low shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-50 flex flex-col justify-between"><div class="flex flex-col flex-1 min-h-0"><div class="h-16 px-space-md flex items-center justify-between bg-surface-container-low"><div class="flex items-center gap-space-sm"><div class="w-9 h-9 rounded-xl bg-primary-container flex items-center justify-center"><span class="material-symbols-outlined text-on-primary-container text-[22px]">shield_person</span></div><div class="flex flex-col"><div class="flex items-center gap-space-xs"><span class="font-headline-md text-headline-md font-bold tracking-tight text-on-surface">TROPA</span><span class="font-label-sm text-label-sm px-1.5 py-0.5 rounded-full bg-surface-container-highest text-primary font-semibold">v2.0</span></div><span class="font-label-sm text-label-sm text-on-surface-variant truncate max-w-[140px]">Tabang Respeto Og Panalipud</span></div></div><div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-secondary-container/20"><span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span><span class="font-label-sm text-label-sm text-secondary font-medium">ACTIVE</span></div></div><div class="px-space-md py-space-sm"><div class="px-space-sm py-space-xs rounded-xl bg-surface-container flex items-center gap-space-sm"><span class="material-symbols-outlined text-primary text-[18px]">corporate_fare</span><span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">METRO COOP UNION #104</span></div></div><nav class="flex-1 px-space-sm py-space-xs space-y-1 overflow-y-auto" data-active-classes="bg-primary-container text-on-primary-container font-semibold shadow-sm"><a class="flex items-center px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-lg text-label-lg" data-path="dashboard" href="#">Dashboard</a><a class="flex items-center px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-lg text-label-lg" data-path="households" href="#">Households</a><a class="flex items-center px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-lg text-label-lg" data-path="members" href="#">Members Directory</a><a class="flex items-center px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-lg text-label-lg" data-path="dues" href="#">Dues &amp; Ledger</a><a class="flex items-center px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-lg text-label-lg" data-path="reports" href="#">Reports &amp; Exports</a><a aria-current="page" class="flex items-center px-space-md py-2.5 rounded-xl transition-colors bg-primary-container text-on-primary-container font-semibold shadow-sm" data-path="form-tracking" href="#">Form Tracking</a><a class="flex items-center px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-lg text-label-lg" data-path="tropa-finder" href="#">Tropa Finder</a><div class="pt-space-sm pb-space-xs px-space-md"><span class="font-label-sm text-label-sm uppercase tracking-wider text-outline">System Admin</span></div><a class="flex items-center px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-lg text-label-lg" data-path="settings" href="#">Settings</a><a class="flex items-center px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-lg text-label-lg" data-path="logs" href="#">Audit Logs</a></nav></div><div class="p-space-md bg-surface-container-low"><div class="p-space-sm rounded-xl bg-surface-container flex items-center justify-between"><div class="flex items-center gap-space-xs"><span class="material-symbols-outlined text-secondary text-[16px]">cloud_done</span><span class="font-label-sm text-label-sm text-on-surface-variant">v2.4.11-prod</span></div><a class="text-on-surface-variant hover:text-on-surface transition-colors" data-path="login" href="#"><span class="material-symbols-outlined text-[18px]">logout</span></a></div></div></aside><div class="pl-72"><header class="fixed top-0 left-72 right-0 h-16 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40"><div class="w-full h-16 px-space-md flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-sm"><div class="flex items-center text-on-surface-variant font-label-md text-label-md gap-1.5"><span class="material-symbols-outlined text-[16px]">domain</span><span class="hover:text-on-surface cursor-pointer">Cooperative</span><span class="text-outline">/</span><span class="text-on-surface font-semibold">Overview</span></div></div><div class="flex-1 max-w-md mx-space-md"><div class="relative flex items-center"><span class="material-symbols-outlined absolute left-3 text-outline text-[18px]">search</span><input class="w-full h-9 pl-9 pr-3 rounded-xl bg-surface-container text-on-surface placeholder:text-outline font-body-sm text-body-sm focus:outline-none focus:bg-surface-container-high transition-colors" placeholder="Search members, records, dues, or forms (Ctrl + K)..." type="text"/></div></div><div class="flex items-center gap-space-md"><div class="flex items-center gap-1.5 px-space-sm py-1 rounded-full bg-surface-container"><span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span><span class="font-label-sm text-label-sm text-on-surface font-medium">Online Sync</span></div><button aria-label="Toggle dark mode" class="w-9 h-9 rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-[20px]">dark_mode</span></button><button aria-label="View notifications" class="relative w-9 h-9 rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-[20px]">notifications</span><span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-tertiary-container"></span></button><div class="flex items-center gap-space-sm pl-space-xs"><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div><div class="flex flex-col"><div class="flex items-center gap-1.5"><span class="font-label-md text-label-md font-semibold text-on-surface">R. Del Rosario</span><span class="material-symbols-outlined text-outline text-[14px]">expand_more</span></div><span class="font-label-sm text-label-sm text-primary">Lead Admin</span></div></div></div></div></header><main class="w-full pt-16 bg-surface"><div class="flex flex-col w-full">
+<div class="px-space-md lg:px-margin py-space-lg flex flex-col gap-space-lg max-w-[1720px] mx-auto w-full">
+<!-- Contextual Breadcrumb & Header Zone -->
+<div class="flex flex-col xl:flex-row xl:items-center justify-between gap-space-md">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-2 text-on-surface-variant font-label-md text-label-md">
+<span class="text-outline uppercase tracking-wider">Operations</span>
+<span class="text-outline/60">/</span>
+<span class="text-primary font-semibold uppercase tracking-wider">Field Intake</span>
+<span class="w-1.5 h-1.5 rounded-full bg-secondary ml-1"></span>
+<span class="font-label-sm text-label-sm text-secondary">Physical Audit Mode</span>
+</div>
+<div class="flex items-baseline gap-space-sm flex-wrap">
+<h1 class="font-headline-xl text-headline-xl font-bold text-on-surface tracking-tight">Form Tracking &amp; Field Batch Intake</h1>
+<span class="font-label-md text-label-md px-2.5 py-0.5 rounded-full bg-surface-container-highest text-primary-fixed font-medium">Batch Run 2025-Q1</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-3xl">
+          Lifecycle monitoring of physical enumerator survey forms from field distribution to database digitization. Audits chains of custody across volunteer Purok leaders and encoder stations.
+        </p>
+</div>
+<!-- Action Controls -->
+<div class="flex items-center gap-space-sm flex-wrap">
+<button class="flex items-center gap-2 px-space-md py-2.5 rounded-xl bg-surface-container-high hover:bg-surface-bright text-on-surface transition-all duration-200 font-label-lg text-label-lg shadow-sm" id="openPrintSlipsBtn">
+<span class="material-symbols-outlined text-[18px] text-primary">receipt_long</span>
+<span>Print Intake Slips</span>
+</button>
+<button class="flex items-center gap-2 px-space-md py-2.5 rounded-xl bg-primary-container text-on-primary-container hover:bg-primary transition-all duration-200 font-label-lg text-label-lg font-semibold shadow-md" id="openIntakeModalBtn">
+<span class="material-symbols-outlined text-[20px]">add_circle</span>
+<span>+ Log New Batch Intake</span>
+</button>
+</div>
+</div>
+<!-- KPI Metric Cluster with Visual Telemetry -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-space-md">
+<!-- Metric 1: Total Distributed -->
+<div class="p-space-md rounded-xl bg-surface-container-low flex flex-col justify-between relative overflow-hidden shadow-sm group hover:bg-surface-container transition-colors">
+<div class="flex items-start justify-between">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline">Total Forms Distributed</span>
+<span class="font-headline-xl text-headline-xl font-bold text-on-surface mt-1">12,450</span>
+</div>
+<div class="w-10 h-10 rounded-xl bg-surface-container-highest flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[22px]">assignment</span>
+</div>
+</div>
+<div class="mt-4 flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm">
+<div class="flex items-center gap-1.5 text-secondary">
+<span class="material-symbols-outlined text-[16px]">arrow_upward</span>
+<span class="font-semibold">+8.4%</span>
+<span class="text-on-surface-variant">vs last run</span>
+</div>
+<span class="text-outline font-label-sm">48 Field Packets</span>
+</div>
+<!-- Micro sparkline indicator SVG -->
+<div class="absolute bottom-0 left-0 right-0 h-1 bg-surface-container-highest">
+<div class="h-full bg-primary-container" style="width: 100%;"></div>
+</div>
+</div>
+<!-- Metric 2: Encoded & Verified -->
+<div class="p-space-md rounded-xl bg-surface-container-low flex flex-col justify-between relative overflow-hidden shadow-sm group hover:bg-surface-container transition-colors">
+<div class="flex items-start justify-between">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline">Encoded &amp; Verified</span>
+<div class="flex items-baseline gap-2 mt-1">
+<span class="font-headline-xl text-headline-xl font-bold text-on-surface">10,820</span>
+<span class="font-label-md text-label-md px-1.5 py-0.5 rounded-full bg-secondary-container/20 text-secondary font-semibold">86.9%</span>
+</div>
+</div>
+<div class="w-10 h-10 rounded-xl bg-secondary-container/20 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[22px]">verified</span>
+</div>
+</div>
+<div class="mt-4 flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm">
+<span class="text-on-surface-variant">Digitized into central registry</span>
+<span class="font-mono text-secondary font-semibold">1,630 rem.</span>
+</div>
+<div class="absolute bottom-0 left-0 right-0 h-1 bg-surface-container-highest">
+<div class="h-full bg-secondary" style="width: 86.9%;"></div>
+</div>
+</div>
+<!-- Metric 3: Pending Queue -->
+<div class="p-space-md rounded-xl bg-surface-container-low flex flex-col justify-between relative overflow-hidden shadow-sm group hover:bg-surface-container transition-colors">
+<div class="flex items-start justify-between">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline">Pending in Encoding Queue</span>
+<span class="font-headline-xl text-headline-xl font-bold text-on-surface mt-1">1,180</span>
+</div>
+<div class="w-10 h-10 rounded-xl bg-tertiary-container/20 flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined text-[22px]">pending_actions</span>
+</div>
+</div>
+<div class="mt-4 flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm">
+<div class="flex items-center gap-1.5 text-tertiary">
+<span class="material-symbols-outlined text-[16px]">map</span>
+<span>Across 6 Puroks</span>
+</div>
+<span class="text-outline">Est. 14 hrs</span>
+</div>
+<div class="absolute bottom-0 left-0 right-0 h-1 bg-surface-container-highest">
+<div class="h-full bg-tertiary-container" style="width: 38%;"></div>
+</div>
+</div>
+<!-- Metric 4: Returned / Revision Needed -->
+<div class="p-space-md rounded-xl bg-surface-container-low flex flex-col justify-between relative overflow-hidden shadow-sm group hover:bg-surface-container transition-colors">
+<div class="flex items-start justify-between">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm uppercase tracking-wider text-outline">Returned / Revision Needed</span>
+<span class="font-headline-xl text-headline-xl font-bold text-error mt-1">450</span>
+</div>
+<div class="w-10 h-10 rounded-xl bg-error-container/20 flex items-center justify-center text-error">
+<span class="material-symbols-outlined text-[22px]">assignment_late</span>
+</div>
+</div>
+<div class="mt-4 flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm">
+<div class="flex items-center gap-1.5 text-error">
+<span class="material-symbols-outlined text-[16px]">priority_high</span>
+<span>Flagged for validation</span>
+</div>
+<span class="text-outline">3.6% error rate</span>
+</div>
+<div class="absolute bottom-0 left-0 right-0 h-1 bg-surface-container-highest">
+<div class="h-full bg-error" style="width: 14%;"></div>
+</div>
+</div>
+</div>
+<!-- Field Custody Operations Pipeline Summary Ribbon -->
+<div class="p-space-md rounded-xl bg-surface-container-low flex flex-col lg:flex-row items-center justify-between gap-space-md shadow-sm">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-primary-container/20 flex items-center justify-center text-primary shrink-0">
+<span class="material-symbols-outlined text-[20px]">sync_alt</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-lg text-label-lg font-semibold text-on-surface">Poblacion Sector Central Enumeration Hub</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Live paper sorting stations operating at Barangay Multipurpose Hall Station #2</span>
+</div>
+</div>
+<div class="flex items-center gap-space-lg w-full lg:w-auto justify-between lg:justify-end overflow-x-auto pb-1 lg:pb-0">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-secondary"></span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Station A (Intake): <strong class="text-on-surface">Active</strong></span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-primary"></span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Station B (OCR Digitizer): <strong class="text-on-surface">3 Online</strong></span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-tertiary"></span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Vault Batch Lock: <strong class="text-on-surface font-mono">SEC-104-B</strong></span>
+</div>
+</div>
+</div>
+<!-- Table Section with High-Performance Search and Filters -->
+<div class="rounded-xl bg-surface-container-low shadow-sm flex flex-col overflow-hidden">
+<!-- Filter Toolbar -->
+<div class="p-space-md flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-space-md bg-surface-container-low">
+<!-- Left: Search and Primary Selectors -->
+<div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-space-sm flex-1 max-w-4xl">
+<!-- Search input -->
+<div class="relative flex-1 min-w-[240px]">
+<span class="material-symbols-outlined absolute left-3 top-2.5 text-outline text-[18px]">search</span>
+<input class="w-full h-10 pl-9 pr-3 rounded-xl bg-surface-container text-on-surface placeholder:text-outline font-body-sm text-body-sm focus:outline-none focus:bg-surface-container-high transition-colors" id="batchSearchInput" placeholder="Search Batch ID, Barangay, or Field Leader..." type="text"/>
+</div>
+<!-- Status Dropdown Filter -->
+<div class="relative min-w-[160px]">
+<select aria-label="Filter batches by status" class="w-full h-10 px-3 pr-8 rounded-xl bg-surface-container text-on-surface font-label-md text-label-md appearance-none focus:outline-none focus:bg-surface-container-high transition-colors cursor-pointer" id="statusFilterSelect">
+<option value="All">Status: All Batches</option>
+<option value="In Progress">In Progress</option>
+<option value="Completed">Completed</option>
+<option value="Pending">Pending</option>
+<option value="Returned">Returned</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-2.5 text-outline pointer-events-none text-[18px]">expand_more</span>
+</div>
+<!-- Barangay / Purok Filter -->
+<div class="relative min-w-[190px]">
+<select aria-label="Filter batches by barangay or purok" class="w-full h-10 px-3 pr-8 rounded-xl bg-surface-container text-on-surface font-label-md text-label-md appearance-none focus:outline-none focus:bg-surface-container-high transition-colors cursor-pointer" id="barangayFilterSelect">
+<option value="All">Barangay: All Areas</option>
+<option value="Brgy. Poblacion">Brgy. Poblacion</option>
+<option value="Brgy. San Jose">Brgy. San Jose</option>
+<option value="Brgy. Fatima">Brgy. Fatima</option>
+<option value="Brgy. Calumpang">Brgy. Calumpang</option>
+<option value="Brgy. Lagao">Brgy. Lagao</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-2.5 text-outline pointer-events-none text-[18px]">filter_list</span>
+</div>
+</div>
+<!-- Right: Table Quick Actions -->
+<div class="flex items-center gap-space-xs justify-end">
+<button class="h-10 px-3 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-colors flex items-center gap-1.5 font-label-md text-label-md" title="Export Table as CSV">
+<span class="material-symbols-outlined text-[18px]">file_download</span>
+<span class="hidden sm:inline">Export</span>
+</button>
+<button class="h-10 px-3 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-colors flex items-center gap-1.5 font-label-md text-label-md" title="Batch Reconciliation Report">
+<span class="material-symbols-outlined text-[18px]">summarize</span>
+<span class="hidden sm:inline">Reconcile</span>
+</button>
+<button class="w-10 h-10 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-colors flex items-center justify-center" id="refreshTableBtn" title="Refresh Table">
+<span class="material-symbols-outlined text-[18px]">refresh</span>
+</button>
+</div>
+</div>
+<!-- High-Density Batch Ledger Table -->
+<div class="w-full overflow-x-auto">
+<table class="w-full text-left font-body-sm text-body-sm" id="batchLedgerTable">
+<thead>
+<tr class="bg-surface-container-high/60 text-outline font-label-md text-label-md uppercase tracking-wider select-none">
+<th class="py-3 px-space-md font-medium">Batch Ref</th>
+<th class="py-3 px-space-md font-medium">Barangay &amp; Purok</th>
+<th class="py-3 px-space-md font-medium text-right">Total Forms</th>
+<th class="py-3 px-space-md font-medium">Submitted By</th>
+<th class="py-3 px-space-md font-medium">Intake / Encoded By</th>
+<th class="py-3 px-space-md font-medium">Intake Date</th>
+<th class="py-3 px-space-md font-medium">Status</th>
+<th class="py-3 px-space-md font-medium min-w-[200px]">Encoding Progress</th>
+<th class="py-3 px-space-md font-medium text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="text-on-surface divide-y divide-surface-container-high">
+<!-- Row 1: In Progress -->
+<tr class="hover:bg-surface-container/60 transition-colors group">
+<td class="py-3.5 px-space-md font-mono text-primary font-semibold">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-outline">barcode</span>
+<span>BATCH-2025-084</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col">
+<span class="font-medium text-on-surface">Brgy. Poblacion</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Purok 3 &amp; Purok 4 Central</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md text-right font-mono font-semibold text-on-surface">
+                250
+              </td>
+<td class="py-3.5 px-space-md">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-surface-container-highest text-primary flex items-center justify-center font-label-sm text-label-sm font-semibold">MS</div>
+<span class="font-medium text-on-surface">Maricel Santos</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col font-label-sm text-label-sm">
+<span class="text-on-surface">Rec: E. Valerio</span>
+<span class="text-on-surface-variant">Enc: K. Gomez</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md font-mono text-on-surface-variant font-label-sm">
+                Nov 14, 2024
+              </td>
+<td class="py-3.5 px-space-md">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-label-sm font-label-sm font-medium bg-primary-container/15 text-primary">
+<span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+                  In Progress
+                </span>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between font-label-sm text-label-sm">
+<span class="text-on-surface font-mono">210 / 250</span>
+<span class="text-primary font-mono font-semibold">84%</span>
+</div>
+<div class="w-full h-1.5 rounded-full bg-surface-container-highest overflow-hidden">
+<div class="h-full bg-primary-container rounded-full" style="width: 84%;"></div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="w-8 h-8 rounded-lg hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors" title="Inspect Batch">
+<span class="material-symbols-outlined text-[18px]">visibility</span>
+</button>
+<button class="w-8 h-8 rounded-lg hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors" title="Edit Batch">
+<span class="material-symbols-outlined text-[18px]">edit_note</span>
+</button>
+<button class="w-8 h-8 rounded-lg hover:bg-surface-container-highest text-on-surface-variant hover:text-primary flex items-center justify-center transition-colors" title="Update Status">
+<span class="material-symbols-outlined text-[18px]">published_with_changes</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2: Completed -->
+<tr class="hover:bg-surface-container/60 transition-colors group">
+<td class="py-3.5 px-space-md font-mono text-primary font-semibold">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-outline">barcode</span>
+<span>BATCH-2025-083</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col">
+<span class="font-medium text-on-surface">Brgy. San Jose</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Purok Pag-Asa &amp; Sto. Niño</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md text-right font-mono font-semibold text-on-surface">
+                320
+              </td>
+<td class="py-3.5 px-space-md">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-surface-container-highest text-secondary flex items-center justify-center font-label-sm text-label-sm font-semibold">JR</div>
+<span class="font-medium text-on-surface">Jonathan Reyes</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col font-label-sm text-label-sm">
+<span class="text-on-surface">Rec: E. Valerio</span>
+<span class="text-on-surface-variant">Enc: A. Tolentino</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md font-mono text-on-surface-variant font-label-sm">
+                Nov 13, 2024
+              </td>
+<td class="py-3.5 px-space-md">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-label-sm font-label-sm font-medium bg-secondary-container/20 text-secondary">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                  Completed
+                </span>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between font-label-sm text-label-sm">
+<span class="text-on-surface font-mono">320 / 320</span>
+<span class="text-secondary font-mono font-semibold">100%</span>
+</div>
+<div class="w-full h-1.5 rounded-full bg-surface-container-highest overflow-hidden">
+<div class="h-full bg-secondary rounded-full" style="width: 100%;"></div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="w-8 h-8 rounded-lg hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors" title="Inspect Batch">
+<span class="material-symbols-outlined text-[18px]">visibility</span>
+</button>
+<button class="w-8 h-8 rounded-lg hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors" title="Edit Batch">
+<span class="material-symbols-outlined text-[18px]">edit_note</span>
+</button>
+<button class="w-8 h-8 rounded-lg hover:bg-surface-container-highest text-on-surface-variant hover:text-secondary flex items-center justify-center transition-colors" title="Archive Slip">
+<span class="material-symbols-outlined text-[18px]">inventory_2</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3: Returned / Revision -->
+<tr class="hover:bg-surface-container/60 transition-colors group">
+<td class="py-3.5 px-space-md font-mono text-error font-semibold">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-error">barcode</span>
+<span>BATCH-2025-082</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col">
+<span class="font-medium text-on-surface">Brgy. Fatima</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Purok 7 Riverside Coastal</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md text-right font-mono font-semibold text-on-surface">
+                180
+              </td>
+<td class="py-3.5 px-space-md">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-surface-container-highest text-error flex items-center justify-center font-label-sm text-label-sm font-semibold">DL</div>
+<span class="font-medium text-on-surface">Danilo Lim</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col font-label-sm text-label-sm">
+<span class="text-on-surface">Rec: R. Del Rosario</span>
+<span class="text-error font-medium">Rechecked: Flagged</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md font-mono text-on-surface-variant font-label-sm">
+                Nov 12, 2024
+              </td>
+<td class="py-3.5 px-space-md">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-label-sm font-label-sm font-medium bg-error-container/20 text-error">
+<span class="w-1.5 h-1.5 rounded-full bg-error"></span>
+                  Returned
+                </span>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between font-label-sm text-label-sm">
+<span class="text-on-surface font-mono">42 / 180 (Halted)</span>
+<span class="text-error font-mono font-semibold">23%</span>
+</div>
+<div class="w-full h-1.5 rounded-full bg-surface-container-highest overflow-hidden">
+<div class="h-full bg-error rounded-full" style="width: 23%;"></div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="w-8 h-8 rounded-lg bg-error-container/30 text-error hover:bg-error-container hover:text-on-error flex items-center justify-center transition-colors" title="View Discrepancy Note">
+<span class="material-symbols-outlined text-[18px]">warning</span>
+</button>
+<button class="w-8 h-8 rounded-lg hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors" title="Edit Batch">
+<span class="material-symbols-outlined text-[18px]">edit_note</span>
+</button>
+<button class="w-8 h-8 rounded-lg hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors" title="Re-issue To Field">
+<span class="material-symbols-outlined text-[18px]">replay</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 4: Pending -->
+<tr class="hover:bg-surface-container/60 transition-colors group">
+<td class="py-3.5 px-space-md font-mono text-tertiary font-semibold">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-outline">barcode</span>
+<span>BATCH-2025-081</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col">
+<span class="font-medium text-on-surface">Brgy. Calumpang</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Purok Malakas Upper</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md text-right font-mono font-semibold text-on-surface">
+                195
+              </td>
+<td class="py-3.5 px-space-md">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-surface-container-highest text-tertiary flex items-center justify-center font-label-sm text-label-sm font-semibold">CC</div>
+<span class="font-medium text-on-surface">Corazon Cruz</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col font-label-sm text-label-sm">
+<span class="text-on-surface">Rec: E. Valerio</span>
+<span class="text-on-surface-variant">Queue: Unassigned</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md font-mono text-on-surface-variant font-label-sm">
+                Nov 12, 2024
+              </td>
+<td class="py-3.5 px-space-md">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-label-sm font-label-sm font-medium bg-tertiary-container/20 text-tertiary">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                  Pending
+                </span>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between font-label-sm text-label-sm">
+<span class="text-outline font-mono">0 / 195</span>
+<span class="text-outline font-mono font-semibold">0%</span>
+</div>
+<div class="w-full h-1.5 rounded-full bg-surface-container-highest overflow-hidden">
+<div class="h-full bg-tertiary-container rounded-full" style="width: 0%;"></div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="w-8 h-8 rounded-lg hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors" title="Inspect Batch">
+<span class="material-symbols-outlined text-[18px]">visibility</span>
+</button>
+<button class="w-8 h-8 rounded-lg hover:bg-surface-container-highest text-on-surface-variant hover:text-tertiary flex items-center justify-center transition-colors" title="Assign Encoder">
+<span class="material-symbols-outlined text-[18px]">person_add</span>
+</button>
+<button class="w-8 h-8 rounded-lg hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors" title="Update Status">
+<span class="material-symbols-outlined text-[18px]">more_vert</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 5: Completed -->
+<tr class="hover:bg-surface-container/60 transition-colors group">
+<td class="py-3.5 px-space-md font-mono text-primary font-semibold">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-outline">barcode</span>
+<span>BATCH-2025-080</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col">
+<span class="font-medium text-on-surface">Brgy. Lagao</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Purok 1-A &amp; 1-B Commercial</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md text-right font-mono font-semibold text-on-surface">
+                210
+              </td>
+<td class="py-3.5 px-space-md">
+<div class="flex items-center gap-2">
+<div class="w-6 h-6 rounded-full bg-surface-container-highest text-primary flex items-center justify-center font-label-sm text-label-sm font-semibold">AP</div>
+<span class="font-medium text-on-surface">Arnel Perez</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col font-label-sm text-label-sm">
+<span class="text-on-surface">Rec: E. Valerio</span>
+<span class="text-on-surface-variant">Enc: K. Gomez</span>
+</div>
+</td>
+<td class="py-3.5 px-space-md font-mono text-on-surface-variant font-label-sm">
+                Nov 11, 2024
+              </td>
+<td class="py-3.5 px-space-md">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-label-sm font-label-sm font-medium bg-secondary-container/20 text-secondary">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                  Completed
+                </span>
+</td>
+<td class="py-3.5 px-space-md">
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between font-label-sm text-label-sm">
+<span class="text-on-surface font-mono">210 / 210</span>
+<span class="text-secondary font-mono font-semibold">100%</span>
+</div>
+<div class="w-full h-1.5 rounded-full bg-surface-container-highest overflow-hidden">
+<div class="h-full bg-secondary rounded-full" style="width: 100%;"></div>
+</div>
+</div>
+</td>
+<td class="py-3.5 px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="w-8 h-8 rounded-lg hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors" title="Inspect Batch">
+<span class="material-symbols-outlined text-[18px]">visibility</span>
+</button>
+<button class="w-8 h-8 rounded-lg hover:bg-surface-container-highest text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors" title="Edit Batch">
+<span class="material-symbols-outlined text-[18px]">edit_note</span>
+</button>
+<button class="w-8 h-8 rounded-lg hover:bg-surface-container-highest text-on-surface-variant hover:text-secondary flex items-center justify-center transition-colors" title="Archive Slip">
+<span class="material-symbols-outlined text-[18px]">inventory_2</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination and Table Metadata Footer -->
+<div class="p-space-md bg-surface-container-low flex flex-col sm:flex-row items-center justify-between gap-space-md">
+<div class="flex items-center gap-2 font-label-sm text-label-sm text-on-surface-variant">
+<span>Showing <strong class="text-on-surface">1 - 5</strong> of <strong>48</strong> batches recorded</span>
+<span class="text-outline">|</span>
+<span>Physical Storage Box: <span class="font-mono text-primary font-semibold">BIN-BX-2025-A</span></span>
+</div>
+<div class="flex items-center gap-1">
+<button class="px-2.5 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface disabled:opacity-40 font-label-sm" disabled="">Previous</button>
+<button class="w-8 h-8 rounded-lg bg-primary-container text-on-primary-container font-semibold font-label-sm">1</button>
+<button class="w-8 h-8 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface-variant font-label-sm">2</button>
+<button class="w-8 h-8 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface-variant font-label-sm">3</button>
+<span class="px-1 text-outline">...</span>
+<button class="w-8 h-8 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface-variant font-label-sm">10</button>
+<button class="px-2.5 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface font-label-sm">Next</button>
+</div>
+</div>
+</div>
+<!-- Field Custody & Enumerator Validation Protocol Panel -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-space-md">
+<!-- Protocol Guide -->
+<div class="p-space-md rounded-xl bg-surface-container-low flex flex-col gap-3 shadow-sm">
+<div class="flex items-center gap-2 text-primary font-headline-md text-headline-md">
+<span class="material-symbols-outlined text-[22px]">policy</span>
+<span>Chain of Custody Rule</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+          Every enumerator envelope must maintain an intact physical security seal prior to intake verification. Discrepancies exceeding ±3 forms trigger automatic return to barangay field team.
+        </p>
+<div class="p-2.5 rounded-xl bg-surface-container flex items-center justify-between font-label-sm text-label-sm">
+<span class="text-on-surface-variant">Current Seal Spec:</span>
+<span class="font-mono text-secondary font-semibold">TROPA-SEC-HOLO-24</span>
+</div>
+</div>
+<!-- Quick Scan Barcode Intake -->
+<div class="p-space-md rounded-xl bg-surface-container-low flex flex-col gap-3 shadow-sm">
+<div class="flex items-center gap-2 text-secondary font-headline-md text-headline-md">
+<span class="material-symbols-outlined text-[22px]">qr_code_scanner</span>
+<span>Hardware Scanner Hook</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+          USB or Bluetooth 2D barcode scanner is actively listening on this station. Scan batch docket label directly to focus row record.
+        </p>
+<div class="flex items-center gap-2">
+<input class="flex-1 h-9 px-3 rounded-xl bg-surface-container font-mono text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:bg-surface-container-high" placeholder="Scan Barcode Here (Auto-Focus)..." type="text"/>
+<button class="px-3 h-9 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-label-sm">Test</button>
+</div>
+</div>
+<!-- Station Status -->
+<div class="p-space-md rounded-xl bg-surface-container-low flex flex-col gap-3 shadow-sm">
+<div class="flex items-center gap-2 text-tertiary font-headline-md text-headline-md">
+<span class="material-symbols-outlined text-[22px]">database</span>
+<span>Sync &amp; Vault Allocation</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+          Batches completed in this terminal are replicated locally and verified against ledger checksum <code class="text-primary font-mono font-semibold">SHA-256</code> before paper boxing.
+        </p>
+<div class="flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm">
+<span>Active Warehouse Bin:</span>
+<span class="text-on-surface font-mono font-semibold">Rack 04 - Shelf C</span>
+</div>
+</div>
+</div>
+</div>
+<!-- ========================================================================= -->
+<!-- MODAL / DRAWER: 'New Physical Batch Intake & Form Allocator'               -->
+<!-- ========================================================================= -->
+<div class="fixed inset-0 z-50 flex items-center justify-center p-space-sm sm:p-space-md bg-black/75 backdrop-blur-md transition-opacity duration-300" id="batchIntakeModal">
+<div class="relative w-full max-w-4xl bg-surface-container-low rounded-xl shadow-2xl flex flex-col max-h-[942px] overflow-hidden">
+<!-- Modal Header -->
+<div class="px-space-lg py- space-md bg-surface-container flex items-center justify-between">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-primary-container text-on-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-[22px]">inventory</span>
+</div>
+<div class="flex flex-col">
+<h2 class="font-headline-lg text-headline-lg font-bold text-on-surface tracking-tight">New Physical Batch Intake &amp; Form Allocator</h2>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono">DOCKET REF: BATCH-2025-085 (GENERATED)</span>
+</div>
+</div>
+<button aria-label="Close dialog" class="w-9 h-9 rounded-xl bg-surface-container-high hover:bg-surface-bright text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors" id="closeIntakeModalBtn">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+<!-- Modal Body (Scrollable Form Fields) -->
+<div class="p-space-lg overflow-y-auto space-y-space-lg text-on-surface">
+<!-- Section 1: Batch Header Metadata -->
+<div>
+<div class="flex items-center gap-2 mb-3">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<h3 class="font-label-lg text-label-lg font-semibold text-primary uppercase tracking-wider">1. Batch Header &amp; Chain of Custody</h3>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-md p-space-md rounded-xl bg-surface-container">
+<!-- Barangay Dropdown -->
+<div class="flex flex-col gap-1.5">
+<label class="font-label-sm text-label-sm text-outline font-medium" for="modalBarangay">Barangay</label>
+<div class="relative">
+<select class="w-full h-10 px-3 pr-8 rounded-xl bg-surface-container-highest text-on-surface font-body-sm text-body-sm appearance-none focus:outline-none focus:ring-1 focus:ring-primary transition-all" id="modalBarangay">
+<option value="Brgy. Poblacion">Brgy. Poblacion</option>
+<option value="Brgy. San Jose">Brgy. San Jose</option>
+<option value="Brgy. Fatima">Brgy. Fatima</option>
+<option value="Brgy. Calumpang">Brgy. Calumpang</option>
+<option value="Brgy. Lagao">Brgy. Lagao</option>
+<option value="Brgy. Bula">Brgy. Bula</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-2.5 text-outline pointer-events-none text-[18px]">expand_more</span>
+</div>
+</div>
+<!-- Date Received -->
+<div class="flex flex-col gap-1.5">
+<label class="font-label-sm text-label-sm text-outline font-medium" for="modalDateReceived">Date Received</label>
+<input class="w-full h-10 px-3 rounded-xl bg-surface-container-highest text-on-surface font-body-sm text-body-sm focus:outline-none focus:ring-1 focus:ring-primary transition-all" id="modalDateReceived" type="date" value="2025-01-18"/>
+</div>
+<!-- Field Submitter Name -->
+<div class="flex flex-col gap-1.5">
+<label class="font-label-sm text-label-sm text-outline font-medium" for="modalSubmitterName">Field Submitter / Leader</label>
+<input class="w-full h-10 px-3 rounded-xl bg-surface-container-highest text-on-surface font-body-sm text-body-sm focus:outline-none focus:ring-1 focus:ring-primary transition-all" id="modalSubmitterName" placeholder="Enter Field Leader Name" type="text" value="Maricel Santos"/>
+</div>
+<!-- Central Intake Officer -->
+<div class="flex flex-col gap-1.5">
+<label class="font-label-sm text-label-sm text-outline font-medium" for="modalIntakeOfficer">Central Intake Officer</label>
+<input class="w-full h-10 px-3 rounded-xl bg-surface-container-high/60 text-on-surface-variant font-body-sm text-body-sm cursor-not-allowed" id="modalIntakeOfficer" readonly="" type="text" value="E. Valerio (Duty Officer)"/>
+</div>
+</div>
+</div>
+<!-- Section 2: Dynamic Repeater Table for Purok Form Allocations -->
+<div>
+<div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<h3 class="font-label-lg text-label-lg font-semibold text-secondary uppercase tracking-wider">2. Purok Form Physical Count Allocations</h3>
+</div>
+<div class="flex items-center gap-3">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Batch Total: <strong class="font-mono text-primary font-bold text-body-lg" id="batchTotalCount">250</strong> forms</span>
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-container-high hover:bg-surface-bright text-primary font-label-md text-label-md transition-colors" id="addPurokRowBtn" type="button">
+<span class="material-symbols-outlined text-[16px]">add</span>
+<span>+ Add Purok Row</span>
+</button>
+</div>
+</div>
+<div class="rounded-xl bg-surface-container overflow-hidden">
+<div class="overflow-x-auto">
+<table class="w-full text-left font-body-sm text-body-sm" id="purokRepeaterTable">
+<thead>
+<tr class="bg-surface-container-highest/50 text-outline font-label-sm text-label-sm uppercase tracking-wider">
+<th class="py-2.5 px-space-md font-medium">Purok Area Label</th>
+<th class="py-2.5 px-space-md font-medium w-36">Physical Forms</th>
+<th class="py-2.5 px-space-md font-medium">Field Enumerator Notes / Zone</th>
+<th class="py-2.5 px-space-md font-medium w-16 text-center">Action</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container-highest" id="purokTableBody">
+<!-- Row 1 -->
+<tr class="group">
+<td class="py-2.5 px-space-md">
+<input class="w-full h-9 px-2.5 rounded-lg bg-surface-container-highest text-on-surface font-body-sm text-body-sm focus:outline-none focus:ring-1 focus:ring-secondary" type="text" value="Purok 1-A Central"/>
+</td>
+<td class="py-2.5 px-space-md">
+<input class="purok-count-input w-full h-9 px-2.5 rounded-lg bg-surface-container-highest text-on-surface font-mono text-body-sm font-semibold focus:outline-none focus:ring-1 focus:ring-secondary text-right" type="number" value="120"/>
+</td>
+<td class="py-2.5 px-space-md">
+<input class="w-full h-9 px-2.5 rounded-lg bg-surface-container-highest text-on-surface font-body-sm text-body-sm focus:outline-none focus:ring-1 focus:ring-secondary" type="text" value="Zone north, surveyed with Brgy. Health Worker"/>
+</td>
+<td class="py-2.5 px-space-md text-center">
+<button class="delete-purok-row w-8 h-8 rounded-lg hover:bg-error-container/40 text-on-surface-variant hover:text-error flex items-center justify-center mx-auto transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="group">
+<td class="py-2.5 px-space-md">
+<input class="w-full h-9 px-2.5 rounded-lg bg-surface-container-highest text-on-surface font-body-sm text-body-sm focus:outline-none focus:ring-1 focus:ring-secondary" type="text" value="Purok 1-B Riverside"/>
+</td>
+<td class="py-2.5 px-space-md">
+<input class="purok-count-input w-full h-9 px-2.5 rounded-lg bg-surface-container-highest text-on-surface font-mono text-body-sm font-semibold focus:outline-none focus:ring-1 focus:ring-secondary text-right" type="number" value="80"/>
+</td>
+<td class="py-2.5 px-space-md">
+<input class="w-full h-9 px-2.5 rounded-lg bg-surface-container-highest text-on-surface font-body-sm text-body-sm focus:outline-none focus:ring-1 focus:ring-secondary" type="text" value="Flood-prone zone, all 80 households intact"/>
+</td>
+<td class="py-2.5 px-space-md text-center">
+<button class="delete-purok-row w-8 h-8 rounded-lg hover:bg-error-container/40 text-on-surface-variant hover:text-error flex items-center justify-center mx-auto transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="group">
+<td class="py-2.5 px-space-md">
+<input class="w-full h-9 px-2.5 rounded-lg bg-surface-container-highest text-on-surface font-body-sm text-body-sm focus:outline-none focus:ring-1 focus:ring-secondary" type="text" value="Purok 2 Highway"/>
+</td>
+<td class="py-2.5 px-space-md">
+<input class="purok-count-input w-full h-9 px-2.5 rounded-lg bg-surface-container-highest text-on-surface font-mono text-body-sm font-semibold focus:outline-none focus:ring-1 focus:ring-secondary text-right" type="number" value="50"/>
+</td>
+<td class="py-2.5 px-space-md">
+<input class="w-full h-9 px-2.5 rounded-lg bg-surface-container-highest text-on-surface font-body-sm text-body-sm focus:outline-none focus:ring-1 focus:ring-secondary" type="text" value="Commercial strip residential units"/>
+</td>
+<td class="py-2.5 px-space-md text-center">
+<button class="delete-purok-row w-8 h-8 rounded-lg hover:bg-error-container/40 text-on-surface-variant hover:text-error flex items-center justify-center mx-auto transition-colors" type="button">
+<span class="material-symbols-outlined text-[18px]">delete</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Section 3: Encoder Assignment & Initial Status -->
+<div>
+<div class="flex items-center gap-2 mb-3">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+<h3 class="font-label-lg text-label-lg font-semibold text-tertiary uppercase tracking-wider">3. Workstation Routing &amp; Verification State</h3>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md p-space-md rounded-xl bg-surface-container">
+<!-- Assigned Encoder -->
+<div class="flex flex-col gap-1.5">
+<label class="font-label-sm text-label-sm text-outline font-medium" for="modalEncoderSelect">Assigned Encoder Station</label>
+<div class="relative">
+<select class="w-full h-10 px-3 pr-8 rounded-xl bg-surface-container-highest text-on-surface font-body-sm text-body-sm appearance-none focus:outline-none focus:ring-1 focus:ring-primary transition-all" id="modalEncoderSelect">
+<option value="K. Gomez - Lead Data Encoder">K. Gomez - Lead Data Encoder (Station 1)</option>
+<option value="A. Tolentino - Senior Encoder">A. Tolentino - Senior Encoder (Station 2)</option>
+<option value="M. Dela Cruz - Junior Data Clerk">M. Dela Cruz - Junior Data Clerk (Station 3)</option>
+<option value="Queue Pool - Automated Round Robin">Queue Pool - Automated Round Robin</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-2.5 text-outline pointer-events-none text-[18px]">expand_more</span>
+</div>
+</div>
+<!-- Initial Status Dropdown -->
+<div class="flex flex-col gap-1.5">
+<label class="font-label-sm text-label-sm text-outline font-medium" for="modalInitialStatus">Initial Batch Status</label>
+<div class="relative">
+<select class="w-full h-10 px-3 pr-8 rounded-xl bg-surface-container-highest text-on-surface font-body-sm text-body-sm appearance-none focus:outline-none focus:ring-1 focus:ring-primary transition-all" id="modalInitialStatus">
+<option selected="" value="Received - Pending Intake">Received - Pending Intake</option>
+<option value="In Progress - Sorting">In Progress - Sorting &amp; Batching</option>
+<option value="Direct to Encoder Desk">Direct to Encoder Desk</option>
+<option value="Quarantine - Count Verification">Quarantine - Count Verification</option>
+</select>
+<span class="material-symbols-outlined absolute right-2.5 top-2.5 text-outline pointer-events-none text-[18px]">expand_more</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Section 4: Barcode Preview Badge Info -->
+<div class="p-3 rounded-xl bg-surface-container-highest/40 flex items-center justify-between flex-wrap gap-2 text-on-surface-variant font-label-sm text-label-sm">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-[18px]">print</span>
+<span>Intake slip will be generated with Code128 barcode docket:</span>
+<span class="font-mono text-primary font-bold">TROPA-2025-085</span>
+</div>
+<span class="text-secondary font-medium">Thermal Print ready (4"x6" Label)</span>
+</div>
+</div>
+<!-- Modal Footer (Actions) -->
+<div class="px-space-lg py-space-md bg-surface-container flex items-center justify-between gap-space-sm flex-wrap">
+<button class="px-space-md py-2.5 rounded-xl bg-surface-container-high hover:bg-surface-bright text-on-surface-variant hover:text-on-surface transition-colors font-label-lg text-label-lg" id="cancelModalBtn" type="button">
+          Cancel
+        </button>
+<div class="flex items-center gap-space-sm">
+<button class="px-space-md py-2.5 rounded-xl bg-surface-container-high hover:bg-surface-bright text-on-surface transition-colors font-label-lg text-label-lg" id="saveDraftModalBtn" type="button">
+            Save as Draft
+          </button>
+<button class="flex items-center gap-2 px-space-md py-2.5 rounded-xl bg-primary-container hover:bg-primary text-on-primary-container transition-all font-label-lg text-label-lg font-semibold shadow-md" id="savePrintSlipModalBtn" type="button">
+<span class="material-symbols-outlined text-[20px]">local_printshop</span>
+<span>Save &amp; Print Barcoded Intake Slip</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Hidden Notification Toast Notification Component -->
+<div class="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-space-md py-3 rounded-xl bg-surface-bright text-on-surface shadow-2xl opacity-0 pointer-events-none transition-all duration-300 translate-y-4" id="toastNotification">
+<div class="w-7 h-7 rounded-lg bg-secondary flex items-center justify-center text-on-secondary" id="toastIconContainer">
+<span class="material-symbols-outlined text-[18px]">check</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md font-semibold text-on-surface" id="toastTitle">Intake Batch Registered</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant" id="toastMessage">Batch BATCH-2025-085 queued with 250 forms.</span>
+</div>
+</div>
+<!-- Interactive Client-side Script -->
+<script>
+    (function () {
+      // Element handles
+      const modal = document.getElementById('batchIntakeModal');
+      const openModalBtn = document.getElementById('openIntakeModalBtn');
+      const closeModalBtn = document.getElementById('closeIntakeModalBtn');
+      const cancelModalBtn = document.getElementById('cancelModalBtn');
+      const saveDraftModalBtn = document.getElementById('saveDraftModalBtn');
+      const savePrintSlipModalBtn = document.getElementById('savePrintSlipModalBtn');
+      const openPrintSlipsBtn = document.getElementById('openPrintSlipsBtn');
+      const addPurokRowBtn = document.getElementById('addPurokRowBtn');
+      const purokTableBody = document.getElementById('purokTableBody');
+      const batchTotalCount = document.getElementById('batchTotalCount');
+
+      const batchSearchInput = document.getElementById('batchSearchInput');
+      const statusFilterSelect = document.getElementById('statusFilterSelect');
+      const barangayFilterSelect = document.getElementById('barangayFilterSelect');
+      const batchLedgerTable = document.getElementById('batchLedgerTable');
+      const refreshTableBtn = document.getElementById('refreshTableBtn');
+
+      const toast = document.getElementById('toastNotification');
+      const toastTitle = document.getElementById('toastTitle');
+      const toastMessage = document.getElementById('toastMessage');
+
+      // Function to show toast
+      function triggerToast(title, msg, isSuccess = true) {
+        toastTitle.textContent = title;
+        toastMessage.textContent = msg;
+        toast.classList.remove('opacity-0', 'translate-y-4', 'pointer-events-none');
+        toast.classList.add('opacity-100', 'translate-y-0');
+        setTimeout(() => {
+          toast.classList.add('opacity-0', 'translate-y-4', 'pointer-events-none');
+          toast.classList.remove('opacity-100', 'translate-y-0');
+        }, 3400);
+      }
+
+      // Modal Controls
+      function openModal() {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        recalculateTotalForms();
+      }
+
+      function closeModal() {
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+      }
+
+      openModalBtn?.addEventListener('click', openModal);
+      closeModalBtn?.addEventListener('click', closeModal);
+      cancelModalBtn?.addEventListener('click', closeModal);
+
+      // Close modal on backdrop click
+      modal?.addEventListener('click', function(e) {
+        if (e.target === modal) {
+          closeModal();
+        }
+      });
+
+      // Recalculate Purok totals
+      function recalculateTotalForms() {
+        let total = 0;
+        const countInputs = purokTableBody.querySelectorAll('.purok-count-input');
+        countInputs.forEach(input => {
+          const val = parseInt(input.value, 10);
+          if (!isNaN(val)) total += val;
+        });
+        if (batchTotalCount) {
+          batchTotalCount.textContent = total;
+        }
+      }
+
+      // Add Purok Row
+      addPurokRowBtn?.addEventListener('click', () => {
+        const row = document.createElement('tr');
+        row.className = 'group';
+        row.innerHTML = `
+          <td class="py-2.5 px-space-md">
+            <input type="text" placeholder="e.g. Purok 3 Sunrise" class="w-full h-9 px-2.5 rounded-lg bg-surface-container-highest text-on-surface font-body-sm text-body-sm focus:outline-none focus:ring-1 focus:ring-secondary" />
+          </td>
+          <td class="py-2.5 px-space-md">
+            <input type="number" value="40" class="purok-count-input w-full h-9 px-2.5 rounded-lg bg-surface-container-highest text-on-surface font-mono text-body-sm font-semibold focus:outline-none focus:ring-1 focus:ring-secondary text-right" />
+          </td>
+          <td class="py-2.5 px-space-md">
+            <input type="text" placeholder="Enumeration zone notes" class="w-full h-9 px-2.5 rounded-lg bg-surface-container-highest text-on-surface font-body-sm text-body-sm focus:outline-none focus:ring-1 focus:ring-secondary" />
+          </td>
+          <td class="py-2.5 px-space-md text-center">
+            <button type="button" class="delete-purok-row w-8 h-8 rounded-lg hover:bg-error-container/40 text-on-surface-variant hover:text-error flex items-center justify-center mx-auto transition-colors">
+              <span class="material-symbols-outlined text-[18px]">delete</span>
+            </button>
+          </td>
+        `;
+        purokTableBody.appendChild(row);
+        attachRowEvents(row);
+        recalculateTotalForms();
+      });
+
+      function attachRowEvents(rowElement) {
+        const input = rowElement.querySelector('.purok-count-input');
+        input?.addEventListener('input', recalculateTotalForms);
+        const delBtn = rowElement.querySelector('.delete-purok-row');
+        delBtn?.addEventListener('click', () => {
+          if (purokTableBody.querySelectorAll('tr').length > 1) {
+            rowElement.remove();
+            recalculateTotalForms();
+          } else {
+            triggerToast('Validation Alert', 'At least one Purok form allocation row is required.', false);
+          }
+        });
+      }
+
+      // Attach initial events on existing rows
+      purokTableBody?.querySelectorAll('tr').forEach(attachRowEvents);
+
+      // Save & Print Action
+      savePrintSlipModalBtn?.addEventListener('click', () => {
+        const total = batchTotalCount.textContent;
+        const brgy = document.getElementById('modalBarangay')?.value || 'Brgy. Poblacion';
+        closeModal();
+        triggerToast('Intake Slip Generated', `BATCH-2025-085 (${total} forms) queued for printing.`);
+      });
+
+      saveDraftModalBtn?.addEventListener('click', () => {
+        closeModal();
+        triggerToast('Draft Saved', 'Batch physical draft allocated to temporary holding bin.');
+      });
+
+      openPrintSlipsBtn?.addEventListener('click', () => {
+        triggerToast('Print Spooler Initialized', 'Sending bulk slip print job for all In-Progress batches (14 slips).');
+      });
+
+      // Filter & Table Search Logic
+      function filterTable() {
+        const query = (batchSearchInput?.value || '').toLowerCase().trim();
+        const statusVal = statusFilterSelect?.value || 'All';
+        const brgyVal = barangayFilterSelect?.value || 'All';
+
+        const rows = batchLedgerTable?.querySelectorAll('tbody tr');
+        rows?.forEach(row => {
+          const text = row.innerText.toLowerCase();
+          const matchesQuery = query === '' || text.includes(query);
+          
+          let matchesStatus = true;
+          if (statusVal !== 'All') {
+            matchesStatus = text.includes(statusVal.toLowerCase());
+          }
+
+          let matchesBrgy = true;
+          if (brgyVal !== 'All') {
+            matchesBrgy = text.includes(brgyVal.toLowerCase());
+          }
+
+          if (matchesQuery && matchesStatus && matchesBrgy) {
+            row.style.display = '';
+          } else {
+            row.style.display = 'none';
+          }
+        });
+      }
+
+      batchSearchInput?.addEventListener('input', filterTable);
+      statusFilterSelect?.addEventListener('change', filterTable);
+      barangayFilterSelect?.addEventListener('change', filterTable);
+
+      refreshTableBtn?.addEventListener('click', () => {
+        refreshTableBtn.classList.add('animate-spin');
+        setTimeout(() => {
+          refreshTableBtn.classList.remove('animate-spin');
+          triggerToast('Data Refreshed', 'Batch tracker synced with physical intake ledger.');
+        }, 600);
+      });
+
+      // Initial modal state: keep open or closed based on user specification "Prominent Modal / Drawer shown"
+      // Modal starts visible as requested in specification prompt
+    })();
+  </script>
+</div></main></div></body></html>

@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Manrope:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "error-container": "#93000a", "surface-container-highest": "#2d3449", "secondary-fixed": "#6ffbbe", "error": "#ffb4ab", "on-error": "#690005", "primary-container": "#38bdf8", "on-tertiary-container": "#613b00", "background": "#0b1326", "inverse-primary": "#00668a", "inverse-on-surface": "#283044", "surface-bright": "#31394d", "on-tertiary": "#472a00", "surface-dim": "#0b1326", "on-primary-fixed-variant": "#004c69", "surface-variant": "#2d3449", "secondary-fixed-dim": "#4edea3", "on-surface-variant": "#bdc8d1", "on-tertiary-fixed-variant": "#653e00", "secondary": "#4edea3", "on-secondary-container": "#00311f", "on-surface": "#dae2fd", "secondary-container": "#00a572", "primary": "#8ed5ff", "on-primary": "#00354a", "surface-tint": "#7bd0ff", "outline-variant": "#3e484f", "tertiary": "#ffc174", "surface-container-low": "#131b2e", "surface": "#0b1326", "tertiary-container": "#f59e0b", "surface-container": "#171f33", "on-primary-container": "#004965", "tertiary-fixed-dim": "#ffb95f", "on-background": "#dae2fd", "on-secondary-fixed-variant": "#005236", "primary-fixed": "#c4e7ff", "surface-container-high": "#222a3d", "inverse-surface": "#dae2fd", "on-secondary": "#003824", "on-tertiary-fixed": "#2a1700", "tertiary-fixed": "#ffddb8", "primary-fixed-dim": "#7bd0ff", "on-secondary-fixed": "#002113", "on-error-container": "#ffdad6", "surface-container-lowest": "#060e20", "outline": "#87929a", "on-primary-fixed": "#001e2c" }, "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" }, "spacing": { "gutter-mobile": "0.75rem", "space-xl": "2.5rem", "margin-mobile": "1rem", "space-lg": "1.5rem", "space-xs": "0.25rem", "margin": "2rem", "space-sm": "0.5rem", "space-md": "1rem", "gutter": "1.5rem" }, "fontFamily": { "body-md": ["Inter"], "body-lg": ["Inter"], "headline-xl-mobile": ["Manrope"], "headline-xl": ["Manrope"], "headline-md": ["Manrope"], "label-md": ["JetBrains Mono"], "label-lg": ["Inter"], "body-sm": ["Inter"], "label-sm": ["JetBrains Mono"], "headline-lg": ["Manrope"] }, "fontSize": { "body-md": ["0.875rem", { "lineHeight": "1.25rem", "fontWeight": "400" }], "body-lg": ["1rem", { "lineHeight": "1.5rem", "fontWeight": "400" }], "headline-xl-mobile": ["1.75rem", { "lineHeight": "2.25rem", "letterSpacing": "-0.01em", "fontWeight": "700" }], "headline-xl": ["2.25rem", { "lineHeight": "2.75rem", "letterSpacing": "-0.02em", "fontWeight": "700" }], "headline-md": ["1.25rem", { "lineHeight": "1.75rem", "fontWeight": "600" }], "label-md": ["0.75rem", { "lineHeight": "1rem", "letterSpacing": "0.02em", "fontWeight": "500" }], "label-lg": ["0.875rem", { "lineHeight": "1.25rem", "fontWeight": "500" }], "body-sm": ["0.75rem", { "lineHeight": "1rem", "fontWeight": "400" }], "label-sm": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.04em", "fontWeight": "400" }], "headline-lg": ["1.5rem", { "lineHeight": "2rem", "letterSpacing": "-0.015em", "fontWeight": "600" }] } } } }</script></head><body class="bg-surface font-body-md text-on-surface antialiased"><aside class="fixed left-0 top-0 h-full w-72 bg-surface-container-low shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-50 flex flex-col justify-between"><div class="flex flex-col flex-1 min-h-0"><div class="h-16 px-space-md flex items-center justify-between bg-surface-container-low"><div class="flex items-center gap-space-sm"><div class="w-9 h-9 rounded-xl bg-primary-container flex items-center justify-center"><span class="material-symbols-outlined text-on-primary-container text-[22px]">shield_person</span></div><div class="flex flex-col"><div class="flex items-center gap-space-xs"><span class="font-headline-md text-headline-md font-bold tracking-tight text-on-surface">TROPA</span><span class="font-label-sm text-label-sm px-1.5 py-0.5 rounded-full bg-surface-container-highest text-primary font-semibold">v2.0</span></div><span class="font-label-sm text-label-sm text-on-surface-variant truncate max-w-[140px]">Tabang Respeto Og Panalipud</span></div></div><div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-secondary-container/20"><span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span><span class="font-label-sm text-label-sm text-secondary font-medium">ACTIVE</span></div></div><div class="px-space-md py-space-sm"><div class="px-space-sm py-space-xs rounded-xl bg-surface-container flex items-center gap-space-sm"><span class="material-symbols-outlined text-primary text-[18px]">corporate_fare</span><span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">METRO COOP UNION #104</span></div></div><nav class="flex-1 px-space-sm py-space-xs space-y-1 overflow-y-auto" data-active-classes="bg-primary-container text-on-primary-container font-semibold shadow-sm"><a class="flex items-center px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-lg text-label-lg" data-path="dashboard" href="#">Dashboard</a><a class="flex items-center px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-lg text-label-lg" data-path="households" href="#">Households</a><a class="flex items-center px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-lg text-label-lg" data-path="members" href="#">Members Directory</a><a class="flex items-center px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-lg text-label-lg" data-path="dues" href="#">Dues &amp; Ledger</a><a class="flex items-center px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-lg text-label-lg" data-path="reports" href="#">Reports &amp; Exports</a><a class="flex items-center px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-lg text-label-lg" data-path="form-tracking" href="#">Form Tracking</a><a class="flex items-center px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-lg text-label-lg" data-path="tropa-finder" href="#">Tropa Finder</a><div class="pt-space-sm pb-space-xs px-space-md"><span class="font-label-sm text-label-sm uppercase tracking-wider text-outline">System Admin</span></div><a aria-current="page" class="flex items-center px-space-md py-2.5 rounded-xl transition-colors bg-primary-container text-on-primary-container font-semibold shadow-sm" data-path="settings" href="#">Settings</a><a class="flex items-center px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-lg text-label-lg" data-path="logs" href="#">Audit Logs</a></nav></div><div class="p-space-md bg-surface-container-low"><div class="p-space-sm rounded-xl bg-surface-container flex items-center justify-between"><div class="flex items-center gap-space-xs"><span class="material-symbols-outlined text-secondary text-[16px]">cloud_done</span><span class="font-label-sm text-label-sm text-on-surface-variant">v2.4.11-prod</span></div><a class="text-on-surface-variant hover:text-on-surface transition-colors" data-path="login" href="#"><span class="material-symbols-outlined text-[18px]">logout</span></a></div></div></aside><div class="pl-72"><header class="fixed top-0 left-72 right-0 h-16 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40"><div class="w-full h-16 px-space-md flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-sm"><div class="flex items-center text-on-surface-variant font-label-md text-label-md gap-1.5"><span class="material-symbols-outlined text-[16px]">domain</span><span class="hover:text-on-surface cursor-pointer">Cooperative</span><span class="text-outline">/</span><span class="text-on-surface font-semibold">Overview</span></div></div><div class="flex-1 max-w-md mx-space-md"><div class="relative flex items-center"><span class="material-symbols-outlined absolute left-3 text-outline text-[18px]">search</span><input class="w-full h-9 pl-9 pr-3 rounded-xl bg-surface-container text-on-surface placeholder:text-outline font-body-sm text-body-sm focus:outline-none focus:bg-surface-container-high transition-colors" placeholder="Search members, records, dues, or forms (Ctrl + K)..." type="text"/></div></div><div class="flex items-center gap-space-md"><div class="flex items-center gap-1.5 px-space-sm py-1 rounded-full bg-surface-container"><span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span><span class="font-label-sm text-label-sm text-on-surface font-medium">Online Sync</span></div><button aria-label="Toggle dark mode" class="w-9 h-9 rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-[20px]">dark_mode</span></button><button aria-label="View notifications" class="relative w-9 h-9 rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-[20px]">notifications</span><span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-tertiary-container"></span></button><div class="flex items-center gap-space-sm pl-space-xs"><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div><div class="flex flex-col"><div class="flex items-center gap-1.5"><span class="font-label-md text-label-md font-semibold text-on-surface">R. Del Rosario</span><span class="material-symbols-outlined text-outline text-[14px]">expand_more</span></div><span class="font-label-sm text-label-sm text-primary">Lead Admin</span></div></div></div></div></header><main class="w-full pt-16 bg-surface"><div class="flex flex-col w-full">
+<!-- Top Viewport Control & Context Strip -->
+<div class="px-margin pt-space-md pb-space-sm bg-surface-container-lowest/80 backdrop-blur-md">
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-space-md">
+<div class="space-y-1">
+<div class="flex items-center gap-space-xs font-label-sm text-label-sm text-on-surface-variant">
+<span class="hover:text-primary transition-colors cursor-pointer">Administration</span>
+<span class="text-outline">/</span>
+<span class="text-primary font-medium">System Settings</span>
+<span class="text-outline">/</span>
+<span class="text-on-surface">RBAC Governance</span>
+</div>
+<h1 class="font-headline-xl text-headline-xl text-on-surface tracking-tight">System Settings &amp; Governance</h1>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-3xl">
+          Manage user roles &amp; granular permissions, territorial jurisdiction registries, organizational officers, and dues rates across cooperative operations.
+        </p>
+</div>
+<!-- Live Governance Health Pill -->
+<div class="flex items-center gap-space-sm bg-surface-container-low px-space-md py-space-sm rounded-xl">
+<div class="flex flex-col text-right">
+<span class="font-label-sm text-label-sm text-outline uppercase tracking-wider">Security State</span>
+<span class="font-label-md text-label-md text-secondary font-semibold">2FA Enforced (100%)</span>
+</div>
+<div class="w-8 h-8 rounded-lg bg-secondary-container/20 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[20px]">verified_user</span>
+</div>
+</div>
+</div>
+<!-- Navigation Tabs Bar -->
+<div class="mt-space-md flex items-center gap-space-xs overflow-x-auto">
+<button class="flex items-center gap-space-xs px-space-md py-2.5 rounded-xl bg-primary-container text-on-primary-container font-label-lg text-label-lg font-semibold shadow-sm transition-all whitespace-nowrap">
+<span class="material-symbols-outlined text-[18px]">manage_accounts</span>
+<span>Users &amp; Permissions</span>
+<span class="ml-1 px-1.5 py-0.2 rounded-full bg-on-primary-container/20 font-label-sm text-label-sm">8</span>
+</button>
+<button class="flex items-center gap-space-xs px-space-md py-2.5 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all font-label-lg text-label-lg whitespace-nowrap">
+<span class="material-symbols-outlined text-[18px]">share_location</span>
+<span>Locations &amp; Barangays</span>
+</button>
+<button class="flex items-center gap-space-xs px-space-md py-2.5 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all font-label-lg text-label-lg whitespace-nowrap">
+<span class="material-symbols-outlined text-[18px]">badge</span>
+<span>Organization &amp; Officers</span>
+</button>
+<button class="flex items-center gap-space-xs px-space-md py-2.5 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all font-label-lg text-label-lg whitespace-nowrap">
+<span class="material-symbols-outlined text-[18px]">payments</span>
+<span>Dues &amp; Contribution Rates</span>
+</button>
+<button class="flex items-center gap-space-xs px-space-md py-2.5 rounded-xl text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-all font-label-lg text-label-lg whitespace-nowrap">
+<span class="material-symbols-outlined text-[18px]">tune</span>
+<span>System Preferences &amp; Backup</span>
+</button>
+</div>
+</div>
+<!-- Primary Tab Body Canvas -->
+<div class="p-margin space-y-space-lg">
+<!-- Tab 1 Command Action Header -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-space-md bg-surface-container-low p-space-md rounded-xl">
+<div class="space-y-0.5">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary text-[20px]">admin_panel_settings</span>
+<h2 class="font-headline-md text-headline-md text-on-surface">Active System Operators &amp; Access Control</h2>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+          Grant time-bounded authority tokens and specify field-level operational access for frontline stewards.
+        </p>
+</div>
+<div class="flex items-center gap-space-sm flex-wrap">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-2.5 text-outline text-[16px]">filter_alt</span>
+<input class="h-9 pl-9 pr-3 rounded-xl bg-surface-container text-on-surface placeholder:text-outline font-body-sm text-body-sm focus:outline-none focus:bg-surface-container-high transition-colors w-44" placeholder="Filter operators..." type="text"/>
+</div>
+<button class="flex items-center gap-space-xs h-9 px-space-md rounded-xl bg-surface-container text-on-surface font-label-lg text-label-lg hover:bg-surface-container-high transition-colors shadow-sm" type="button">
+<span class="material-symbols-outlined text-[18px] text-primary">download</span>
+<span>Export Security Audit</span>
+</button>
+<button class="flex items-center gap-space-xs h-9 px-space-md rounded-xl bg-primary text-on-primary font-label-lg text-label-lg font-semibold hover:bg-primary-fixed-dim transition-colors shadow-sm" onclick="openDrawer('Maria Santos', 'm.santos@tropa.org', 'Collector', true)" type="button">
+<span class="material-symbols-outlined text-[18px]">person_add</span>
+<span>+ Invite New User</span>
+</button>
+</div>
+</div>
+<!-- Operators Data Table Card -->
+<div class="bg-surface-container-low rounded-xl overflow-hidden shadow-md">
+<div class="overflow-x-auto">
+<table class="w-full text-left font-body-md text-body-md">
+<thead>
+<tr class="bg-surface-container-high/60 text-on-surface-variant font-label-md text-label-md uppercase tracking-wider">
+<th class="py-space-md px-space-md">Operator Identity</th>
+<th class="py-space-md px-space-sm">Governance Role</th>
+<th class="py-space-md px-space-sm">Status</th>
+<th class="py-space-md px-space-sm">Last Session</th>
+<th class="py-space-md px-space-md">Assigned Scopes</th>
+<th class="py-space-md px-space-md text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container">
+<!-- Row 1: Super Admin (Current user) -->
+<tr class="hover:bg-surface-container/60 transition-colors">
+<td class="py-space-md px-space-md">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-xl bg-primary-container text-on-primary-container font-headline-md text-headline-md flex items-center justify-center font-bold">
+                    RD
+                  </div>
+<div class="flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="font-label-lg text-label-lg font-semibold text-on-surface">Rafael Del Rosario</span>
+<span class="font-label-sm text-label-sm px-1.5 py-0.5 rounded-full bg-primary/20 text-primary">You</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono">r.delrosario@tropa.org</span>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-sm">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary-container/20 text-primary font-label-sm text-label-sm font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                  Super Admin
+                </span>
+</td>
+<td class="py-space-md px-space-sm">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary-container/20 text-secondary font-label-sm text-label-sm font-medium">
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+                  Active
+                </span>
+</td>
+<td class="py-space-md px-space-sm text-on-surface-variant font-label-sm text-label-sm">
+                Just now
+              </td>
+<td class="py-space-md px-space-md">
+<div class="flex items-center gap-1.5 flex-wrap">
+<span class="px-2 py-0.5 rounded-md bg-surface-container-highest text-primary font-label-sm text-label-sm font-mono">system:*</span>
+<span class="px-2 py-0.5 rounded-md bg-surface-container-highest text-on-surface font-label-sm text-label-sm font-mono">all_scopes</span>
+</div>
+</td>
+<td class="py-space-md px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="px-2.5 py-1 rounded-lg bg-surface-container text-on-surface font-label-sm text-label-sm hover:bg-surface-container-high transition-colors" onclick="openDrawer('Rafael Del Rosario', 'r.delrosario@tropa.org', 'Super Admin', true)" type="button">
+                    Edit Access
+                  </button>
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container transition-colors" title="Lockdown" type="button">
+<span class="material-symbols-outlined text-[18px]">lock</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2: Collector -->
+<tr class="hover:bg-surface-container/60 transition-colors">
+<td class="py-space-md px-space-md">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-xl bg-surface-container text-secondary font-headline-md text-headline-md flex items-center justify-center font-bold">
+                    MS
+                  </div>
+<div class="flex flex-col">
+<span class="font-label-lg text-label-lg font-semibold text-on-surface">Maria Clarissa Santos</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono">m.santos@tropa.org</span>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-sm">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary-container/20 text-secondary font-label-sm text-label-sm font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                  Collector
+                </span>
+</td>
+<td class="py-space-md px-space-sm">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary-container/20 text-secondary font-label-sm text-label-sm font-medium">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+                  Active
+                </span>
+</td>
+<td class="py-space-md px-space-sm text-on-surface-variant font-label-sm text-label-sm">
+                2 hours ago
+              </td>
+<td class="py-space-md px-space-md">
+<div class="flex items-center gap-1.5 flex-wrap">
+<span class="px-2 py-0.5 rounded-md bg-surface-container-highest text-on-surface-variant font-label-sm text-label-sm font-mono">dues_collection</span>
+<span class="px-2 py-0.5 rounded-md bg-surface-container-highest text-on-surface-variant font-label-sm text-label-sm font-mono">manage_households</span>
+<span class="px-2 py-0.5 rounded-md bg-surface-container-highest text-outline font-label-sm text-label-sm font-mono">+1</span>
+</div>
+</td>
+<td class="py-space-md px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="px-2.5 py-1 rounded-lg bg-surface-container text-on-surface font-label-sm text-label-sm hover:bg-surface-container-high transition-colors" onclick="openDrawer('Maria Clarissa Santos', 'm.santos@tropa.org', 'Collector', true)" type="button">
+                    Edit Access
+                  </button>
+<button class="px-2 py-1 rounded-lg text-outline hover:text-on-surface font-label-sm text-label-sm hover:bg-surface-container transition-colors" type="button">
+                    Reset
+                  </button>
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-error hover:bg-error-container/30 transition-colors" title="Revoke" type="button">
+<span class="material-symbols-outlined text-[18px]">person_off</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3: Field Encoder -->
+<tr class="hover:bg-surface-container/60 transition-colors">
+<td class="py-space-md px-space-md">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-xl bg-surface-container text-tertiary font-headline-md text-headline-md flex items-center justify-center font-bold">
+                    JP
+                  </div>
+<div class="flex flex-col">
+<span class="font-label-lg text-label-lg font-semibold text-on-surface">Juan Paolo Perez</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono">jp.perez@tropa.org</span>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-sm">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-tertiary-container/20 text-tertiary font-label-sm text-label-sm font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary"></span>
+                  Field Encoder
+                </span>
+</td>
+<td class="py-space-md px-space-sm">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary-container/20 text-secondary font-label-sm text-label-sm font-medium">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+                  Active
+                </span>
+</td>
+<td class="py-space-md px-space-sm text-on-surface-variant font-label-sm text-label-sm">
+                Nov 12, 16:40
+              </td>
+<td class="py-space-md px-space-md">
+<div class="flex items-center gap-1.5 flex-wrap">
+<span class="px-2 py-0.5 rounded-md bg-surface-container-highest text-on-surface-variant font-label-sm text-label-sm font-mono">form_tracking</span>
+<span class="px-2 py-0.5 rounded-md bg-surface-container-highest text-on-surface-variant font-label-sm text-label-sm font-mono">field_intake</span>
+<span class="px-2 py-0.5 rounded-md bg-surface-container-highest text-on-surface-variant font-label-sm text-label-sm font-mono">tropa_finder</span>
+</div>
+</td>
+<td class="py-space-md px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="px-2.5 py-1 rounded-lg bg-surface-container text-on-surface font-label-sm text-label-sm hover:bg-surface-container-high transition-colors" onclick="openDrawer('Juan Paolo Perez', 'jp.perez@tropa.org', 'Encoder', true)" type="button">
+                    Edit Access
+                  </button>
+<button class="px-2 py-1 rounded-lg text-outline hover:text-on-surface font-label-sm text-label-sm hover:bg-surface-container transition-colors" type="button">
+                    Reset
+                  </button>
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-error hover:bg-error-container/30 transition-colors" title="Revoke" type="button">
+<span class="material-symbols-outlined text-[18px]">person_off</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 4: Auditor -->
+<tr class="hover:bg-surface-container/60 transition-colors">
+<td class="py-space-md px-space-md">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-xl bg-surface-container text-primary-fixed-dim font-headline-md text-headline-md flex items-center justify-center font-bold">
+                    EL
+                  </div>
+<div class="flex flex-col">
+<span class="font-label-lg text-label-lg font-semibold text-on-surface">Elena L. Lim</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono">elena.lim@audit-coop.gov</span>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-sm">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-bright text-on-surface font-label-sm text-label-sm font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-outline"></span>
+                  Auditor (Read-Only)
+                </span>
+</td>
+<td class="py-space-md px-space-sm">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary-container/20 text-secondary font-label-sm text-label-sm font-medium">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+                  Active
+                </span>
+</td>
+<td class="py-space-md px-space-sm text-on-surface-variant font-label-sm text-label-sm">
+                Yesterday 09:12
+              </td>
+<td class="py-space-md px-space-md">
+<div class="flex items-center gap-1.5 flex-wrap">
+<span class="px-2 py-0.5 rounded-md bg-surface-container-highest text-on-surface-variant font-label-sm text-label-sm font-mono">export_financials</span>
+<span class="px-2 py-0.5 rounded-md bg-surface-container-highest text-on-surface-variant font-label-sm text-label-sm font-mono">audit_logs_access</span>
+</div>
+</td>
+<td class="py-space-md px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="px-2.5 py-1 rounded-lg bg-surface-container text-on-surface font-label-sm text-label-sm hover:bg-surface-container-high transition-colors" onclick="openDrawer('Elena L. Lim', 'elena.lim@audit-coop.gov', 'Read-Only Auditor', true)" type="button">
+                    Edit Access
+                  </button>
+<button class="px-2 py-1 rounded-lg text-outline hover:text-on-surface font-label-sm text-label-sm hover:bg-surface-container transition-colors" type="button">
+                    Reset
+                  </button>
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-error hover:bg-error-container/30 transition-colors" title="Revoke" type="button">
+<span class="material-symbols-outlined text-[18px]">person_off</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 5: Pending Operator -->
+<tr class="hover:bg-surface-container/60 transition-colors opacity-90">
+<td class="py-space-md px-space-md">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-xl bg-surface-container text-outline font-headline-md text-headline-md flex items-center justify-center font-bold">
+                    AT
+                  </div>
+<div class="flex flex-col">
+<span class="font-label-lg text-label-lg font-semibold text-on-surface">Arnel Tariman</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono">a.tariman@davaocoop.ph</span>
+</div>
+</div>
+</td>
+<td class="py-space-md px-space-sm">
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-secondary-container/20 text-secondary font-label-sm text-label-sm font-semibold">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+                  Collector
+                </span>
+</td>
+<td class="py-space-md px-space-sm">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-tertiary-container/20 text-tertiary font-label-sm text-label-sm font-medium">
+<span class="w-2 h-2 rounded-full bg-tertiary"></span>
+                  Pending Invite
+                </span>
+</td>
+<td class="py-space-md px-space-sm text-outline font-label-sm text-label-sm">
+                Invited 3d ago
+              </td>
+<td class="py-space-md px-space-md">
+<div class="flex items-center gap-1.5 flex-wrap">
+<span class="px-2 py-0.5 rounded-md bg-surface-container-highest text-outline font-label-sm text-label-sm font-mono">dues_collection</span>
+<span class="px-2 py-0.5 rounded-md bg-surface-container-highest text-outline font-label-sm text-label-sm font-mono">field_intake</span>
+</div>
+</td>
+<td class="py-space-md px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="px-2.5 py-1 rounded-lg bg-tertiary-container/20 text-tertiary font-label-sm text-label-sm hover:bg-tertiary-container/40 transition-colors" type="button">
+                    Resend Link
+                  </button>
+<button class="w-8 h-8 rounded-lg flex items-center justify-center text-error hover:bg-error-container/30 transition-colors" title="Revoke Invitation" type="button">
+<span class="material-symbols-outlined text-[18px]">cancel</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footing Status -->
+<div class="px-space-md py-space-sm bg-surface-container flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm">
+<div class="flex items-center gap-space-sm">
+<span>Displaying 5 of 8 registered system operators</span>
+<span class="text-outline">|</span>
+<span class="text-secondary font-medium">Session token expiry enforced at 8h</span>
+</div>
+<div class="flex items-center gap-space-xs">
+<button class="px-2 py-1 rounded-md bg-surface-container-high text-on-surface hover:bg-surface-bright transition-colors disabled:opacity-40" disabled="">Previous</button>
+<span class="px-2 text-on-surface font-mono">1</span>
+<button class="px-2 py-1 rounded-md bg-surface-container-high text-on-surface hover:bg-surface-bright transition-colors">Next</button>
+</div>
+</div>
+</div>
+<!-- Quick Summary Cards for Remaining Governance Tabs -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-space-md pt-space-xs">
+<!-- Territory Registry Card -->
+<div class="bg-surface-container-low p-space-md rounded-xl shadow-md flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-space-sm">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary text-[20px]">pin_drop</span>
+<span class="font-label-md text-label-md uppercase tracking-wider text-outline">Tab 2 Overview</span>
+</div>
+<a class="font-label-sm text-label-sm text-primary hover:underline flex items-center gap-0.5" href="#">
+<span>Configure Registry</span>
+<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</a>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface">Territorial Jurisdiction Coverage</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">
+            Active cooperative clusters assigned for mutual-aid dues routing and household intake.
+          </p>
+<div class="grid grid-cols-3 gap-space-sm my-space-md">
+<div class="p-space-sm rounded-xl bg-surface-container">
+<span class="font-label-sm text-label-sm text-outline uppercase block">Monitored LGU</span>
+<span class="font-headline-lg text-headline-lg font-bold text-on-surface">1</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant block mt-0.5">Davao City Central</span>
+</div>
+<div class="p-space-sm rounded-xl bg-surface-container">
+<span class="font-label-sm text-label-sm text-outline uppercase block">Barangays</span>
+<span class="font-headline-lg text-headline-lg font-bold text-secondary">12</span>
+<span class="font-body-sm text-body-sm text-secondary font-mono text-[11px] block mt-0.5">100% Verified</span>
+</div>
+<div class="p-space-sm rounded-xl bg-surface-container">
+<span class="font-label-sm text-label-sm text-outline uppercase block">Active Puroks</span>
+<span class="font-headline-lg text-headline-lg font-bold text-primary">64</span>
+<span class="font-body-sm text-body-sm text-outline font-mono text-[11px] block mt-0.5">Sub-clusters</span>
+</div>
+</div>
+</div>
+<div class="pt-space-xs flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm bg-surface-container-high/40 p-space-sm rounded-lg">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-secondary">check_circle</span>
+<span>Geo-fence sync operational</span>
+</div>
+<span class="font-mono text-outline">v2.4-boundaries</span>
+</div>
+</div>
+<!-- Dues & Contribution Policy Card -->
+<div class="bg-surface-container-low p-space-md rounded-xl shadow-md flex flex-col justify-between">
+<div>
+<div class="flex items-center justify-between mb-space-sm">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-tertiary text-[20px]">currency_ruble</span>
+<span class="font-label-md text-label-md uppercase tracking-wider text-outline">Tab 4 Overview</span>
+</div>
+<a class="font-label-sm text-label-sm text-primary hover:underline flex items-center gap-0.5" href="#">
+<span>Adjust Rates</span>
+<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</a>
+</div>
+<h3 class="font-headline-md text-headline-md text-on-surface">Active Contribution &amp; Mutual Aid Tariff</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-1">
+            Standard baseline rates enforced during scheduled collection cycles and emergency pooling.
+          </p>
+<div class="grid grid-cols-2 gap-space-sm my-space-md">
+<div class="p-space-sm rounded-xl bg-surface-container flex flex-col justify-between">
+<div>
+<span class="font-label-sm text-label-sm text-outline uppercase block">Standard Mutual Aid</span>
+<div class="flex items-baseline gap-1 mt-1">
+<span class="font-headline-xl text-headline-xl font-bold text-on-surface font-mono">₱50.00</span>
+<span class="font-label-sm text-label-sm text-outline">/ mo</span>
+</div>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant block mt-2">
+                Covers burial assistance, basic legal clinic, and cooperative relief.
+              </span>
+</div>
+<div class="p-space-sm rounded-xl bg-surface-container flex flex-col justify-between">
+<div>
+<span class="font-label-sm text-label-sm text-outline uppercase block">Emergency Medical Pool</span>
+<div class="flex items-baseline gap-1 mt-1">
+<span class="font-headline-xl text-headline-xl font-bold text-tertiary font-mono">₱25.00</span>
+<span class="font-label-sm text-label-sm text-outline">/ mo</span>
+</div>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant block mt-2">
+                Mandatory health sub-fund released during immediate hospitalization.
+              </span>
+</div>
+</div>
+</div>
+<div class="pt-space-xs flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm bg-surface-container-high/40 p-space-sm rounded-lg">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-tertiary">lock_clock</span>
+<span>Next rate adjustment review: Jan 2026</span>
+</div>
+<span class="font-mono text-outline">Council Resolution #44</span>
+</div>
+</div>
+</div>
+</div>
+<!-- SLIDE-OVER DRAWER MODAL: Edit User Permissions & Security Profile -->
+<div class="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 transition-opacity duration-300 opacity-0 pointer-events-none" id="permissionDrawerBackdrop">
+<div class="fixed right-0 top-0 bottom-0 w-full max-w-xl bg-surface-container-low shadow-2xl flex flex-col transform translate-x-full transition-transform duration-300 ease-out z-50" id="permissionDrawerPanel">
+<!-- Drawer Header -->
+<div class="p-space-md bg-surface-container flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-xl bg-primary-container text-on-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-[24px]">shield_person</span>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface">Edit User Security Profile</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">Update identity and granular RBAC scopes.</p>
+</div>
+</div>
+<button class="w-9 h-9 rounded-xl bg-surface-container-high text-on-surface-variant hover:text-on-surface hover:bg-surface-bright flex items-center justify-center transition-colors" onclick="closeDrawer()" type="button">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+<!-- Drawer Scrollable Form Area -->
+<div class="flex-1 overflow-y-auto p-space-md space-y-space-md">
+<!-- Identity Block -->
+<div class="space-y-space-sm bg-surface-container/40 p-space-md rounded-xl">
+<span class="font-label-md text-label-md uppercase tracking-wider text-outline block">Operator Identity Details</span>
+<div class="space-y-1">
+<label class="font-label-sm text-label-sm text-on-surface-variant" for="inputFullName">Full Legal Name</label>
+<input class="w-full h-10 px-3 rounded-xl bg-surface text-on-surface font-body-md text-body-md focus:outline-none focus:ring-1 focus:ring-primary" id="inputFullName" type="text" value="Maria Clarissa Santos"/>
+</div>
+<div class="space-y-1">
+<label class="font-label-sm text-label-sm text-on-surface-variant" for="inputEmail">Official Coop Email Address</label>
+<input class="w-full h-10 px-3 rounded-xl bg-surface text-on-surface font-body-md text-body-md font-mono focus:outline-none focus:ring-1 focus:ring-primary" id="inputEmail" type="email" value="m.santos@tropa.org"/>
+</div>
+<div class="grid grid-cols-2 gap-space-sm pt-1">
+<div class="space-y-1">
+<label class="font-label-sm text-label-sm text-on-surface-variant" for="selectRole">Governance Role Tier</label>
+<select class="w-full h-10 px-3 rounded-xl bg-surface text-on-surface font-body-md text-body-md focus:outline-none focus:ring-1 focus:ring-primary" id="selectRole">
+<option value="Admin">Super Admin</option>
+<option selected="" value="Collector">Collector</option>
+<option value="Encoder">Field Encoder</option>
+<option value="Auditor">Read-Only Auditor</option>
+</select>
+</div>
+<div class="space-y-1">
+<label class="font-label-sm text-label-sm text-on-surface-variant">Account State</label>
+<div class="flex items-center justify-between h-10 px-3 rounded-xl bg-surface">
+<span class="font-label-md text-label-md text-on-surface" id="statusLabel">Active</span>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" id="statusToggle" onchange="document.getElementById('statusLabel').textContent = this.checked ? 'Active' : 'Suspended'" type="checkbox"/>
+<div class="w-9 h-5 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-on-surface after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-secondary"></div>
+</label>
+</div>
+</div>
+</div>
+</div>
+<!-- Granular RBAC Permissions Checkboxes -->
+<div class="space-y-space-sm">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md uppercase tracking-wider text-outline">Granular RBAC Scopes</span>
+<button class="font-label-sm text-label-sm text-primary hover:underline" onclick="toggleAllScopes(true)" type="button">Select Recommended</button>
+</div>
+<div class="space-y-space-sm">
+<!-- Group 1: Dashboard -->
+<div class="p-space-sm rounded-xl bg-surface-container space-y-2">
+<div class="flex items-center gap-1.5 text-on-surface font-label-md text-label-md font-semibold">
+<span class="material-symbols-outlined text-[16px] text-primary">dashboard</span>
+<span>Dashboard &amp; Telemetry</span>
+</div>
+<div class="grid grid-cols-1 gap-1.5 pl-6">
+<label class="flex items-center gap-2 cursor-pointer text-on-surface font-body-sm text-body-sm">
+<input checked="" class="w-4 h-4 rounded bg-surface text-primary focus:ring-primary focus:ring-offset-0" type="checkbox"/>
+<span class="font-mono text-label-sm text-label-sm">view_dashboard</span>
+<span class="text-on-surface-variant text-[11px]">— Aggregate regional KPIs and summaries</span>
+</label>
+</div>
+</div>
+<!-- Group 2: Households -->
+<div class="p-space-sm rounded-xl bg-surface-container space-y-2">
+<div class="flex items-center gap-1.5 text-on-surface font-label-md text-label-md font-semibold">
+<span class="material-symbols-outlined text-[16px] text-primary">cottage</span>
+<span>Households</span>
+</div>
+<div class="grid grid-cols-1 gap-1.5 pl-6">
+<label class="flex items-center gap-2 cursor-pointer text-on-surface font-body-sm text-body-sm">
+<input checked="" class="w-4 h-4 rounded bg-surface text-primary focus:ring-primary focus:ring-offset-0" type="checkbox"/>
+<span class="font-mono text-label-sm text-label-sm">view_households</span>
+<span class="text-on-surface-variant text-[11px]">— Read-only family unit records</span>
+</label>
+<label class="flex items-center gap-2 cursor-pointer text-on-surface font-body-sm text-body-sm">
+<input checked="" class="w-4 h-4 rounded bg-surface text-primary focus:ring-primary focus:ring-offset-0" type="checkbox"/>
+<span class="font-mono text-label-sm text-label-sm">manage_households</span>
+<span class="text-on-surface-variant text-[11px]">— Create, merge, or archive households</span>
+</label>
+</div>
+</div>
+<!-- Group 3: Members -->
+<div class="p-space-sm rounded-xl bg-surface-container space-y-2">
+<div class="flex items-center gap-1.5 text-on-surface font-label-md text-label-md font-semibold">
+<span class="material-symbols-outlined text-[16px] text-primary">groups</span>
+<span>Members Registry</span>
+</div>
+<div class="grid grid-cols-1 gap-1.5 pl-6">
+<label class="flex items-center gap-2 cursor-pointer text-on-surface font-body-sm text-body-sm">
+<input checked="" class="w-4 h-4 rounded bg-surface text-primary focus:ring-primary focus:ring-offset-0" type="checkbox"/>
+<span class="font-mono text-label-sm text-label-sm">view_members</span>
+<span class="text-on-surface-variant text-[11px]">— Access directory of registered individuals</span>
+</label>
+<label class="flex items-center gap-2 cursor-pointer text-on-surface font-body-sm text-body-sm">
+<input checked="" class="w-4 h-4 rounded bg-surface text-primary focus:ring-primary focus:ring-offset-0" type="checkbox"/>
+<span class="font-mono text-label-sm text-label-sm">manage_members</span>
+<span class="text-on-surface-variant text-[11px]">— Update demographics, status, kinship lines</span>
+</label>
+</div>
+</div>
+<!-- Group 4: Financials -->
+<div class="p-space-sm rounded-xl bg-surface-container space-y-2">
+<div class="flex items-center gap-1.5 text-on-surface font-label-md text-label-md font-semibold">
+<span class="material-symbols-outlined text-[16px] text-secondary">payments</span>
+<span>Financials &amp; Dues Collection</span>
+</div>
+<div class="grid grid-cols-1 gap-1.5 pl-6">
+<label class="flex items-center gap-2 cursor-pointer text-on-surface font-body-sm text-body-sm">
+<input checked="" class="w-4 h-4 rounded bg-surface text-primary focus:ring-primary focus:ring-offset-0" type="checkbox"/>
+<span class="font-mono text-label-sm text-label-sm">dues_collection</span>
+<span class="text-on-surface-variant text-[11px]">— Collect cash, post digital ledger receipts</span>
+</label>
+<label class="flex items-center gap-2 cursor-pointer text-on-surface font-body-sm text-body-sm">
+<input class="w-4 h-4 rounded bg-surface text-primary focus:ring-primary focus:ring-offset-0" type="checkbox"/>
+<span class="font-mono text-label-sm text-label-sm text-error">refund_dues</span>
+<span class="text-on-surface-variant text-[11px]">— Void and reverse ledger transactions</span>
+</label>
+<label class="flex items-center gap-2 cursor-pointer text-on-surface font-body-sm text-body-sm">
+<input class="w-4 h-4 rounded bg-surface text-primary focus:ring-primary focus:ring-offset-0" type="checkbox"/>
+<span class="font-mono text-label-sm text-label-sm">export_financials</span>
+<span class="text-on-surface-variant text-[11px]">— Export COA reconciliation spreadsheets</span>
+</label>
+</div>
+</div>
+<!-- Group 5: Field Operations -->
+<div class="p-space-sm rounded-xl bg-surface-container space-y-2">
+<div class="flex items-center gap-1.5 text-on-surface font-label-md text-label-md font-semibold">
+<span class="material-symbols-outlined text-[16px] text-tertiary">assignment</span>
+<span>Field Operations &amp; Forms</span>
+</div>
+<div class="grid grid-cols-1 gap-1.5 pl-6">
+<label class="flex items-center gap-2 cursor-pointer text-on-surface font-body-sm text-body-sm">
+<input checked="" class="w-4 h-4 rounded bg-surface text-primary focus:ring-primary focus:ring-offset-0" type="checkbox"/>
+<span class="font-mono text-label-sm text-label-sm">form_tracking</span>
+<span class="text-on-surface-variant text-[11px]">— Monitor distributed paper batch barcodes</span>
+</label>
+<label class="flex items-center gap-2 cursor-pointer text-on-surface font-body-sm text-body-sm">
+<input checked="" class="w-4 h-4 rounded bg-surface text-primary focus:ring-primary focus:ring-offset-0" type="checkbox"/>
+<span class="font-mono text-label-sm text-label-sm">field_intake</span>
+<span class="text-on-surface-variant text-[11px]">— Digitalize raw intake forms on tablet</span>
+</label>
+</div>
+</div>
+<!-- Group 6: Verification -->
+<div class="p-space-sm rounded-xl bg-surface-container space-y-2">
+<div class="flex items-center gap-1.5 text-on-surface font-label-md text-label-md font-semibold">
+<span class="material-symbols-outlined text-[16px] text-primary">person_search</span>
+<span>Verification &amp; Search</span>
+</div>
+<div class="grid grid-cols-1 gap-1.5 pl-6">
+<label class="flex items-center gap-2 cursor-pointer text-on-surface font-body-sm text-body-sm">
+<input checked="" class="w-4 h-4 rounded bg-surface text-primary focus:ring-primary focus:ring-offset-0" type="checkbox"/>
+<span class="font-mono text-label-sm text-label-sm">tropa_finder</span>
+<span class="text-on-surface-variant text-[11px]">— Cross-barangay QR/ID scanner lookup</span>
+</label>
+<label class="flex items-center gap-2 cursor-pointer text-on-surface font-body-sm text-body-sm">
+<input class="w-4 h-4 rounded bg-surface text-primary focus:ring-primary focus:ring-offset-0" type="checkbox"/>
+<span class="font-mono text-label-sm text-label-sm">manage_blocklist</span>
+<span class="text-on-surface-variant text-[11px]">— Flag fraudulent aid duplications</span>
+</label>
+</div>
+</div>
+<!-- Group 7: Governance -->
+<div class="p-space-sm rounded-xl bg-surface-container space-y-2">
+<div class="flex items-center gap-1.5 text-on-surface font-label-md text-label-md font-semibold">
+<span class="material-symbols-outlined text-[16px] text-error">security</span>
+<span>System Administration &amp; Audit</span>
+</div>
+<div class="grid grid-cols-1 gap-1.5 pl-6">
+<label class="flex items-center gap-2 cursor-pointer text-on-surface font-body-sm text-body-sm">
+<input class="w-4 h-4 rounded bg-surface text-primary focus:ring-primary focus:ring-offset-0" type="checkbox"/>
+<span class="font-mono text-label-sm text-label-sm">user_management</span>
+<span class="text-on-surface-variant text-[11px]">— Invite, modify, and revoke operator profiles</span>
+</label>
+<label class="flex items-center gap-2 cursor-pointer text-on-surface font-body-sm text-body-sm">
+<input class="w-4 h-4 rounded bg-surface text-primary focus:ring-primary focus:ring-offset-0" type="checkbox"/>
+<span class="font-mono text-label-sm text-label-sm">audit_logs_access</span>
+<span class="text-on-surface-variant text-[11px]">— Read raw cryptographic immutable audit logs</span>
+</label>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Drawer Actions Footer -->
+<div class="p-space-md bg-surface-container flex items-center justify-between">
+<button class="px-space-md py-2.5 rounded-xl bg-surface-container-high text-on-surface font-label-lg text-label-lg hover:bg-surface-bright transition-colors" onclick="closeDrawer()" type="button">
+          Cancel
+        </button>
+<button class="flex items-center gap-space-xs px-space-md py-2.5 rounded-xl bg-primary text-on-primary font-label-lg text-label-lg font-semibold hover:bg-primary-fixed-dim transition-colors shadow-md" onclick="saveSecurityChanges()" type="button">
+<span class="material-symbols-outlined text-[18px]">verified</span>
+<span>Save Security Changes</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<script>
+  function openDrawer(name, email, role, active) {
+    var backdrop = document.getElementById('permissionDrawerBackdrop');
+    var panel = document.getElementById('permissionDrawerPanel');
+    
+    if (name) document.getElementById('inputFullName').value = name;
+    if (email) document.getElementById('inputEmail').value = email;
+    if (role) {
+      var select = document.getElementById('selectRole');
+      for (var i = 0; i < select.options.length; i++) {
+        if (select.options[i].text.toLowerCase().includes(role.toLowerCase()) || select.options[i].value.toLowerCase().includes(role.toLowerCase())) {
+          select.selectedIndex = i;
+          break;
+        }
+      }
+    }
+    
+    var toggle = document.getElementById('statusToggle');
+    var label = document.getElementById('statusLabel');
+    toggle.checked = active !== false;
+    label.textContent = toggle.checked ? 'Active' : 'Suspended';
+    
+    backdrop.classList.remove('pointer-events-none');
+    backdrop.classList.remove('opacity-0');
+    backdrop.classList.add('opacity-100');
+    
+    panel.classList.remove('translate-x-full');
+    panel.classList.add('translate-x-0');
+  }
+
+  function closeDrawer() {
+    var backdrop = document.getElementById('permissionDrawerBackdrop');
+    var panel = document.getElementById('permissionDrawerPanel');
+    
+    backdrop.classList.add('opacity-0');
+    backdrop.classList.remove('opacity-100');
+    panel.classList.add('translate-x-full');
+    panel.classList.remove('translate-x-0');
+    
+    setTimeout(function() {
+      backdrop.classList.add('pointer-events-none');
+    }, 300);
+  }
+
+  function saveSecurityChanges() {
+    var btn = event.currentTarget;
+    var origHTML = btn.innerHTML;
+    btn.innerHTML = '<span class="material-symbols-outlined text-[18px] animate-spin">refresh</span><span>Applying Tokens...</span>';
+    btn.disabled = true;
+    
+    setTimeout(function() {
+      btn.innerHTML = '<span class="material-symbols-outlined text-[18px]">check_circle</span><span>Policy Applied!</span>';
+      setTimeout(function() {
+        closeDrawer();
+        btn.innerHTML = origHTML;
+        btn.disabled = false;
+      }, 700);
+    }, 800);
+  }
+
+  function toggleAllScopes(collectorPreset) {
+    // Helpful preset toggle for quick demo ergonomics
+    var inputs = document.querySelectorAll('#permissionDrawerPanel input[type="checkbox"]:not(#statusToggle)');
+    inputs.forEach(function(el, idx) {
+      if (collectorPreset) {
+        // checks common field collector scopes
+        el.checked = (idx < 5 || idx === 6 || idx === 7);
+      } else {
+        el.checked = !el.checked;
+      }
+    });
+  }
+
+  // Close drawer on ESC key
+  document.addEventListener('keydown', function(evt) {
+    if (evt.key === 'Escape') {
+      closeDrawer();
+    }
+  });
+</script></main></div></body></html>

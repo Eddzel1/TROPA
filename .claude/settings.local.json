@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -)",
+      "Bash(flutter analyze *)",
+      "Bash(flutter test *)",
+      "Bash(GRAPHIFY_NO_AUTO_REFRESH=1 ~/.local/bin/graphify update .)",
+      "Bash(sed -n 200,320p ~/.pub-cache/hosted/pub.dev/flutter_map-8.3.2/lib/src/layer/tile_layer/tile_provider/network/image_provider/image_provider.dart | grep -n \"catch\\\\|cachedTile\\\\|rethrow\\\\|return\" )",
+      "Read(//Users/eddz/.pub-cache/hosted/pub.dev/flutter_map-8.3.2/lib/src/layer/tile_layer/tile_provider/network/image_provider/**)",
+      "Bash(flutter build *)"
+    ]
+  }
+}

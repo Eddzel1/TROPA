@@ -1,0 +1,19 @@
+# PowerSync sync rules: paste into the PowerSync dashboard (Sync Rules tab) and deploy.
+# Table and column names must match lib/data/powersync_schema.dart.
+# Postgres booleans arrive on devices as 1/0 and arrays (users.permissions) as JSON text.
+
+bucket_definitions:
+  # Everything every signed-in user needs to work offline.
+  global:
+    data:
+      - SELECT * FROM households
+      - SELECT * FROM family_members
+      - SELECT * FROM dues_payments
+      - SELECT * FROM form_tracking
+      - SELECT * FROM locations
+      - SELECT id, location_id, name FROM puroks
+      - SELECT * FROM users
+      - SELECT * FROM officers
+      - SELECT * FROM voter_flags
+      # voters (the COMELEC registry) is not synced through PowerSync: devices install a compressed
+      # snapshot of the target LGUs from Supabase Storage instead (lib/services/voter_snapshot.dart).

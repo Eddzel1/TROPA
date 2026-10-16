@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_dashboard" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Manrope:wght@600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "error-container": "#93000a", "surface-container-highest": "#2d3449", "secondary-fixed": "#6ffbbe", "error": "#ffb4ab", "on-error": "#690005", "primary-container": "#38bdf8", "on-tertiary-container": "#613b00", "background": "#0b1326", "inverse-primary": "#00668a", "inverse-on-surface": "#283044", "surface-bright": "#31394d", "on-tertiary": "#472a00", "surface-dim": "#0b1326", "on-primary-fixed-variant": "#004c69", "surface-variant": "#2d3449", "secondary-fixed-dim": "#4edea3", "on-surface-variant": "#bdc8d1", "on-tertiary-fixed-variant": "#653e00", "secondary": "#4edea3", "on-secondary-container": "#00311f", "on-surface": "#dae2fd", "secondary-container": "#00a572", "primary": "#8ed5ff", "on-primary": "#00354a", "surface-tint": "#7bd0ff", "outline-variant": "#3e484f", "tertiary": "#ffc174", "surface-container-low": "#131b2e", "surface": "#0b1326", "tertiary-container": "#f59e0b", "surface-container": "#171f33", "on-primary-container": "#004965", "tertiary-fixed-dim": "#ffb95f", "on-background": "#dae2fd", "on-secondary-fixed-variant": "#005236", "primary-fixed": "#c4e7ff", "surface-container-high": "#222a3d", "inverse-surface": "#dae2fd", "on-secondary": "#003824", "on-tertiary-fixed": "#2a1700", "tertiary-fixed": "#ffddb8", "primary-fixed-dim": "#7bd0ff", "on-secondary-fixed": "#002113", "on-error-container": "#ffdad6", "surface-container-lowest": "#060e20", "outline": "#87929a", "on-primary-fixed": "#001e2c" }, "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" }, "spacing": { "gutter-mobile": "0.75rem", "space-xl": "2.5rem", "margin-mobile": "1rem", "space-lg": "1.5rem", "space-xs": "0.25rem", "margin": "2rem", "space-sm": "0.5rem", "space-md": "1rem", "gutter": "1.5rem" }, "fontFamily": { "body-md": ["Inter"], "body-lg": ["Inter"], "headline-xl-mobile": ["Manrope"], "headline-xl": ["Manrope"], "headline-md": ["Manrope"], "label-md": ["JetBrains Mono"], "label-lg": ["Inter"], "body-sm": ["Inter"], "label-sm": ["JetBrains Mono"], "headline-lg": ["Manrope"] }, "fontSize": { "body-md": ["0.875rem", { "lineHeight": "1.25rem", "fontWeight": "400" }], "body-lg": ["1rem", { "lineHeight": "1.5rem", "fontWeight": "400" }], "headline-xl-mobile": ["1.75rem", { "lineHeight": "2.25rem", "letterSpacing": "-0.01em", "fontWeight": "700" }], "headline-xl": ["2.25rem", { "lineHeight": "2.75rem", "letterSpacing": "-0.02em", "fontWeight": "700" }], "headline-md": ["1.25rem", { "lineHeight": "1.75rem", "fontWeight": "600" }], "label-md": ["0.75rem", { "lineHeight": "1rem", "letterSpacing": "0.02em", "fontWeight": "500" }], "label-lg": ["0.875rem", { "lineHeight": "1.25rem", "fontWeight": "500" }], "body-sm": ["0.75rem", { "lineHeight": "1rem", "fontWeight": "400" }], "label-sm": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.04em", "fontWeight": "400" }], "headline-lg": ["1.5rem", { "lineHeight": "2rem", "letterSpacing": "-0.015em", "fontWeight": "600" }] } } } }</script></head><body class="bg-surface font-body-md text-on-surface antialiased"><aside class="fixed left-0 top-0 h-full w-72 bg-surface-container-low shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-50 flex flex-col justify-between"><div class="flex flex-col flex-1 min-h-0"><div class="h-16 px-space-md flex items-center justify-between bg-surface-container-low"><div class="flex items-center gap-space-sm"><div class="w-9 h-9 rounded-xl bg-primary-container flex items-center justify-center"><span class="material-symbols-outlined text-on-primary-container text-[22px]">shield_person</span></div><div class="flex flex-col"><div class="flex items-center gap-space-xs"><span class="font-headline-md text-headline-md font-bold tracking-tight text-on-surface">TROPA</span><span class="font-label-sm text-label-sm px-1.5 py-0.5 rounded-full bg-surface-container-highest text-primary font-semibold">v2.0</span></div><span class="font-label-sm text-label-sm text-on-surface-variant truncate max-w-[140px]">Tabang Respeto Og Panalipud</span></div></div><div class="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-secondary-container/20"><span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span><span class="font-label-sm text-label-sm text-secondary font-medium">ACTIVE</span></div></div><div class="px-space-md py-space-sm"><div class="px-space-sm py-space-xs rounded-xl bg-surface-container flex items-center gap-space-sm"><span class="material-symbols-outlined text-primary text-[18px]">corporate_fare</span><span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">METRO COOP UNION #104</span></div></div><nav class="flex-1 px-space-sm py-space-xs space-y-1 overflow-y-auto" data-active-classes="bg-primary-container text-on-primary-container font-semibold shadow-sm"><a class="flex items-center px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-lg text-label-lg" data-path="dashboard" href="#">Dashboard</a><a class="flex items-center px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-lg text-label-lg" data-path="households" href="#">Households</a><a aria-current="page" class="flex items-center px-space-md py-2.5 rounded-xl transition-colors bg-primary-container text-on-primary-container font-semibold shadow-sm" data-path="members" href="#">Members Directory</a><a class="flex items-center px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-lg text-label-lg" data-path="dues" href="#">Dues &amp; Ledger</a><a class="flex items-center px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-lg text-label-lg" data-path="reports" href="#">Reports &amp; Exports</a><a class="flex items-center px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-lg text-label-lg" data-path="form-tracking" href="#">Form Tracking</a><a class="flex items-center px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-lg text-label-lg" data-path="tropa-finder" href="#">Tropa Finder</a><div class="pt-space-sm pb-space-xs px-space-md"><span class="font-label-sm text-label-sm uppercase tracking-wider text-outline">System Admin</span></div><a class="flex items-center px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-lg text-label-lg" data-path="settings" href="#">Settings</a><a class="flex items-center px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-lg text-label-lg" data-path="logs" href="#">Audit Logs</a></nav></div><div class="p-space-md bg-surface-container-low"><div class="p-space-sm rounded-xl bg-surface-container flex items-center justify-between"><div class="flex items-center gap-space-xs"><span class="material-symbols-outlined text-secondary text-[16px]">cloud_done</span><span class="font-label-sm text-label-sm text-on-surface-variant">v2.4.11-prod</span></div><a class="text-on-surface-variant hover:text-on-surface transition-colors" data-path="login" href="#"><span class="material-symbols-outlined text-[18px]">logout</span></a></div></div></aside><div class="pl-72"><header class="fixed top-0 left-72 right-0 h-16 bg-surface/85 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40"><div class="w-full h-16 px-space-md flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-sm"><div class="flex items-center text-on-surface-variant font-label-md text-label-md gap-1.5"><span class="material-symbols-outlined text-[16px]">domain</span><span class="hover:text-on-surface cursor-pointer">Cooperative</span><span class="text-outline">/</span><span class="text-on-surface font-semibold">Overview</span></div></div><div class="flex-1 max-w-md mx-space-md"><div class="relative flex items-center"><span class="material-symbols-outlined absolute left-3 text-outline text-[18px]">search</span><input class="w-full h-9 pl-9 pr-3 rounded-xl bg-surface-container text-on-surface placeholder:text-outline font-body-sm text-body-sm focus:outline-none focus:bg-surface-container-high transition-colors" placeholder="Search members, records, dues, or forms (Ctrl + K)..." type="text"/></div></div><div class="flex items-center gap-space-md"><div class="flex items-center gap-1.5 px-space-sm py-1 rounded-full bg-surface-container"><span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span><span class="font-label-sm text-label-sm text-on-surface font-medium">Online Sync</span></div><button aria-label="Toggle dark mode" class="w-9 h-9 rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-[20px]">dark_mode</span></button><button aria-label="View notifications" class="relative w-9 h-9 rounded-xl bg-surface-container flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-[20px]">notifications</span><span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-tertiary-container"></span></button><div class="flex items-center gap-space-sm pl-space-xs"><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div><div class="flex flex-col"><div class="flex items-center gap-1.5"><span class="font-label-md text-label-md font-semibold text-on-surface">R. Del Rosario</span><span class="material-symbols-outlined text-outline text-[14px]">expand_more</span></div><span class="font-label-sm text-label-sm text-primary">Lead Admin</span></div></div></div></div></header><main class="w-full pt-16 bg-surface"><div class="flex flex-col w-full">
+<!-- Top Ambient Glow Gradient Backdrop -->
+<div class="relative w-full overflow-hidden px-margin py-space-lg flex flex-col gap-space-lg">
+<div class="absolute -top-24 right-1/4 w-96 h-96 bg-primary-container/10 rounded-full blur-3xl pointer-events-none"></div>
+<div class="absolute top-12 left-1/3 w-80 h-80 bg-secondary/10 rounded-full blur-3xl pointer-events-none"></div>
+<!-- Header & Action Bar -->
+<div class="flex flex-col lg:flex-row lg:items-end justify-between gap-space-md relative z-10">
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center gap-2 text-on-surface-variant font-label-sm text-label-sm uppercase tracking-widest">
+<span>Registry</span>
+<span>/</span>
+<span class="text-primary font-semibold">Members</span>
+<span class="inline-block w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span class="text-on-surface-variant/80 normal-case">Barangay Sta. Maria &amp; Poblacion</span>
+</div>
+<h1 class="font-headline-xl text-headline-xl text-on-surface font-extrabold tracking-tight">
+          Members Directory
+        </h1>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-3xl">
+          Comprehensive individual directory with multi-sector tagging, demographic stats, PhilHealth &amp; voter accreditation for municipal oversight.
+        </p>
+</div>
+<!-- Action Buttons -->
+<div class="flex items-center gap-space-sm flex-wrap">
+<button class="px-space-md py-2.5 rounded-xl bg-surface-container-high hover:bg-surface-bright text-on-surface font-label-lg text-label-lg transition-colors flex items-center gap-2 shadow-sm" type="button">
+<span class="material-symbols-outlined text-[18px]">file_download</span>
+<span>Export CSV</span>
+</button>
+<button class="px-space-md py-2.5 rounded-xl bg-primary-container hover:bg-primary-fixed-dim text-on-primary-container font-label-lg text-label-lg font-semibold transition-colors flex items-center gap-2 shadow-md" id="open-register-drawer" type="button">
+<span class="material-symbols-outlined text-[20px]">person_add</span>
+<span>Register Member</span>
+</button>
+</div>
+</div>
+<!-- KPI Metric Cards Grid -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-gutter relative z-10">
+<!-- KPI 1 -->
+<div class="p-space-md rounded-xl bg-surface-container-low shadow-sm flex flex-col justify-between relative overflow-hidden group hover:bg-surface-container transition-colors">
+<div class="flex items-center justify-between mb-2">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Total Members</span>
+<span class="p-1.5 rounded-lg bg-primary-container/20 text-primary">
+<span class="material-symbols-outlined text-[18px]">group</span>
+</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-headline-xl text-headline-xl font-bold text-on-surface">18,450</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-secondary-container/20 text-secondary font-medium">
+            +240 mo
+          </span>
+</div>
+<div class="mt-space-sm flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm">
+<span>Active Enumeration</span>
+<span class="text-primary font-medium">99.4% Verified</span>
+</div>
+<div class="w-full bg-surface-container-highest h-1 rounded-full mt-2 overflow-hidden">
+<div class="bg-primary h-full w-[88%]"></div>
+</div>
+</div>
+<!-- KPI 2 -->
+<div class="p-space-md rounded-xl bg-surface-container-low shadow-sm flex flex-col justify-between relative overflow-hidden group hover:bg-surface-container transition-colors">
+<div class="flex items-center justify-between mb-2">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Coop Members</span>
+<span class="p-1.5 rounded-lg bg-secondary-container/20 text-secondary">
+<span class="material-symbols-outlined text-[18px]">storefront</span>
+</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-headline-xl text-headline-xl font-bold text-on-surface">6,340</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-surface-container-highest text-on-surface-variant font-medium">
+            34.3%
+          </span>
+</div>
+<div class="mt-space-sm flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm">
+<span>Capitalized Share</span>
+<span class="text-secondary font-medium">₱14.2M Total</span>
+</div>
+<div class="w-full bg-surface-container-highest h-1 rounded-full mt-2 overflow-hidden">
+<div class="bg-secondary h-full w-[34.3%]"></div>
+</div>
+</div>
+<!-- KPI 3 -->
+<div class="p-space-md rounded-xl bg-surface-container-low shadow-sm flex flex-col justify-between relative overflow-hidden group hover:bg-surface-container transition-colors">
+<div class="flex items-center justify-between mb-2">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">Voters Registered</span>
+<span class="p-1.5 rounded-lg bg-tertiary-container/20 text-tertiary">
+<span class="material-symbols-outlined text-[18px]">how_to_vote</span>
+</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-headline-xl text-headline-xl font-bold text-on-surface">14,210</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-tertiary/20 text-tertiary font-medium">
+            77.0%
+          </span>
+</div>
+<div class="mt-space-sm flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm">
+<span>COMELEC Clustered</span>
+<span class="text-on-surface font-medium">42 Precincts</span>
+</div>
+<div class="w-full bg-surface-container-highest h-1 rounded-full mt-2 overflow-hidden">
+<div class="bg-tertiary h-full w-[77%]"></div>
+</div>
+</div>
+<!-- KPI 4 -->
+<div class="p-space-md rounded-xl bg-surface-container-low shadow-sm flex flex-col justify-between relative overflow-hidden group hover:bg-surface-container transition-colors">
+<div class="flex items-center justify-between mb-2">
+<span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">PhilHealth / TRU Care</span>
+<span class="p-1.5 rounded-lg bg-primary-fixed-dim/20 text-primary-fixed-dim">
+<span class="material-symbols-outlined text-[18px]">medical_services</span>
+</span>
+</div>
+<div class="flex items-baseline gap-2">
+<span class="font-headline-xl text-headline-xl font-bold text-on-surface">12,890</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded-full bg-primary/20 text-primary font-medium">
+            69.8%
+          </span>
+</div>
+<div class="mt-space-sm flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm">
+<span>Universal Subsidy</span>
+<span class="text-secondary font-medium">Tier-1 Qualified</span>
+</div>
+<div class="w-full bg-surface-container-highest h-1 rounded-full mt-2 overflow-hidden">
+<div class="bg-primary-container h-full w-[69.8%]"></div>
+</div>
+</div>
+</div>
+<!-- Filter Control Toolbar -->
+<div class="p-space-md rounded-xl bg-surface-container-low shadow-sm flex flex-col xl:flex-row gap-space-md items-stretch xl:items-center justify-between">
+<!-- Search Input -->
+<div class="relative flex-1 min-w-[280px]">
+<span class="material-symbols-outlined absolute left-3 top-2.5 text-outline text-[20px]">search</span>
+<input class="w-full h-10 pl-10 pr-4 rounded-xl bg-surface-container text-on-surface placeholder:text-outline font-body-md text-body-md focus:outline-none focus:bg-surface-container-highest transition-colors" id="table-search" placeholder="Search member name, ID (MEM-XXXXX), or mobile..." type="text"/>
+</div>
+<!-- Dropdown Selectors & Toggles -->
+<div class="flex items-center gap-space-sm flex-wrap">
+<!-- Sector Selector -->
+<div class="relative min-w-[170px]">
+<select class="w-full h-10 pl-3 pr-8 rounded-xl bg-surface-container text-on-surface font-body-sm text-body-sm appearance-none focus:outline-none focus:bg-surface-container-highest cursor-pointer">
+<option value="all">Sector: All Sectors</option>
+<option value="farmers">Farmers</option>
+<option value="fisherfolk">Fisherfolk</option>
+<option value="women">Women / Artisan</option>
+<option value="youth">Youth / Scholar</option>
+<option value="senior">Senior Citizen</option>
+<option value="transport">Transport (TODA)</option>
+</select>
+<span class="material-symbols-outlined pointer-events-none absolute right-2.5 top-2.5 text-outline text-[18px]">expand_more</span>
+</div>
+<!-- Barangay / Purok Selector -->
+<div class="relative min-w-[190px]">
+<select class="w-full h-10 pl-3 pr-8 rounded-xl bg-surface-container text-on-surface font-body-sm text-body-sm appearance-none focus:outline-none focus:bg-surface-container-highest cursor-pointer">
+<option value="all">Purok: All Clustered</option>
+<option value="purok-1">Sta. Maria - Purok 1 (Riverside)</option>
+<option value="purok-2">Sta. Maria - Purok 2 (Manggahan)</option>
+<option value="purok-3">Sta. Maria - Purok 3 (Sentro)</option>
+<option value="pob-ilaya">Poblacion - Ilaya Coastal</option>
+<option value="pob-kanluran">Poblacion - Kanluran Market</option>
+</select>
+<span class="material-symbols-outlined pointer-events-none absolute right-2.5 top-2.5 text-outline text-[18px]">expand_more</span>
+</div>
+<!-- Filter Badges / Quick Toggles -->
+<div class="flex items-center bg-surface-container rounded-xl p-1 gap-1">
+<button class="px-3 py-1.5 rounded-lg text-on-surface-variant font-label-sm text-label-sm flex items-center gap-1.5 hover:text-on-surface transition-colors data-[active=true]:bg-surface-container-highest data-[active=true]:text-secondary" data-active="false" id="toggle-coop" type="button">
+<span class="material-symbols-outlined text-[16px]">account_balance</span>
+<span>Coop Only</span>
+</button>
+<button class="px-3 py-1.5 rounded-lg text-on-surface-variant font-label-sm text-label-sm flex items-center gap-1.5 hover:text-on-surface transition-colors data-[active=true]:bg-surface-container-highest data-[active=true]:text-tertiary" data-active="false" id="toggle-voter" type="button">
+<span class="material-symbols-outlined text-[16px]">verified</span>
+<span>Voters Only</span>
+</button>
+</div>
+<!-- Refresh / Reset -->
+<button class="w-10 h-10 rounded-xl bg-surface-container flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container-high transition-colors" title="Clear Filters" type="button">
+<span class="material-symbols-outlined text-[20px]">filter_alt_off</span>
+</button>
+</div>
+</div>
+<!-- Members Table Canvas -->
+<div class="w-full rounded-xl bg-surface-container-low shadow-sm overflow-hidden flex flex-col">
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-high/80 text-on-surface-variant font-label-md text-label-md uppercase tracking-wider">
+<th class="py-3.5 px-space-md">Member &amp; Registry ID</th>
+<th class="py-3.5 px-space-md">Household</th>
+<th class="py-3.5 px-space-md">Demographics</th>
+<th class="py-3.5 px-space-md">Sector Affiliations</th>
+<th class="py-3.5 px-space-md">Voting Status</th>
+<th class="py-3.5 px-space-md">PhilHealth &amp; Aid</th>
+<th class="py-3.5 px-space-md text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container-high/50 font-body-md text-body-md">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container/60 transition-colors group">
+<td class="py-3 px-space-md">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest flex-shrink-0 flex items-center justify-center font-headline-md text-headline-md font-bold text-primary">
+                    EC
+                  </div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-lg text-label-lg font-semibold text-on-surface group-hover:text-primary transition-colors truncate">Elena Cruz-Bautista</span>
+<span class="font-label-sm text-label-sm text-outline">MEM-99201 · <span class="text-secondary font-medium">Head of HH</span></span>
+</div>
+</div>
+</td>
+<td class="py-3 px-space-md">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md font-semibold text-on-surface">HH-204-A</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Purok 2, Sta. Maria</span>
+</div>
+</td>
+<td class="py-3 px-space-md">
+<div class="flex flex-col">
+<span class="font-body-md text-body-md text-on-surface">45 yrs old</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Female · Married</span>
+</div>
+</td>
+<td class="py-3 px-space-md">
+<div class="flex flex-wrap gap-1.5 max-w-xs">
+<span class="px-2 py-0.5 rounded-full bg-surface-container-highest text-primary font-label-sm text-label-sm">Women / Artisan</span>
+<span class="px-2 py-0.5 rounded-full bg-secondary-container/20 text-secondary font-label-sm text-label-sm">Coop Regular</span>
+</div>
+</td>
+<td class="py-3 px-space-md">
+<div class="flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="font-label-sm text-label-sm font-semibold text-secondary">Registered Voter</span>
+</div>
+<span class="font-label-sm text-label-sm text-outline">Precinct #0142A</span>
+</div>
+</td>
+<td class="py-3 px-space-md">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm font-semibold text-primary">Active PHIC</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono">#22-01928310</span>
+</div>
+</td>
+<td class="py-3 px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" title="View Geolocation" type="button">
+<span class="material-symbols-outlined text-[18px]">location_on</span>
+</button>
+<button class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" title="Edit Member Record" type="button">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+<button class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors" title="Member Profile" type="button">
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container/60 transition-colors group">
+<td class="py-3 px-space-md">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest flex-shrink-0 flex items-center justify-center font-headline-md text-headline-md font-bold text-tertiary">
+                    DM
+                  </div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-lg text-label-lg font-semibold text-on-surface group-hover:text-primary transition-colors truncate">Danilo Morales Sr.</span>
+<span class="font-label-sm text-label-sm text-outline">MEM-84012 · Member</span>
+</div>
+</div>
+</td>
+<td class="py-3 px-space-md">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md font-semibold text-on-surface">HH-118-C</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Ilaya Coastal, Pob.</span>
+</div>
+</td>
+<td class="py-3 px-space-md">
+<div class="flex flex-col">
+<span class="font-body-md text-body-md text-on-surface">63 yrs old</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Male · Widowed</span>
+</div>
+</td>
+<td class="py-3 px-space-md">
+<div class="flex flex-wrap gap-1.5 max-w-xs">
+<span class="px-2 py-0.5 rounded-full bg-surface-container-highest text-primary-fixed-dim font-label-sm text-label-sm">Fisherfolk</span>
+<span class="px-2 py-0.5 rounded-full bg-tertiary-container/20 text-tertiary font-label-sm text-label-sm">Senior Citizen</span>
+</div>
+</td>
+<td class="py-3 px-space-md">
+<div class="flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="font-label-sm text-label-sm font-semibold text-secondary">Registered Voter</span>
+</div>
+<span class="font-label-sm text-label-sm text-outline">Precinct #0088B</span>
+</div>
+</td>
+<td class="py-3 px-space-md">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm font-semibold text-secondary">TRU Care Senior</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono">#SC-2023-1102</span>
+</div>
+</td>
+<td class="py-3 px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" title="View Geolocation" type="button">
+<span class="material-symbols-outlined text-[18px]">location_on</span>
+</button>
+<button class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" title="Edit Member Record" type="button">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+<button class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors" title="Member Profile" type="button">
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container/60 transition-colors group">
+<td class="py-3 px-space-md">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest flex-shrink-0 flex items-center justify-center font-headline-md text-headline-md font-bold text-secondary">
+                    JR
+                  </div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-lg text-label-lg font-semibold text-on-surface group-hover:text-primary transition-colors truncate">John Carlo Ramos</span>
+<span class="font-label-sm text-label-sm text-outline">MEM-10492 · Dependent</span>
+</div>
+</div>
+</td>
+<td class="py-3 px-space-md">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md font-semibold text-on-surface">HH-312-E</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Purok 1, Sta. Maria</span>
+</div>
+</td>
+<td class="py-3 px-space-md">
+<div class="flex flex-col">
+<span class="font-body-md text-body-md text-on-surface">19 yrs old</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Male · Single</span>
+</div>
+</td>
+<td class="py-3 px-space-md">
+<div class="flex flex-wrap gap-1.5 max-w-xs">
+<span class="px-2 py-0.5 rounded-full bg-primary-container/20 text-primary-container font-label-sm text-label-sm">Youth / Scholar</span>
+</div>
+</td>
+<td class="py-3 px-space-md">
+<div class="flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-outline"></span>
+<span class="font-label-sm text-label-sm font-semibold text-outline">SK Voter Only</span>
+</div>
+<span class="font-label-sm text-label-sm text-outline">SK-Prec #0114</span>
+</div>
+</td>
+<td class="py-3 px-space-md">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Dependent</span>
+<span class="font-label-sm text-label-sm text-outline font-mono">Under Parent PHIC</span>
+</div>
+</td>
+<td class="py-3 px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" title="View Geolocation" type="button">
+<span class="material-symbols-outlined text-[18px]">location_on</span>
+</button>
+<button class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" title="Edit Member Record" type="button">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+<button class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors" title="Member Profile" type="button">
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-surface-container/60 transition-colors group">
+<td class="py-3 px-space-md">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest flex-shrink-0 flex items-center justify-center font-headline-md text-headline-md font-bold text-primary">
+                    AT
+                  </div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-lg text-label-lg font-semibold text-on-surface group-hover:text-primary transition-colors truncate">Antonio Tolentino</span>
+<span class="font-label-sm text-label-sm text-outline">MEM-55110 · Head of HH</span>
+</div>
+</div>
+</td>
+<td class="py-3 px-space-md">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md font-semibold text-on-surface">HH-049-F</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Kanluran Market, Pob.</span>
+</div>
+</td>
+<td class="py-3 px-space-md">
+<div class="flex flex-col">
+<span class="font-body-md text-body-md text-on-surface">51 yrs old</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Male · Married</span>
+</div>
+</td>
+<td class="py-3 px-space-md">
+<div class="flex flex-wrap gap-1.5 max-w-xs">
+<span class="px-2 py-0.5 rounded-full bg-surface-container-highest text-tertiary font-label-sm text-label-sm">Transport (TODA)</span>
+<span class="px-2 py-0.5 rounded-full bg-secondary-container/20 text-secondary font-label-sm text-label-sm">Coop Member</span>
+</div>
+</td>
+<td class="py-3 px-space-md">
+<div class="flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="font-label-sm text-label-sm font-semibold text-secondary">Registered Voter</span>
+</div>
+<span class="font-label-sm text-label-sm text-outline">Precinct #0199C</span>
+</div>
+</td>
+<td class="py-3 px-space-md">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm font-semibold text-primary">Active PHIC</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono">#19-09482144</span>
+</div>
+</td>
+<td class="py-3 px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" title="View Geolocation" type="button">
+<span class="material-symbols-outlined text-[18px]">location_on</span>
+</button>
+<button class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" title="Edit Member Record" type="button">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+<button class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors" title="Member Profile" type="button">
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</div>
+</td>
+</tr>
+<!-- Row 5 -->
+<tr class="hover:bg-surface-container/60 transition-colors group">
+<td class="py-3 px-space-md">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest flex-shrink-0 flex items-center justify-center font-headline-md text-headline-md font-bold text-secondary">
+                    FP
+                  </div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-lg text-label-lg font-semibold text-on-surface group-hover:text-primary transition-colors truncate">Florencia Padilla</span>
+<span class="font-label-sm text-label-sm text-outline">MEM-22108 · Member</span>
+</div>
+</div>
+</td>
+<td class="py-3 px-space-md">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md font-semibold text-on-surface">HH-401-B</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant truncate">Purok 3 (Sentro)</span>
+</div>
+</td>
+<td class="py-3 px-space-md">
+<div class="flex flex-col">
+<span class="font-body-md text-body-md text-on-surface">39 yrs old</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Female · Married</span>
+</div>
+</td>
+<td class="py-3 px-space-md">
+<div class="flex flex-wrap gap-1.5 max-w-xs">
+<span class="px-2 py-0.5 rounded-full bg-surface-container-highest text-secondary-fixed font-label-sm text-label-sm">Farmers Sector</span>
+<span class="px-2 py-0.5 rounded-full bg-secondary-container/20 text-secondary font-label-sm text-label-sm">Coop Member</span>
+</div>
+</td>
+<td class="py-3 px-space-md">
+<div class="flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-error"></span>
+<span class="font-label-sm text-label-sm font-semibold text-error">Unverified Voter</span>
+</div>
+<span class="font-label-sm text-label-sm text-outline">For COMELEC Reg</span>
+</div>
+</td>
+<td class="py-3 px-space-md">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm font-semibold text-tertiary">Pending PHIC</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono">Application In-Review</span>
+</div>
+</td>
+<td class="py-3 px-space-md text-right">
+<div class="flex items-center justify-end gap-1">
+<button class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" title="View Geolocation" type="button">
+<span class="material-symbols-outlined text-[18px]">location_on</span>
+</button>
+<button class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors" title="Edit Member Record" type="button">
+<span class="material-symbols-outlined text-[18px]">edit</span>
+</button>
+<button class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors" title="Member Profile" type="button">
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Pagination / Footer Status -->
+<div class="px-space-md py-space-sm bg-surface-container-high/40 flex flex-col sm:flex-row items-center justify-between gap-space-sm text-on-surface-variant font-label-sm text-label-sm">
+<div class="flex items-center gap-2">
+<span>Showing <strong class="text-on-surface">1 - 5</strong> of 18,450 records</span>
+<span class="text-outline">·</span>
+<span>100 records per page</span>
+</div>
+<div class="flex items-center gap-1">
+<button class="px-2.5 py-1 rounded-lg bg-surface-container hover:bg-surface-container-highest text-on-surface disabled:opacity-40 transition-colors" disabled="" type="button">
+            Previous
+          </button>
+<button class="px-2.5 py-1 rounded-lg bg-primary-container text-on-primary-container font-semibold transition-colors" type="button">
+            1
+          </button>
+<button class="px-2.5 py-1 rounded-lg bg-surface-container hover:bg-surface-container-highest text-on-surface transition-colors" type="button">
+            2
+          </button>
+<button class="px-2.5 py-1 rounded-lg bg-surface-container hover:bg-surface-container-highest text-on-surface transition-colors" type="button">
+            3
+          </button>
+<span class="px-1 text-outline">...</span>
+<button class="px-2.5 py-1 rounded-lg bg-surface-container hover:bg-surface-container-highest text-on-surface transition-colors" type="button">
+            370
+          </button>
+<button class="px-2.5 py-1 rounded-lg bg-surface-container hover:bg-surface-container-highest text-on-surface transition-colors" type="button">
+            Next
+          </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Register / Edit Family Member Slide-over Drawer Backdrop -->
+<div class="fixed inset-0 z-50 overflow-hidden pointer-events-none opacity-0 transition-opacity duration-300 flex justify-end" id="registration-drawer">
+<!-- Scrim -->
+<div class="absolute inset-0 bg-surface-container-lowest/80 backdrop-blur-sm transition-opacity" id="drawer-scrim"></div>
+<!-- Drawer Content Panel -->
+<div class="relative w-full max-w-2xl bg-surface-container-low h-full shadow-2xl flex flex-col pointer-events-auto transform translate-x-full transition-transform duration-300 ease-out z-10">
+<!-- Drawer Header -->
+<div class="px-space-lg py-space-md bg-surface-container flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-xl bg-primary-container/20 text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[24px]">person_add_alt</span>
+</div>
+<div class="flex flex-col">
+<h2 class="font-headline-md text-headline-md font-bold text-on-surface">Register / Edit Family Member</h2>
+<span class="font-label-sm text-label-sm text-on-surface-variant">TROPA Unified Community Registry Form #M-01</span>
+</div>
+</div>
+<button class="w-9 h-9 rounded-xl bg-surface-container-high flex items-center justify-center text-outline hover:text-on-surface hover:bg-surface-container-highest transition-colors" id="close-register-drawer" type="button">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+<!-- Navigation Tabs within Drawer Form -->
+<div class="px-space-lg bg-surface-container-high/60 flex items-center gap-4 overflow-x-auto text-on-surface-variant font-label-md text-label-md">
+<button class="py-3 px-1 border-b-2 border-primary text-primary font-semibold flex items-center gap-1.5 whitespace-nowrap" type="button">
+<span class="material-symbols-outlined text-[16px]">badge</span>
+<span>1. Demographics</span>
+</button>
+<button class="py-3 px-1 border-b-2 border-transparent hover:text-on-surface flex items-center gap-1.5 whitespace-nowrap transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">home_pin</span>
+<span>2. Location &amp; Purok</span>
+</button>
+<button class="py-3 px-1 border-b-2 border-transparent hover:text-on-surface flex items-center gap-1.5 whitespace-nowrap transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">local_police</span>
+<span>3. Sector &amp; Accreditations</span>
+</button>
+<button class="py-3 px-1 border-b-2 border-transparent hover:text-on-surface flex items-center gap-1.5 whitespace-nowrap transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">photo_camera</span>
+<span>4. Identification Photo</span>
+</button>
+</div>
+<!-- Scrollable Form Body -->
+<form class="flex-1 overflow-y-auto px-space-lg py-space-md space-y-space-lg" onsubmit="event.preventDefault();">
+<!-- Section 1: Personal Demographics -->
+<div class="space-y-space-sm">
+<div class="flex items-center gap-2 pb-1">
+<span class="font-label-md text-label-md uppercase tracking-wider text-primary font-bold">1. Personal Demographics</span>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-sm">
+<div>
+<label class="block font-label-sm text-label-sm text-on-surface-variant mb-1">First Name *</label>
+<input class="w-full h-10 px-3 rounded-xl bg-surface-container text-on-surface placeholder:text-outline font-body-sm text-body-sm focus:outline-none focus:bg-surface-container-high transition-colors" placeholder="e.g. Elena" required="" type="text"/>
+</div>
+<div>
+<label class="block font-label-sm text-label-sm text-on-surface-variant mb-1">Middle Name</label>
+<input class="w-full h-10 px-3 rounded-xl bg-surface-container text-on-surface placeholder:text-outline font-body-sm text-body-sm focus:outline-none focus:bg-surface-container-high transition-colors" placeholder="e.g. Del Rosario" type="text"/>
+</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-space-sm">
+<div class="sm:col-span-2">
+<label class="block font-label-sm text-label-sm text-on-surface-variant mb-1">Last Name *</label>
+<input class="w-full h-10 px-3 rounded-xl bg-surface-container text-on-surface placeholder:text-outline font-body-sm text-body-sm focus:outline-none focus:bg-surface-container-high transition-colors" placeholder="e.g. Cruz-Bautista" required="" type="text"/>
+</div>
+<div>
+<label class="block font-label-sm text-label-sm text-on-surface-variant mb-1">Extension</label>
+<input class="w-full h-10 px-3 rounded-xl bg-surface-container text-on-surface placeholder:text-outline font-body-sm text-body-sm focus:outline-none focus:bg-surface-container-high transition-colors" placeholder="Jr., III" type="text"/>
+</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-space-sm">
+<div>
+<label class="block font-label-sm text-label-sm text-on-surface-variant mb-1">Date of Birth *</label>
+<input class="w-full h-10 px-3 rounded-xl bg-surface-container text-on-surface font-body-sm text-body-sm focus:outline-none focus:bg-surface-container-high transition-colors" type="date" value="1979-05-14"/>
+</div>
+<div>
+<label class="block font-label-sm text-label-sm text-on-surface-variant mb-1">Calculated Age</label>
+<div class="w-full h-10 px-3 rounded-xl bg-surface-container-highest/60 flex items-center font-label-md text-label-md font-bold text-primary">
+                45 years old
+              </div>
+</div>
+<div>
+<label class="block font-label-sm text-label-sm text-on-surface-variant mb-1">Gender</label>
+<select class="w-full h-10 px-3 rounded-xl bg-surface-container text-on-surface font-body-sm text-body-sm focus:outline-none focus:bg-surface-container-high transition-colors">
+<option>Female</option>
+<option>Male</option>
+<option>Other / Prefer not to say</option>
+</select>
+</div>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-sm">
+<div>
+<label class="block font-label-sm text-label-sm text-on-surface-variant mb-1">Contact Number</label>
+<input class="w-full h-10 px-3 rounded-xl bg-surface-container text-on-surface placeholder:text-outline font-body-sm text-body-sm focus:outline-none focus:bg-surface-container-high transition-colors" placeholder="+63 917 000 0000" type="tel"/>
+</div>
+<div>
+<label class="block font-label-sm text-label-sm text-on-surface-variant mb-1">Religion / Faith Sector</label>
+<input class="w-full h-10 px-3 rounded-xl bg-surface-container text-on-surface placeholder:text-outline font-body-sm text-body-sm focus:outline-none focus:bg-surface-container-high transition-colors" placeholder="e.g. Roman Catholic" type="text"/>
+</div>
+</div>
+</div>
+<!-- Section 2: Location & Purok -->
+<div class="space-y-space-sm pt-2">
+<div class="flex items-center gap-2 pb-1">
+<span class="font-label-md text-label-md uppercase tracking-wider text-primary font-bold">2. Location &amp; Purok</span>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-sm">
+<div>
+<label class="block font-label-sm text-label-sm text-on-surface-variant mb-1">Household Unit (HH Code) *</label>
+<div class="relative">
+<input class="w-full h-10 pl-3 pr-8 rounded-xl bg-surface-container text-on-surface font-body-sm text-body-sm focus:outline-none focus:bg-surface-container-high transition-colors" type="text" value="HH-204-A (Cruz-Bautista Residence)"/>
+<span class="material-symbols-outlined absolute right-2.5 top-2.5 text-secondary text-[18px]">verified</span>
+</div>
+</div>
+<div>
+<label class="block font-label-sm text-label-sm text-on-surface-variant mb-1">Barangay &amp; Purok Clustered</label>
+<select class="w-full h-10 px-3 rounded-xl bg-surface-container text-on-surface font-body-sm text-body-sm focus:outline-none focus:bg-surface-container-high transition-colors">
+<option>Sta. Maria - Purok 2 (Manggahan)</option>
+<option>Sta. Maria - Purok 1 (Riverside)</option>
+<option>Sta. Maria - Purok 3 (Sentro)</option>
+<option>Poblacion - Ilaya Coastal</option>
+<option>Poblacion - Kanluran Market</option>
+</select>
+</div>
+</div>
+<!-- Geolocation Coordinates & Mini Map preview -->
+<div>
+<label class="block font-label-sm text-label-sm text-on-surface-variant mb-1">Geographic Pin Coordinates (WGS84)</label>
+<div class="flex items-center gap-2">
+<input class="flex-1 h-10 px-3 rounded-xl bg-surface-container text-on-surface font-mono font-body-sm text-body-sm focus:outline-none focus:bg-surface-container-high transition-colors" type="text" value="14.82194° N, 120.96342° E"/>
+<button class="h-10 px-3 rounded-xl bg-surface-container-high hover:bg-surface-bright text-primary font-label-sm text-label-sm flex items-center gap-1.5 transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">my_location</span>
+<span>Calibrate GPS</span>
+</button>
+</div>
+</div>
+<!-- Inset Cartography badge preview -->
+<div class="w-full h-28 bg-surface-container-high rounded-xl relative overflow-hidden flex items-end p-space-sm bg-cover bg-center" data-location="Barangay Sta. Maria, Bulacan, Philippines" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAh-ZA4R85RkMBWKBwZ6XDyjwl45MnLwYG3RUCbU-UhDWFCdCYDjgHz9dXsNj6Tp-OgYaOaUliGtO7qU00O1CI4zcA0IstvNFE3Lel4_tc7zgFRErsl5Y0s6cnLyLaV2egsQRR1E1x7QpaG_4jWejcjspI1zX8UeCw2oBagjxi9jDMzICE968BSDHxSHvPz3twytNbyLacSPCmDT96AdtSaySQy81yiYFSBlsW3VDyr4HsxCbS7sz_2xg')">
+<div class="bg-surface-container-low/90 backdrop-blur-md px-3 py-1.5 rounded-lg flex items-center gap-2 text-on-surface font-label-sm text-label-sm">
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+<span>Barangay Sta. Maria, Purok 2 Cartography Lock</span>
+</div>
+</div>
+</div>
+<!-- Section 3: Sectoral & Program Tags -->
+<div class="space-y-space-sm pt-2">
+<div class="flex items-center gap-2 pb-1">
+<span class="font-label-md text-label-md uppercase tracking-wider text-primary font-bold">3. Sectoral &amp; Program Accreditations</span>
+</div>
+<div>
+<label class="block font-label-sm text-label-sm text-on-surface-variant mb-1">Primary Sectors (Multi-select)</label>
+<div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+<label class="flex items-center gap-2 p-2 rounded-xl bg-surface-container hover:bg-surface-container-high cursor-pointer transition-colors">
+<input class="w-4 h-4 rounded text-primary-container bg-surface-container-highest focus:ring-0 cursor-pointer" type="checkbox"/>
+<span class="font-body-sm text-body-sm text-on-surface">Farmers</span>
+</label>
+<label class="flex items-center gap-2 p-2 rounded-xl bg-surface-container hover:bg-surface-container-high cursor-pointer transition-colors">
+<input class="w-4 h-4 rounded text-primary-container bg-surface-container-highest focus:ring-0 cursor-pointer" type="checkbox"/>
+<span class="font-body-sm text-body-sm text-on-surface">Fisherfolk</span>
+</label>
+<label class="flex items-center gap-2 p-2 rounded-xl bg-surface-container hover:bg-surface-container-high cursor-pointer transition-colors">
+<input checked="" class="w-4 h-4 rounded text-primary-container bg-surface-container-highest focus:ring-0 cursor-pointer" type="checkbox"/>
+<span class="font-body-sm text-body-sm text-on-surface">Women/Artisan</span>
+</label>
+<label class="flex items-center gap-2 p-2 rounded-xl bg-surface-container hover:bg-surface-container-high cursor-pointer transition-colors">
+<input class="w-4 h-4 rounded text-primary-container bg-surface-container-highest focus:ring-0 cursor-pointer" type="checkbox"/>
+<span class="font-body-sm text-body-sm text-on-surface">Youth/Scholar</span>
+</label>
+<label class="flex items-center gap-2 p-2 rounded-xl bg-surface-container hover:bg-surface-container-high cursor-pointer transition-colors">
+<input class="w-4 h-4 rounded text-primary-container bg-surface-container-highest focus:ring-0 cursor-pointer" type="checkbox"/>
+<span class="font-body-sm text-body-sm text-on-surface">Senior Citizen</span>
+</label>
+<label class="flex items-center gap-2 p-2 rounded-xl bg-surface-container hover:bg-surface-container-high cursor-pointer transition-colors">
+<input class="w-4 h-4 rounded text-primary-container bg-surface-container-highest focus:ring-0 cursor-pointer" type="checkbox"/>
+<span class="font-body-sm text-body-sm text-on-surface">Transport (TODA)</span>
+</label>
+</div>
+</div>
+<div class="p-space-sm rounded-xl bg-surface-container space-y-3">
+<label class="flex items-center justify-between cursor-pointer">
+<div class="flex items-center gap-2">
+<input checked="" class="w-4 h-4 rounded text-primary-container" type="checkbox"/>
+<span class="font-body-md text-body-md text-on-surface font-semibold">Household Leader / Head</span>
+</div>
+<span class="font-label-sm text-label-sm text-secondary">Authorized Representative</span>
+</label>
+<div class="pt-2 border-t border-surface-container-highest flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+<label class="flex items-center gap-2 cursor-pointer">
+<input checked="" class="w-4 h-4 rounded text-primary-container" type="checkbox"/>
+<span class="font-body-md text-body-md text-on-surface">Cooperative Union Shareholder</span>
+</label>
+<input class="h-8 px-2.5 rounded-lg bg-surface-container-highest text-on-surface font-mono font-body-sm text-body-sm focus:outline-none" placeholder="Shareholder ID (e.g. COOP-104-921)" type="text" value="COOP-104-921"/>
+</div>
+<div class="pt-2 border-t border-surface-container-highest flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+<label class="flex items-center gap-2 cursor-pointer">
+<input checked="" class="w-4 h-4 rounded text-primary-container" type="checkbox"/>
+<span class="font-body-md text-body-md text-on-surface">Registered COMELEC Voter</span>
+</label>
+<input class="h-8 px-2.5 rounded-lg bg-surface-container-highest text-on-surface font-mono font-body-sm text-body-sm focus:outline-none" placeholder="Voter Identification No." type="text" value="0142A-77890-PH"/>
+</div>
+<div class="pt-2 border-t border-surface-container-highest flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+<label class="flex items-center gap-2 cursor-pointer">
+<input checked="" class="w-4 h-4 rounded text-primary-container" type="checkbox"/>
+<span class="font-body-md text-body-md text-on-surface">PhilHealth / TRU Care</span>
+</label>
+<input class="h-8 px-2.5 rounded-lg bg-surface-container-highest text-on-surface font-mono font-body-sm text-body-sm focus:outline-none" placeholder="PHIC # (12 digits)" type="text" value="22-01928310-4"/>
+</div>
+</div>
+</div>
+<!-- Section 4: Photo & Documentation -->
+<div class="space-y-space-sm pt-2">
+<div class="flex items-center gap-2 pb-1">
+<span class="font-label-md text-label-md uppercase tracking-wider text-primary font-bold">4. Identification Photo &amp; Documentation</span>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
+<!-- Drag & Drop Zone -->
+<div class="p- space-md py-6 rounded-xl bg-surface-container flex flex-col items-center justify-center text-center border-dashed border-2 border-outline/30 hover:border-primary/50 transition-colors cursor-pointer">
+<span class="material-symbols-outlined text-[36px] text-outline mb-2">cloud_upload</span>
+<span class="font-label-md text-label-md font-semibold text-on-surface">Upload 2x2 Identification Photo</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant mt-1">Drag and drop PNG, JPG up to 10MB</span>
+</div>
+<!-- Live Camera Capture Preview Card -->
+<div class="p-space-sm rounded-xl bg-surface-container flex flex-col justify-between">
+<div class="flex items-center gap-3">
+<div class="w-14 h-14 rounded-xl bg-surface-container-highest overflow-hidden flex-shrink-0 flex items-center justify-center text-outline">
+<img class="w-full h-full object-cover" data-alt="A clean portrait photo of a Filipino cooperative female community leader in her mid-forties with a warm authoritative expression, neutral studio background with subtle cool dark blue ambient light, high resolution documentary photography." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDt3qXSsxCord-HrgQDnlSynBv6S3xuFFcLcnaiHUD-BGHTY482jpMM7ovPfXFsN49yLICQv64t-hXHlpXjq3F2MrvgysRmG8i_LQqIK-FP-nbL0pU1SYD-m0Nz4MpK8Z9PTZ5gQip8q0BIXAY94RIbQejKAiW6cX5h35JlxhATGOE-xBYWNUjepLV67F8tn82oN2FZEEgnny8RL-jW0KmmgE2FwluTzMW3ydUcj0YklybyqwlLeRoslQ"/>
+</div>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md font-semibold text-on-surface">Current Attached Photo</span>
+<span class="font-label-sm text-label-sm text-secondary">Verified Valid ID</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Last updated: 14 Oct 2024</span>
+</div>
+</div>
+<button class="mt-3 w-full py-2 rounded-xl bg-surface-container-highest hover:bg-surface-bright text-on-surface font-label-sm text-label-sm flex items-center justify-center gap-2 transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">photo_camera</span>
+<span>Open Biometric Camera</span>
+</button>
+</div>
+</div>
+</div>
+</form>
+<!-- Drawer Sticky Footer -->
+<div class="p-space-md bg-surface-container flex items-center justify-between border-t border-surface-container-high">
+<button class="px-space-md py-2.5 rounded-xl bg-surface-container-high hover:bg-surface-bright text-on-surface-variant hover:text-on-surface font-label-lg text-label-lg transition-colors" id="cancel-register-drawer" type="button">
+          Cancel
+        </button>
+<div class="flex items-center gap-space-sm">
+<button class="px-space-md py-2.5 rounded-xl bg-surface-container-high hover:bg-surface-bright text-primary font-label-lg text-label-lg transition-colors" type="button">
+            Save Draft
+          </button>
+<button class="px-space-md py-2.5 rounded-xl bg-primary-container hover:bg-primary-fixed-dim text-on-primary-container font-label-lg text-label-lg font-semibold transition-colors flex items-center gap-2" type="button">
+<span class="material-symbols-outlined text-[18px]">how_to_reg</span>
+<span>Accredit &amp; Commit Record</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<script>
+  (function() {
+    const openBtn = document.getElementById('open-register-drawer');
+    const closeBtn = document.getElementById('close-register-drawer');
+    const cancelBtn = document.getElementById('cancel-register-drawer');
+    const drawer = document.getElementById('registration-drawer');
+    const scrim = document.getElementById('drawer-scrim');
+    const content = drawer.querySelector('.relative.max-w-2xl');
+
+    function openDrawer() {
+      drawer.classList.remove('pointer-events-none');
+      drawer.classList.add('opacity-100');
+      drawer.classList.remove('opacity-0');
+      content.classList.remove('translate-x-full');
+      content.classList.add('translate-x-0');
+    }
+
+    function closeDrawer() {
+      drawer.classList.add('opacity-0');
+      drawer.classList.remove('opacity-100');
+      content.classList.remove('translate-x-0');
+      content.classList.add('translate-x-full');
+      setTimeout(() => {
+        drawer.classList.add('pointer-events-none');
+      }, 300);
+    }
+
+    if (openBtn) openBtn.addEventListener('click', openDrawer);
+    if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeDrawer);
+    if (scrim) scrim.addEventListener('click', closeDrawer);
+
+    // Quick toggle states
+    const toggleCoop = document.getElementById('toggle-coop');
+    const toggleVoter = document.getElementById('toggle-voter');
+
+    [toggleCoop, toggleVoter].forEach(btn => {
+      if (!btn) return;
+      btn.addEventListener('click', () => {
+        const current = btn.getAttribute('data-active') === 'true';
+        btn.setAttribute('data-active', (!current).toString());
+      });
+    });
+  })();
+</script></main></div></body></html>
