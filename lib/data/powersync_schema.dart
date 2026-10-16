@@ -166,6 +166,10 @@ const schema = Schema([
     Column.integer('count'),
     Column.text('installed_at'),
   ]),
+  // Backup sync position per table (lib/services/fallback_sync.dart); this device only.
+  Table.localOnly('fallback_cursors', [
+    Column.text('cursor'),
+  ]),
   // Voter flags are the only voter edits; they sync both ways like any other table.
   Table('voter_flags', [
     Column.text('voter_id'),

@@ -8,6 +8,7 @@ import 'package:powersync/powersync.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/env.dart';
 import '../services/device_seed.dart';
+import '../services/fallback_sync.dart';
 import '../services/offline_auth.dart';
 import '../services/voter_snapshot.dart';
 import 'powersync_schema.dart';
@@ -43,16 +44,23 @@ enum SyncState {
   syncing,
 
   /// Connected and up to date.
-  synced;
+  synced,
 
-  bool get isOnline => this == syncing || this == synced;
+  /// PowerSync is unreachable but Supabase works: other devices' changes arrive by polling
+  /// Supabase (lib/services/fallback_sync.dart).
+  backup;
+
+  bool get isOnline => this == syncing || this == synced || this == backup;
 }
 
 /// Connection state shown in the header, sidebar and dashboard badges.
 final syncStateProvider = Provider<SyncState>((ref) {
   if (Env.powersyncUrl.isEmpty) return SyncState.localOnly;
   final status = ref.watch(syncStatusProvider).value;
-  if (status == null || !status.connected) return SyncState.offline;
+  final backupPhase = ref.watch(fallbackSyncStateProvider).value.phase;
+  if (status == null || !status.connected) {
+    return backupPhase == FallbackPhase.active ? SyncState.backup : SyncState.offline;
+  }
   if (status.uploading || status.downloading) return SyncState.syncing;
   return SyncState.synced;
 });
@@ -118,6 +126,8 @@ Future<void> useLocalDbFor(String userId) async {
   // download (no-op otherwise, and falls back to a full sync on any problem).
   await installDeviceSeed(force: false);
   _connect();
+  // Poll Supabase for other devices' changes whenever PowerSync is unreachable for a while.
+  startFallbackSync();
   // Install or update the offline voter list in the background (no-op when offline or current).
   ensureVoterSnapshot(localDb, Supabase.instance.client).ignore();
 }

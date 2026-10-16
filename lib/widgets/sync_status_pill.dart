@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../core/design_system.dart';
 import '../data/db.dart';
+import '../services/fallback_sync.dart';
 import '../core/ph_time.dart';
 
 /// Header pill showing whether this device is synced with the server, and how many changes are queued.
@@ -22,6 +23,8 @@ class SyncStatusPill extends ConsumerWidget {
     final lastSynced = status?.lastSyncedAt;
     final lastSyncedText = lastSynced == null ? 'never' : formatPh(DateFormat('MMM d, h:mm a'), lastSynced);
     final pendingSuffix = pending > 0 ? ' · $pending pending' : '';
+    final backupPulledAt = ref.watch(fallbackSyncStateProvider).value.lastPulledAt;
+    final backupChecked = backupPulledAt == null ? null : formatPh(DateFormat('h:mm a'), backupPulledAt);
     final uploadFailing = state.isOnline && pending > 0 && status?.uploadError != null;
 
     final (color, label, tooltip) = switch (state) {
@@ -48,6 +51,13 @@ class SyncStatusPill extends ConsumerWidget {
           'Offline$pendingSuffix',
           'No connection. Changes are saved on this device and upload automatically when you are back '
               'online. Last synced $lastSyncedText.',
+        ),
+      SyncState.backup => (
+          TropaColors.secondaryOf(context),
+          'Backup sync$pendingSuffix',
+          'The sync service is unavailable, so this device checks the server for other devices\' changes '
+              'every 3 minutes${backupChecked == null ? '' : ' (last checked $backupChecked)'}. '
+              'Your own changes still upload normally.',
         ),
       SyncState.localOnly => (TropaColors.offline, 'Local only', 'Sync is not configured (POWERSYNC_URL is empty).'),
     };
@@ -100,6 +110,7 @@ class SyncQueueDialog extends ConsumerWidget {
       SyncState.synced => 'Server online',
       SyncState.syncing => 'Syncing…',
       SyncState.offline => 'Offline — changes will upload when the connection returns',
+      SyncState.backup => 'Backup sync — the sync service is unavailable; checking the server every 3 minutes',
       SyncState.localOnly => 'Sync is not configured',
     };
 
