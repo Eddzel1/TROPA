@@ -58,13 +58,16 @@ Future<bool> installDeviceSeed({required bool force}) async {
         wasmModule: Uri.parse('sqlite3.wasm'),
       );
       final storage = await sqlite.connectToRecommended(localDbPath, onlyOpenVfs: true);
+      await storage.database.fileSystem.writeFile(FileType.journal, Uint8List(0));
+      await storage.database.fileSystem.writeFile(FileType.database, bytes);
+      await storage.database.fileSystem.flush();
+      replaced = true;
       try {
-        await storage.database.fileSystem.writeFile(FileType.journal, Uint8List(0));
-        await storage.database.fileSystem.writeFile(FileType.database, bytes);
-        await storage.database.fileSystem.flush();
-        replaced = true;
-      } finally {
         await storage.database.dispose();
+      } catch (_) {
+        // sqlite3_web 0.4.1 throws "Null check operator used on a null value" when closing a
+        // storage-only (onlyOpenVfs) connection, because no database was opened on it. The file is
+        // already written and flushed, so this is safe to ignore.
       }
     } finally {
       await reopenLocalDb(replaced: replaced);

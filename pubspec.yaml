@@ -53,6 +53,7 @@ dependencies:
   archive: ^4.0.0
   http: ^1.6.0
   web: ^1.1.1
+  sqlite_async: ^0.13.1
 
 dependency_overrides:
   intl: ^0.20.3
