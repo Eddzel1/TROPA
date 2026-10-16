@@ -78,9 +78,9 @@
     "semantic_hash": ""
   },
   "lib/providers/household_provider.dart": {
-    "mtime": 1791949439.3376558,
-    "seen": 1791949448.3617332,
-    "ast_hash": "f685c8a21cbeac981e5a6dbaada4d7b1",
+    "mtime": 1792127322.0986507,
+    "seen": 1792127340.678439,
+    "ast_hash": "7b56e87ddcbce320da1bc637a8c4277a",
     "semantic_hash": ""
   },
   "lib/providers/member_provider.dart": {
@@ -108,9 +108,9 @@
     "semantic_hash": "d34bcb48339eb642fe79df1daded427e"
   },
   "lib/services/supabase_service.dart": {
-    "mtime": 1792124091.787883,
-    "seen": 1792124138.111234,
-    "ast_hash": "32bface161c5eec4500c143b8bae4ee9",
+    "mtime": 1792127322.0989919,
+    "seen": 1792127340.6784441,
+    "ast_hash": "b861c20f6c9a56f8f49c4ffda4c7d3cd",
     "semantic_hash": ""
   },
   "lib/views/audit_logs_view.dart": {
@@ -138,9 +138,9 @@
     "semantic_hash": ""
   },
   "lib/views/households_view.dart": {
-    "mtime": 1792111099.6110022,
-    "seen": 1792111142.2952151,
-    "ast_hash": "517227e324fb1c3b330ba7ca99f67f6b",
+    "mtime": 1792127333.8524766,
+    "seen": 1792127340.6784482,
+    "ast_hash": "8c043ff48b1a87951a89b5b0af5f569f",
     "semantic_hash": ""
   },
   "lib/views/login_view.dart": {
