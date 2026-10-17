@@ -14,13 +14,24 @@ const SKIP_NAMES = new Set([
   'vercel.json',
   'sw.js',
   'flutter_service_worker.js',
+  'NOTICES', // 1.4 MB of licence text, only opened from the About dialog
 ]);
+
+// The renderer ships in several variants but a browser loads only one: canvaskit/chromium/* on
+// Chrome and Edge, canvaskit/canvaskit.* elsewhere. The others (skwasm, wimp, webparagraph) are
+// only for other build modes. Instead of precaching ~30 MB of them, the worker caches just the
+// variant its browser uses (see CANVASKIT in sw.template.js).
+const CANVASKIT = {
+  chromium: ['canvaskit/chromium/canvaskit.js', 'canvaskit/chromium/canvaskit.wasm'],
+  full: ['canvaskit/canvaskit.js', 'canvaskit/canvaskit.wasm'],
+};
 
 function walk(dir) {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) return entry.name === '.vercel' ? [] : walk(full);
     if (SKIP_NAMES.has(entry.name) || entry.name.endsWith('.symbols')) return [];
+    if (relative(buildDir, full).split(sep)[0] === 'canvaskit') return [];
     return [full];
   });
 }
@@ -32,10 +43,14 @@ const precache = files.map((file) => {
   hash.update(path).update(readFileSync(file));
   return path;
 });
+// The renderer variants count toward the version too (and the build fails if one is missing), so
+// a Flutter upgrade replaces the cached renderer.
+for (const file of Object.values(CANVASKIT).flat()) hash.update(file).update(readFileSync(join(buildDir, file)));
 const version = hash.digest('hex').slice(0, 12);
 
 const output = readFileSync(templatePath, 'utf8')
   .replaceAll('__VERSION__', () => version)
-  .replaceAll('__PRECACHE__', () => JSON.stringify(precache, null, 2));
+  .replaceAll('__PRECACHE__', () => JSON.stringify(precache, null, 2))
+  .replaceAll('__CANVASKIT__', () => JSON.stringify(CANVASKIT, null, 2));
 writeFileSync(join(buildDir, 'sw.js'), output);
 console.log(`sw.js: version ${version}, ${precache.length} files precached`);

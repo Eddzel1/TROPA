@@ -36,9 +36,9 @@
     "semantic_hash": "97c08a44ece058bf671719646e06e2ed"
   },
   "lib/main.dart": {
-    "mtime": 1792044228.8260949,
-    "seen": 1792044335.318954,
-    "ast_hash": "06235e277dba5115ffffd3d5fdd9ac85",
+    "mtime": 1792196998.2308257,
+    "seen": 1792197104.6802812,
+    "ast_hash": "6d65d446346ea2991a876525c61e7b69",
     "semantic_hash": ""
   },
   "lib/models/models.dart": {
@@ -516,15 +516,15 @@
     "semantic_hash": ""
   },
   "scripts/gen_sw.mjs": {
-    "mtime": 1792079222.3613057,
-    "seen": 1792079437.570946,
-    "ast_hash": "8465bbc9e86852adf57a90a5dcc3556a",
+    "mtime": 1792197055.8416874,
+    "seen": 1792197104.6803079,
+    "ast_hash": "91e47d2a87d8222fc9fb5f739c29f260",
     "semantic_hash": ""
   },
   "scripts/sw.template.js": {
-    "mtime": 1792079221.3423045,
-    "seen": 1792079437.570946,
-    "ast_hash": "5261eb8dd751230f16c6c2911ebaf39f",
+    "mtime": 1792197055.8419518,
+    "seen": 1792197104.680309,
+    "ast_hash": "f4dd1828169d6059df3d1e255759c29d",
     "semantic_hash": ""
   },
   "lib/core/ph_time.dart": {
@@ -579,6 +579,12 @@
     "mtime": 1792157057.5351324,
     "seen": 1792157099.097835,
     "ast_hash": "0471cbda17a89332d529a316e42b0b1a",
+    "semantic_hash": ""
+  },
+  "lib/widgets/startup_screen.dart": {
+    "mtime": 1792196997.054376,
+    "seen": 1792197104.680304,
+    "ast_hash": "5e0fd10a0b8018a8f0f001db4e63420e",
     "semantic_hash": ""
   }
 }
