@@ -40,7 +40,7 @@ class VoterSnapshotStatusLine extends ConsumerWidget {
       children: [
         Icon(icon, size: 14, color: color),
         const SizedBox(width: 6),
-        Text(text, style: TropaText.meta(muted)),
+        Flexible(child: Text(text, style: TropaText.meta(muted))),
         if (canRetry) ...[
           const SizedBox(width: 4),
           TextButton(

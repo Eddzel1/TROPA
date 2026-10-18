@@ -75,15 +75,13 @@ class TropaApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final appTheme = ref.watch(appThemeProvider);
+    final themeId = ref.watch(appThemeProvider);
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
       title: 'TROPA v2 - Tabang Respeto Og Panalipud',
       debugShowCheckedModeBanner: false,
-      theme: appTheme == AppTheme.tropa ? TropaTheme.tropaTheme : TropaTheme.lightTheme,
-      darkTheme: TropaTheme.darkTheme,
-      themeMode: appTheme == AppTheme.dark ? ThemeMode.dark : ThemeMode.light,
+      theme: TropaTheme.of(themeId),
       routerConfig: router,
     );
   }

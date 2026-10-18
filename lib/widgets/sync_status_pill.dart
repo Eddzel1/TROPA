@@ -13,7 +13,10 @@ import '../core/ph_time.dart';
 class SyncStatusPill extends ConsumerWidget {
   final bool isDark;
 
-  const SyncStatusPill({super.key, required this.isDark});
+  /// Phone header: just the status dot, with the label moved into the tooltip.
+  final bool compact;
+
+  const SyncStatusPill({super.key, required this.isDark, this.compact = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -63,27 +66,30 @@ class SyncStatusPill extends ConsumerWidget {
     };
 
     return Tooltip(
-      message: '$tooltip\nClick to view the sync queue.',
+      message: compact ? '$label\n$tooltip\nTap to view the sync queue.' : '$tooltip\nClick to view the sync queue.',
       child: Material(
-        color: isDark ? TropaColors.darkSurface2dp : TropaColors.lightSurfaceLow,
+        color: TropaColors.chipOf(context),
         borderRadius: BorderRadius.circular(20),
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
           onTap: () => showDialog<void>(context: context, builder: (_) => const SyncQueueDialog()),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: compact ? const EdgeInsets.all(10) : const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 6,
-                  height: 6,
+                  width: compact ? 8 : 6,
+                  height: compact ? 8 : 6,
                   decoration: BoxDecoration(color: color, shape: BoxShape.circle),
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  label,
-                  style: TropaText.badge(TropaColors.textMedium(context)),
-                ),
+                if (!compact) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    label,
+                    style: TropaText.badge(TropaColors.textMedium(context)),
+                  ),
+                ],
               ],
             ),
           ),

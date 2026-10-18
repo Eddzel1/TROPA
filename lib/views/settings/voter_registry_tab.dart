@@ -65,7 +65,9 @@ class _VoterRegistryTabState extends ConsumerState<VoterRegistryTab> {
       final denied = e is StorageException && (e.statusCode == '403' || e.message.contains('row-level security'));
       showSettingsMessage(
         context,
-        denied ? 'Only users with the admin role can publish the voter list.' : 'Publishing failed: ${errorMessage(e)}',
+        denied
+            ? 'Only users with the Publish offline data permission can publish the voter list.'
+            : 'Publishing failed: ${errorMessage(e)}',
         error: true,
       );
     } finally {

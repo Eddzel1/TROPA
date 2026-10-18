@@ -28,6 +28,7 @@ class AppUserNotifier extends StateNotifier<AsyncValue<AppUser?>> {
   }
 
   static const _deactivatedMessage = 'This account has been deactivated. Contact an administrator.';
+  static const _noAccessMessage = 'This account has no permissions assigned. Contact an administrator.';
 
   /// Set when the last [refreshUser] found a profile that is not allowed to sign in.
   String? _blockedReason;
@@ -41,11 +42,18 @@ class AppUserNotifier extends StateNotifier<AsyncValue<AppUser?>> {
         return;
       }
       final user = await _service.getCurrentAppUser();
-      _blockedReason = user != null && user.status != 'active' ? _deactivatedMessage : null;
+      _blockedReason = user == null ? null : _signInBlock(user);
       state = AsyncValue.data(_blockedReason == null ? user : null);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
     }
+  }
+
+  /// Why [user] may not sign in, or null. Unknown permission keys open no page, so they count as none.
+  static String? _signInBlock(AppUser user) {
+    if (user.status != 'active') return _deactivatedMessage;
+    final usable = user.permissions.any((p) => p == AppPermissions.systemAdmin || AppPermissions.labels.containsKey(p));
+    return usable ? null : _noAccessMessage;
   }
 
   /// Signs in against Supabase Auth, or against the saved offline credential when there is no
@@ -57,9 +65,10 @@ class AppUserNotifier extends StateNotifier<AsyncValue<AppUser?>> {
 
       // Check the profile before setting up local data (falls back to Supabase on a fresh device).
       final profile = await _service.getCurrentAppUser();
-      if (profile == null || profile.status != 'active') {
+      final block = profile == null ? null : _signInBlock(profile);
+      if (profile == null || block != null) {
         await _endSession();
-        return profile == null ? 'Signed in, but no user profile could be loaded for this account.' : _deactivatedMessage;
+        return block ?? 'Signed in, but no user profile could be loaded for this account.';
       }
       await OfflineAuth.setLocked(false);
       await OfflineAuth.rememberCredential(email: email, userId: userId, password: password);
@@ -150,12 +159,12 @@ class AppUserNotifier extends StateNotifier<AsyncValue<AppUser?>> {
 // User permissions provider
 final userPermissionsProvider = Provider<List<String>>((ref) {
   final userAsync = ref.watch(currentAppUserProvider);
-  return userAsync.value?.permissions ?? ['all'];
+  return userAsync.value?.permissions ?? const [];
 });
 
 // RBAC permission check helper
 final canPermissionProvider = Provider.family<bool, String>((ref, requiredPermission) {
   final permissions = ref.watch(userPermissionsProvider);
-  if (permissions.contains('all')) return true;
+  if (permissions.contains(AppPermissions.systemAdmin)) return true;
   return permissions.contains(requiredPermission);
 });

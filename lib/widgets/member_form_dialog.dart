@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:typed_data';
-import 'dart:ui' as ui;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,11 +9,13 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../core/design_system.dart';
 import '../core/geo.dart';
+import '../core/image_compress.dart';
 import '../models/models.dart';
 import '../providers/auth_provider.dart';
 import '../providers/member_provider.dart';
 import '../providers/voter_provider.dart';
 import '../core/ph_time.dart';
+import 'form_fields.dart';
 
 enum MemberFormStep {
   voterSearch, // Step 1: Find Voter Record (Screenshot 2)
@@ -176,7 +177,11 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   // LGU / barangay options come from the distinct values in the `locations` table
   List<LocationOption> get _locations => ref.read(locationsProvider).valueOrNull ?? const [];
 
-  List<String> get _lgus => ({for (final l in _locations) if (l.lgu.isNotEmpty) l.lgu}).toList()..sort();
+  List<String> get _lgus => ({
+        for (final l in _locations)
+          if (l.lgu.isNotEmpty) l.lgu
+      }).toList()
+        ..sort();
 
   List<String> _barangaysFor(String lgu) => ({
         for (final l in _locations)
@@ -309,7 +314,9 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       _barangay = e.barangay.trim().toUpperCase();
       _purok = e.purok.trim();
       _purokId = e.purokId;
-      _listingStatus = (e.listingStatus == null || e.listingStatus == 'MEMBER' || e.listingStatus == 'COOP') ? 'TROPA MEMBER' : e.listingStatus!;
+      _listingStatus = (e.listingStatus == null || e.listingStatus == 'MEMBER' || e.listingStatus == 'COOP')
+          ? 'TROPA MEMBER'
+          : e.listingStatus!;
       _isHouseholdLeader = e.isHouseholdLeader;
       _isVoter = e.isVoter;
     } else {
@@ -559,7 +566,9 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       }
 
       // Status
-      _listingStatus = (voter.status.toUpperCase() == 'MEMBER' || voter.status.toUpperCase() == 'COOP') ? 'TROPA MEMBER' : voter.status;
+      _listingStatus = (voter.status.toUpperCase() == 'MEMBER' || voter.status.toUpperCase() == 'COOP')
+          ? 'TROPA MEMBER'
+          : voter.status;
       _isVoter = true; // picked from the voters table
 
       // Proceed to Step 2
@@ -697,20 +706,20 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       final rawBytes = result.files.first.bytes!;
       setState(() => _isUploadingPhoto = true);
       try {
-        final codec = await ui.instantiateImageCodec(rawBytes, targetWidth: 640);
-        final frame = await codec.getNextFrame();
-        final byteData = await frame.image.toByteData(format: ui.ImageByteFormat.png);
+        final compressed = await compressPhoto(rawBytes);
         setState(() {
-          _avatarBytes = byteData?.buffer.asUint8List() ?? rawBytes;
+          _avatarBytes = compressed;
           _avatarName = result.files.first.name;
         });
       } catch (_) {
-        setState(() {
-          _avatarBytes = rawBytes;
-          _avatarName = result.files.first.name;
-        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: const Text('That photo could not be read. Try a different JPG or PNG.'),
+            backgroundColor: TropaColors.error,
+          ));
+        }
       } finally {
-        setState(() => _isUploadingPhoto = false);
+        if (mounted) setState(() => _isUploadingPhoto = false);
       }
     }
   }
@@ -834,6 +843,13 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       final service = ref.read(supabaseServiceProvider);
       final memberId = widget.existing?.id ?? const Uuid().v4();
       final purokId = _resolvedPurokId;
+
+      // Upload first, so a failed upload (e.g. offline) stops the save before anything is written.
+      var avatarUrl = widget.existing?.profilePictureUrl;
+      if (_avatarBytes != null) {
+        avatarUrl = await service.uploadProfilePicture(memberId: memberId, bytes: _avatarBytes!);
+      }
+
       Household? newHousehold;
       if (_createsNewHousehold) {
         // Approximate house location: a random point near the barangay center.
@@ -848,7 +864,10 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
           purokId: purokId,
           latitude: point?.latitude,
           longitude: point?.longitude,
-          totalMembers: 1 + _dependentMembers.where((d) => d.firstNameCtrl.text.trim().isNotEmpty && d.lastNameCtrl.text.trim().isNotEmpty).length,
+          totalMembers: 1 +
+              _dependentMembers
+                  .where((d) => d.firstNameCtrl.text.trim().isNotEmpty && d.lastNameCtrl.text.trim().isNotEmpty)
+                  .length,
           activeMembers: 1,
           status: 'active',
           createdDate: phNow(),
@@ -857,16 +876,11 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
         ));
       }
 
-      final targetHouseholdId = newHousehold?.id ?? _selectedHousehold?.id ?? widget.existing?.householdId ?? widget.presetHousehold?.id ?? '4d46e4ff-77ff-4714-9eb2-d70bc25cc31c';
-
-      String? avatarUrl = widget.existing?.profilePictureUrl;
-      if (_avatarBytes != null) {
-        avatarUrl = await service.uploadProfilePicture(
-          memberId: memberId,
-          bytes: _avatarBytes!,
-          extension: _avatarName?.split('.').last ?? 'jpg',
-        );
-      }
+      final targetHouseholdId = newHousehold?.id ??
+          _selectedHousehold?.id ??
+          widget.existing?.householdId ??
+          widget.presetHousehold?.id ??
+          '4d46e4ff-77ff-4714-9eb2-d70bc25cc31c';
 
       final age = _birthDate != null ? _ageOn(_birthDate!) : (widget.existing?.age ?? 30);
 
@@ -1027,52 +1041,69 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   Widget build(BuildContext context) {
     ref.watch(locationsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final dlgBg = isDark ? TropaColors.darkSurface8dp : TropaColors.lightSurface;
-    final textCol = isDark ? TropaColors.darkOnSurface : TropaColors.lightOnSurface;
-    final subtextCol = isDark ? TropaColors.darkOnSurfaceVariant : TropaColors.lightOnSurfaceVariant;
-    final borderCol = isDark ? TropaColors.darkOutlineVariant : TropaColors.lightSurfaceHighest;
-    final cardBg = isDark ? TropaColors.darkSurface1dp : TropaColors.lightSurfaceLow;
-    final inputFill = isDark ? TropaColors.darkSurface2dp : TropaColors.lightSurfaceLow;
+    final dlgBg = TropaColors.cardOf(context);
+    final textCol = TropaColors.textHigh(context);
+    final subtextCol = TropaColors.textMedium(context);
+    final borderCol = TropaColors.borderOf(context);
+    final cardBg = TropaColors.subtleOf(context);
+    final inputFill = TropaColors.subtleOf(context);
     final primaryCol = TropaColors.primaryOf(context);
     final onPrimaryCol = TropaColors.onPrimaryOf(context);
 
     final screenWidth = MediaQuery.of(context).size.width;
-    // Intake form grows on big screens; the summary sidebar only appears when there's room for it
-    final dialogWidth = _currentStep == MemberFormStep.voterSearch ? (screenWidth * 0.92).clamp(740.0, 900.0) : (screenWidth * 0.94).clamp(740.0, 1380.0);
+    // Phones get the whole screen; elsewhere the intake form grows on big screens and the
+    // summary sidebar only appears when there's room for it
+    final compact = TropaBreakpoints.isCompact(screenWidth);
+    final dialogWidth = compact
+        ? screenWidth
+        : _currentStep == MemberFormStep.voterSearch
+            ? (screenWidth * 0.92).clamp(740.0, 900.0)
+            : (screenWidth * 0.94).clamp(740.0, 1380.0);
     _sidebarVisible = _currentStep == MemberFormStep.memberForm && dialogWidth >= 1080;
 
     return Dialog(
       backgroundColor: dlgBg,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(compact ? 0 : 16)),
+      insetPadding: compact ? EdgeInsets.zero : const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: dialogWidth,
-          maxHeight: MediaQuery.of(context).size.height * 0.92,
+          maxHeight: MediaQuery.of(context).size.height * (compact ? 1 : 0.92),
         ),
-        child: Column(
+        child: SafeArea(
+          top: compact,
+          bottom: compact,
+          left: compact,
+          right: compact,
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             // Modal Top Header
             Container(
-              padding: _currentStep == MemberFormStep.voterSearch ? const EdgeInsets.fromLTRB(20, 18, 12, 18) : const EdgeInsets.fromLTRB(28, 20, 20, 16),
+              padding: _currentStep == MemberFormStep.voterSearch
+                  ? const EdgeInsets.fromLTRB(20, 18, 12, 18)
+                  : const EdgeInsets.fromLTRB(28, 20, 20, 16),
               decoration: BoxDecoration(
                 border: Border(bottom: BorderSide(color: borderCol)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
+                  Expanded(
+                    child: Row(
                     children: [
-                      Text(
-                        widget.existing == null ? 'Add New TROPA Member' : 'Edit TROPA Member Profile',
-                        style: GoogleFonts.manrope(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: textCol,
+                      Flexible(
+                        child: Text(
+                          widget.existing == null ? 'Add New TROPA Member' : 'Edit TROPA Member Profile',
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.manrope(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: textCol,
+                          ),
                         ),
                       ),
-                      if (widget.existing == null && _currentStep == MemberFormStep.memberForm) ...[
+                      if (!compact && widget.existing == null && _currentStep == MemberFormStep.memberForm) ...[
                         const SizedBox(width: 12),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -1092,6 +1123,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                       ],
                     ],
                   ),
+                  ),
                   IconButton(
                     icon: Icon(Icons.close, color: subtextCol, size: 22),
                     tooltip: 'Close',
@@ -1105,13 +1137,16 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             // Search step hugs its content; intake form fills the available height
             if (_currentStep == MemberFormStep.voterSearch)
               Flexible(
-                child: _buildStep1VoterSearch(isDark, cardBg, borderCol, textCol, subtextCol, inputFill, primaryCol, onPrimaryCol),
+                child: _buildStep1VoterSearch(
+                    isDark, cardBg, borderCol, textCol, subtextCol, inputFill, primaryCol, onPrimaryCol),
               )
             else
               Expanded(
-                child: _buildStep2MemberForm(isDark, cardBg, borderCol, textCol, subtextCol, inputFill, primaryCol, onPrimaryCol),
+                child: _buildStep2MemberForm(
+                    isDark, cardBg, borderCol, textCol, subtextCol, inputFill, primaryCol, onPrimaryCol),
               ),
           ],
+        ),
         ),
       ),
     );
@@ -1131,7 +1166,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     Color onPrimaryCol,
   ) {
     final fieldText = GoogleFonts.inter(fontSize: 13, color: textCol);
-    final fieldFill = isDark ? TropaColors.darkSurface : Colors.white;
+    final fieldFill = TropaColors.fieldFillOf(context);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
@@ -1144,7 +1179,9 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
               Icon(Icons.search, color: primaryCol, size: 18),
               const SizedBox(width: 10),
               Text(
-                _voterSearchDependentIndex != null ? 'Find Voter Record — Household Member #${_voterSearchDependentIndex! + 1}' : 'Find Voter Record',
+                _voterSearchDependentIndex != null
+                    ? 'Find Voter Record — Household Member #${_voterSearchDependentIndex! + 1}'
+                    : 'Find Voter Record',
                 style: GoogleFonts.inter(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
@@ -1163,7 +1200,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
           const SizedBox(height: 22),
 
           // Row 1: LGU and Barangay Filters
-          Row(
+          ResponsiveFieldRow(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
@@ -1171,14 +1208,16 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                   'LGU',
                   subtextCol,
                   DropdownButtonFormField<String>(
-                    value: _withCurrent(['All LGUs', ..._lgus], _searchLgu).contains(_searchLgu) ? _searchLgu : 'All LGUs',
+                    value:
+                        _withCurrent(['All LGUs', ..._lgus], _searchLgu).contains(_searchLgu) ? _searchLgu : 'All LGUs',
                     isExpanded: true,
                     icon: Icon(Icons.keyboard_arrow_down, size: 20, color: textCol),
                     decoration: _searchBoxDecoration(null, borderCol, fieldFill, primaryCol, subtextCol),
-                    dropdownColor: isDark ? TropaColors.darkSurface : Colors.white,
+                    dropdownColor: TropaColors.cardOf(context),
                     style: fieldText,
                     items: _withCurrent(['All LGUs', ..._lgus], _searchLgu)
-                        .map((l) => DropdownMenuItem(value: l, child: Text(l, style: fieldText, overflow: TextOverflow.ellipsis)))
+                        .map((l) => DropdownMenuItem(
+                            value: l, child: Text(l, style: fieldText, overflow: TextOverflow.ellipsis)))
                         .toList(),
                     onChanged: (v) {
                       if (v != null) {
@@ -1199,16 +1238,18 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                   'Barangay',
                   subtextCol,
                   DropdownButtonFormField<String>(
-                    value: _withCurrent(['All Barangays', ..._barangaysFor(_searchLgu)], _searchBarangay).contains(_searchBarangay)
+                    value: _withCurrent(['All Barangays', ..._barangaysFor(_searchLgu)], _searchBarangay)
+                            .contains(_searchBarangay)
                         ? _searchBarangay
                         : 'All Barangays',
                     isExpanded: true,
                     icon: Icon(Icons.keyboard_arrow_down, size: 20, color: textCol),
                     decoration: _searchBoxDecoration(null, borderCol, fieldFill, primaryCol, subtextCol),
-                    dropdownColor: isDark ? TropaColors.darkSurface : Colors.white,
+                    dropdownColor: TropaColors.cardOf(context),
                     style: fieldText,
                     items: _withCurrent(['All Barangays', ..._barangaysFor(_searchLgu)], _searchBarangay)
-                        .map((b) => DropdownMenuItem(value: b, child: Text(b, style: fieldText, overflow: TextOverflow.ellipsis)))
+                        .map((b) => DropdownMenuItem(
+                            value: b, child: Text(b, style: fieldText, overflow: TextOverflow.ellipsis)))
                         .toList(),
                     onChanged: (v) {
                       if (v != null) {
@@ -1224,7 +1265,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
           const SizedBox(height: 14),
 
           // Row 2: Last Name, First Name, Middle Name
-          Row(
+          ResponsiveFieldRow(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
@@ -1232,10 +1273,14 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                   'Last Name',
                   subtextCol,
                   TextField(
+                    inputFormatters: const [UpperCaseFormatter()],
+                    textCapitalization: TextCapitalization.characters,
                     controller: _searchLastNameCtrl,
                     autofocus: true,
                     style: fieldText,
-                    decoration: _searchBoxDecoration('Search last name...', borderCol, fieldFill, primaryCol, subtextCol, withIcon: true),
+                    decoration: _searchBoxDecoration(
+                        'Search last name...', borderCol, fieldFill, primaryCol, subtextCol,
+                        withIcon: true),
                     onChanged: (_) => _onSearchFieldChanged(),
                   ),
                 ),
@@ -1246,9 +1291,13 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                   'First Name',
                   subtextCol,
                   TextField(
+                    inputFormatters: const [UpperCaseFormatter()],
+                    textCapitalization: TextCapitalization.characters,
                     controller: _searchFirstNameCtrl,
                     style: fieldText,
-                    decoration: _searchBoxDecoration('Search first name...', borderCol, fieldFill, primaryCol, subtextCol, withIcon: true),
+                    decoration: _searchBoxDecoration(
+                        'Search first name...', borderCol, fieldFill, primaryCol, subtextCol,
+                        withIcon: true),
                     onChanged: (_) => _onSearchFieldChanged(),
                   ),
                 ),
@@ -1259,9 +1308,13 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                   'Middle Name',
                   subtextCol,
                   TextField(
+                    inputFormatters: const [UpperCaseFormatter()],
+                    textCapitalization: TextCapitalization.characters,
                     controller: _searchMiddleNameCtrl,
                     style: fieldText,
-                    decoration: _searchBoxDecoration('Search middle name...', borderCol, fieldFill, primaryCol, subtextCol, withIcon: true),
+                    decoration: _searchBoxDecoration(
+                        'Search middle name...', borderCol, fieldFill, primaryCol, subtextCol,
+                        withIcon: true),
                     onChanged: (_) => _onSearchFieldChanged(),
                   ),
                 ),
@@ -1279,7 +1332,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             const SizedBox(height: 16),
             Container(
               decoration: BoxDecoration(
-                color: isDark ? TropaColors.darkSurface : Colors.white,
+                color: TropaColors.cardOf(context),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: borderCol),
               ),
@@ -1287,11 +1340,12 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                 borderRadius: BorderRadius.circular(8),
                 child: Column(
                   children: [
-                    // Table Header
+                    // Table Header (phones show each result as a card instead)
+                    if (!context.isCompactScreen)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       decoration: BoxDecoration(
-                        color: isDark ? TropaColors.darkSurfaceHigh : TropaColors.lightSurfaceLow,
+                        color: TropaColors.chipOf(context),
                         border: Border(bottom: BorderSide(color: borderCol)),
                       ),
                       child: Row(
@@ -1318,6 +1372,28 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                           final v = _searchResults[idx];
                           final cell = GoogleFonts.inter(fontSize: 12, color: textCol);
                           final mutedCell = GoogleFonts.inter(fontSize: 12, color: subtextCol);
+                          if (context.isCompactScreen) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('${v.lastName}, ${v.firstName} ${v.middleName ?? ''}'.trim(),
+                                            style: cell.copyWith(fontWeight: FontWeight.w700)),
+                                        const SizedBox(height: 2),
+                                        Text('${v.barangay}, ${v.lgu} · ${v.status.toUpperCase()}', style: mutedCell),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _voterSelectButton(v, primaryCol),
+                                ],
+                              ),
+                            );
+                          }
                           return Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             child: Row(
@@ -1337,7 +1413,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                                       decoration: BoxDecoration(
-                                        color: isDark ? TropaColors.darkSurface2dp : TropaColors.lightSurfaceHighest.withValues(alpha: 0.6),
+                                        color: TropaColors.chipOf(context),
                                         borderRadius: BorderRadius.circular(4),
                                       ),
                                       child: Text(
@@ -1354,22 +1430,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                 ),
                                 Expanded(
                                   flex: 3,
-                                  child: Center(
-                                    child: OutlinedButton.icon(
-                                      style: OutlinedButton.styleFrom(
-                                        foregroundColor: primaryCol,
-                                        backgroundColor: primaryCol.withValues(alpha: 0.08),
-                                        side: BorderSide(color: primaryCol.withValues(alpha: 0.25)),
-                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                        minimumSize: Size.zero,
-                                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                                      ),
-                                      icon: const Icon(Icons.person_add_alt_outlined, size: 14),
-                                      label: Text('Select', style: GoogleFonts.inter(fontSize: 11.5, fontWeight: FontWeight.w600)),
-                                      onPressed: () => _selectVoterAndProceed(v),
-                                    ),
-                                  ),
+                                  child: Center(child: _voterSelectButton(v, primaryCol)),
                                 ),
                               ],
                             ),
@@ -1442,7 +1503,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     );
   }
 
-  InputDecoration _searchBoxDecoration(String? hint, Color borderCol, Color fillCol, Color primaryCol, Color subtextCol, {bool withIcon = false}) {
+  InputDecoration _searchBoxDecoration(String? hint, Color borderCol, Color fillCol, Color primaryCol, Color subtextCol,
+      {bool withIcon = false}) {
     return InputDecoration(
       hintText: hint,
       hintStyle: GoogleFonts.inter(fontSize: 13, color: subtextCol.withValues(alpha: 0.75)),
@@ -1496,465 +1558,481 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
-          child: SingleChildScrollView(
-            // Remembers the scroll offset while the form is swapped out for the voter search
-            key: const PageStorageKey('member-intake-form'),
-            padding: const EdgeInsets.fromLTRB(28, 14, 28, 20),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Back button or Voter Found Banner
-                  if (_selectedVoter != null) ...[
-                    _buildVoterFoundBanner(isDark, borderCol, textCol, subtextCol, primaryCol),
-                    const SizedBox(height: 28),
-                  ] else if (_possibleMatches.isNotEmpty) ...[
-                    _buildPossibleMatchBanner(
-                      isDark,
-                      matches: _possibleMatches,
-                      nameCtrls: [_firstNameCtrl, _middleNameCtrl, _lastNameCtrl],
-                      onReview: _reviewPossibleMatches,
-                      onDismiss: () => setState(() => _possibleMatches = []),
-                    ),
-                    const SizedBox(height: 28),
-                  ] else if (widget.existing == null) ...[
-                    InkWell(
-                      onTap: _backToSearch,
-                      borderRadius: BorderRadius.circular(6),
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.arrow_back, size: 16, color: primaryCol),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Back to Voter Search',
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: primaryCol,
+                child: SingleChildScrollView(
+                  // Remembers the scroll offset while the form is swapped out for the voter search
+                  key: const PageStorageKey('member-intake-form'),
+                  padding: const EdgeInsets.fromLTRB(28, 14, 28, 20),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Back button or Voter Found Banner
+                        if (_selectedVoter != null) ...[
+                          _buildVoterFoundBanner(isDark, borderCol, textCol, subtextCol, primaryCol),
+                          const SizedBox(height: 28),
+                        ] else if (_possibleMatches.isNotEmpty) ...[
+                          _buildPossibleMatchBanner(
+                            isDark,
+                            matches: _possibleMatches,
+                            nameCtrls: [_firstNameCtrl, _middleNameCtrl, _lastNameCtrl],
+                            onReview: _reviewPossibleMatches,
+                            onDismiss: () => setState(() => _possibleMatches = []),
+                          ),
+                          const SizedBox(height: 28),
+                        ] else if (widget.existing == null) ...[
+                          InkWell(
+                            onTap: _backToSearch,
+                            borderRadius: BorderRadius.circular(6),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 4),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.arrow_back, size: 16, color: primaryCol),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Back to Voter Search',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: primaryCol,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
+                          ),
+                          const SizedBox(height: 16),
+                        ],
 
-                  // Section 1: Personal Information (photo beside the fields)
-                  _buildSectionHeader('Personal Information', textCol),
-                  const SizedBox(height: 18),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildPhotoPicker(isDark, borderCol, textCol, subtextCol, primaryCol),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        child: Column(
+                        // Section 1: Personal Information (photo beside the fields)
+                        _buildSectionHeader('Personal Information', textCol),
+                        const SizedBox(height: 18),
+                        ResponsiveFieldRow(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            // Row 1: Last Name, First Name, Middle Name
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: _buildTextField(
-                                    controller: _lastNameCtrl,
-                                    label: 'Last Name *',
-                                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
-                                    textCol: textCol,
-                                    borderCol: borderCol,
-                                    fillCol: inputFill,
-                                    primaryCol: primaryCol,
-                                  ),
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: _buildTextField(
-                                    controller: _firstNameCtrl,
-                                    label: 'First Name *',
-                                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
-                                    textCol: textCol,
-                                    borderCol: borderCol,
-                                    fillCol: inputFill,
-                                    primaryCol: primaryCol,
-                                  ),
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: _buildTextField(
-                                    controller: _middleNameCtrl,
-                                    label: 'Middle Name',
-                                    textCol: textCol,
-                                    borderCol: borderCol,
-                                    fillCol: inputFill,
-                                    primaryCol: primaryCol,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 14),
-
-                            // Row 2: Birthday, Membership Date, Contact Number
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: _buildDatePickerField(
-                                    label: 'Birthday *',
-                                    date: _birthDate,
-                                    hint: 'mm/dd/yyyy',
-                                    isBirthDate: true,
-                                    onDateSelected: (d) => setState(() {
-                                      _birthDate = d;
-                                      _applySeniorRule();
-                                    }),
-                                    onCleared: () => setState(() => _birthDate = null),
-                                    textCol: textCol,
-                                    borderCol: borderCol,
-                                    fillCol: inputFill,
-                                    primaryCol: primaryCol,
-                                  ),
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: _buildDatePickerField(
-                                    label: 'Membership Date *',
-                                    date: _membershipDate,
-                                    hint: 'mm/dd/yyyy',
-                                    onDateSelected: (d) => setState(() => _membershipDate = d),
-                                    onCleared: () => setState(() => _membershipDate = null),
-                                    textCol: textCol,
-                                    borderCol: borderCol,
-                                    fillCol: inputFill,
-                                    primaryCol: primaryCol,
-                                  ),
-                                ),
-                                const SizedBox(width: 14),
-                                Expanded(
-                                  child: _buildTextField(
-                                    controller: _contactCtrl,
-                                    label: 'Contact Number',
-                                    hint: '0917 123 4567',
-                                    inputFormatters: [_PhMobileFormatter()],
-                                    keyboardType: TextInputType.phone,
-                                    validator: _contactError,
-                                    textCol: textCol,
-                                    borderCol: borderCol,
-                                    fillCol: inputFill,
-                                    primaryCol: primaryCol,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Gender (required)
-                            _buildGenderField(
-                              key: const ValueKey('gender-main'),
-                              value: _gender,
-                              onChanged: (g) => setState(() => _gender = g),
-                              textCol: textCol,
-                              borderCol: borderCol,
-                              primaryCol: primaryCol,
-                              subtextCol: subtextCol,
-                            ),
-                            const SizedBox(height: 16),
-
-                            // Row 3: Sector chips
-                            Text('Sector *', style: GoogleFonts.inter(fontSize: 11.5, fontWeight: FontWeight.w500, color: subtextCol)),
-                            const SizedBox(height: 8),
-                            _buildSectorChips(
-                              selected: _selectedSectors,
-                              onToggle: (sector, selected) => _setSector(sector, selected),
-                              textCol: textCol,
-                              borderCol: borderCol,
-                              primaryCol: primaryCol,
-                            ),
-                            _buildSectorWarnings(_sectorAgeWarnings(_selectedSectors, _birthDate)),
-                            const SizedBox(height: 14),
-
-                            // Year Level (students only), in a third-width column like the fields above
-                            if (_selectedSectors.contains('Student')) ...[
-                              Row(
+                            _buildPhotoPicker(isDark, borderCol, textCol, subtextCol, primaryCol),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Expanded(
-                                    child: _buildYearLevelField(
-                                      value: _yearLevel,
-                                      onChanged: (v) => setState(() => _yearLevel = v),
-                                      isDark: isDark,
-                                      textCol: textCol,
-                                      borderCol: borderCol,
-                                      primaryCol: primaryCol,
-                                      subtextCol: subtextCol,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 14),
-                                  const Expanded(flex: 2, child: SizedBox.shrink()),
-                                ],
-                              ),
-                              const SizedBox(height: 14),
-                            ],
-
-                            // Optional details: TRU Care, PhilHealth
-                            if (_moreDetailsOpen) ...[
-                              Wrap(
-                                spacing: 24,
-                                runSpacing: 10,
-                                children: [
-                                  _buildCheckbox(
-                                    label: 'TRU Care Member',
-                                    value: _trucareMember,
-                                    onChanged: (v) => setState(() => _trucareMember = v ?? false),
-                                    textCol: textCol,
-                                    primaryCol: primaryCol,
-                                    onPrimaryCol: onPrimaryCol,
-                                  ),
-                                  _buildCheckbox(
-                                    label: 'PhilHealth Member',
-                                    value: _phicMember,
-                                    onChanged: (v) => setState(() => _phicMember = v ?? false),
-                                    textCol: textCol,
-                                    primaryCol: primaryCol,
-                                    onPrimaryCol: onPrimaryCol,
-                                  ),
-                                ],
-                              ),
-                              if (_phicMember) ...[
-                                const SizedBox(height: 12),
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(
-                                      child: _buildTextField(
-                                        controller: _phicNoCtrl,
-                                        label: 'PhilHealth (PHIC) No.',
-                                        hint: '12-digit identification number',
-                                        textCol: textCol,
-                                        borderCol: borderCol,
-                                        fillCol: inputFill,
-                                        primaryCol: primaryCol,
+                                  // Row 1: Last Name, First Name, Middle Name
+                                  ResponsiveFieldRow(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: _buildTextField(
+                                          controller: _lastNameCtrl,
+                                          label: 'Last Name *',
+                                          validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                                          textCol: textCol,
+                                          borderCol: borderCol,
+                                          fillCol: inputFill,
+                                          primaryCol: primaryCol,
+                                        ),
                                       ),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: _buildTextField(
+                                          controller: _firstNameCtrl,
+                                          label: 'First Name *',
+                                          validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                                          textCol: textCol,
+                                          borderCol: borderCol,
+                                          fillCol: inputFill,
+                                          primaryCol: primaryCol,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: _buildTextField(
+                                          controller: _middleNameCtrl,
+                                          label: 'Middle Name',
+                                          textCol: textCol,
+                                          borderCol: borderCol,
+                                          fillCol: inputFill,
+                                          primaryCol: primaryCol,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 14),
+
+                                  // Row 2: Birthday, Membership Date, Contact Number
+                                  ResponsiveFieldRow(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: _buildDatePickerField(
+                                          label: 'Birthday *',
+                                          date: _birthDate,
+                                          hint: 'mm/dd/yyyy',
+                                          isBirthDate: true,
+                                          onDateSelected: (d) => setState(() {
+                                            _birthDate = d;
+                                            _applySeniorRule();
+                                          }),
+                                          onCleared: () => setState(() => _birthDate = null),
+                                          textCol: textCol,
+                                          borderCol: borderCol,
+                                          fillCol: inputFill,
+                                          primaryCol: primaryCol,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: _buildDatePickerField(
+                                          label: 'Membership Date *',
+                                          date: _membershipDate,
+                                          hint: 'mm/dd/yyyy',
+                                          onDateSelected: (d) => setState(() => _membershipDate = d),
+                                          onCleared: () => setState(() => _membershipDate = null),
+                                          textCol: textCol,
+                                          borderCol: borderCol,
+                                          fillCol: inputFill,
+                                          primaryCol: primaryCol,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 14),
+                                      Expanded(
+                                        child: _buildTextField(
+                                          controller: _contactCtrl,
+                                          label: 'Contact Number',
+                                          upperCase: false,
+                                          hint: '0917 123 4567',
+                                          inputFormatters: [_PhMobileFormatter()],
+                                          keyboardType: TextInputType.phone,
+                                          validator: _contactError,
+                                          textCol: textCol,
+                                          borderCol: borderCol,
+                                          fillCol: inputFill,
+                                          primaryCol: primaryCol,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+
+                                  // Gender (required)
+                                  _buildGenderField(
+                                    key: const ValueKey('gender-main'),
+                                    value: _gender,
+                                    onChanged: (g) => setState(() => _gender = g),
+                                    textCol: textCol,
+                                    borderCol: borderCol,
+                                    primaryCol: primaryCol,
+                                    subtextCol: subtextCol,
+                                  ),
+                                  const SizedBox(height: 16),
+
+                                  // Row 3: Sector chips
+                                  Text('Sector *',
+                                      style: GoogleFonts.inter(
+                                          fontSize: 11.5, fontWeight: FontWeight.w500, color: subtextCol)),
+                                  const SizedBox(height: 8),
+                                  _buildSectorChips(
+                                    selected: _selectedSectors,
+                                    onToggle: (sector, selected) => _setSector(sector, selected),
+                                    textCol: textCol,
+                                    borderCol: borderCol,
+                                    primaryCol: primaryCol,
+                                  ),
+                                  _buildSectorWarnings(_sectorAgeWarnings(_selectedSectors, _birthDate)),
+                                  const SizedBox(height: 14),
+
+                                  // Year Level (students only), in a third-width column like the fields above
+                                  if (_selectedSectors.contains('Student')) ...[
+                                    ResponsiveFieldRow(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: _buildYearLevelField(
+                                            value: _yearLevel,
+                                            onChanged: (v) => setState(() => _yearLevel = v),
+                                            isDark: isDark,
+                                            textCol: textCol,
+                                            borderCol: borderCol,
+                                            primaryCol: primaryCol,
+                                            subtextCol: subtextCol,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 14),
+                                        const Expanded(flex: 2, child: SizedBox.shrink()),
+                                      ],
                                     ),
-                                    const SizedBox(width: 14),
-                                    const Expanded(flex: 2, child: SizedBox.shrink()),
+                                    const SizedBox(height: 14),
                                   ],
-                                ),
-                              ],
-                              const SizedBox(height: 8),
-                            ],
-                            _buildMoreDetailsLink(
-                              open: _moreDetailsOpen,
-                              // Keep it open while any optional field holds a value
-                              canClose: !_hasMoreDetails,
-                              onTap: () => setState(() => _showMoreDetails = !_moreDetailsOpen),
-                              primaryCol: primaryCol,
-                              subtextCol: subtextCol,
+
+                                  // Optional details: TRU Care, PhilHealth
+                                  if (_moreDetailsOpen) ...[
+                                    Wrap(
+                                      spacing: 24,
+                                      runSpacing: 10,
+                                      children: [
+                                        _buildCheckbox(
+                                          label: 'TRU Care Member',
+                                          value: _trucareMember,
+                                          onChanged: (v) => setState(() => _trucareMember = v ?? false),
+                                          textCol: textCol,
+                                          primaryCol: primaryCol,
+                                          onPrimaryCol: onPrimaryCol,
+                                        ),
+                                        _buildCheckbox(
+                                          label: 'PhilHealth Member',
+                                          value: _phicMember,
+                                          onChanged: (v) => setState(() => _phicMember = v ?? false),
+                                          textCol: textCol,
+                                          primaryCol: primaryCol,
+                                          onPrimaryCol: onPrimaryCol,
+                                        ),
+                                      ],
+                                    ),
+                                    if (_phicMember) ...[
+                                      const SizedBox(height: 12),
+                                      ResponsiveFieldRow(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(
+                                            child: _buildTextField(
+                                              controller: _phicNoCtrl,
+                                              label: 'PhilHealth (PHIC) No.',
+                                              upperCase: false,
+                                              hint: '12-digit identification number',
+                                              textCol: textCol,
+                                              borderCol: borderCol,
+                                              fillCol: inputFill,
+                                              primaryCol: primaryCol,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 14),
+                                          const Expanded(flex: 2, child: SizedBox.shrink()),
+                                        ],
+                                      ),
+                                    ],
+                                    const SizedBox(height: 8),
+                                  ],
+                                  _buildMoreDetailsLink(
+                                    open: _moreDetailsOpen,
+                                    // Keep it open while any optional field holds a value
+                                    canClose: !_hasMoreDetails,
+                                    onTap: () => setState(() => _showMoreDetails = !_moreDetailsOpen),
+                                    primaryCol: primaryCol,
+                                    subtextCol: subtextCol,
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 32),
+                        const SizedBox(height: 32),
 
-                  // Section 2: Household & Location (leader choice first: it decides the household)
-                  _buildSectionHeader('Household & Location', textCol),
-                  const SizedBox(height: 14),
-                  if (_joiningHousehold)
-                    // Joining an existing household: shown but can't be ticked
-                    Row(
-                      children: [
-                        Icon(Icons.check_box_outline_blank, size: 22, color: subtextCol.withValues(alpha: 0.45)),
-                        const SizedBox(width: 10),
-                        Text('Household Leader', style: GoogleFonts.inter(fontSize: 13, color: subtextCol.withValues(alpha: 0.7))),
-                      ],
-                    )
-                  else
-                    _buildCheckbox(
-                      label: 'Household Leader',
-                      value: _isHouseholdLeader,
-                      onChanged: (v) => setState(() => _isHouseholdLeader = v ?? false),
-                      textCol: textCol,
-                      primaryCol: primaryCol,
-                      onPrimaryCol: onPrimaryCol,
-                    ),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 32, top: 2),
-                    child: Text(
-                      _joiningHousehold
-                          ? 'Adding to ${widget.presetHousehold!.householdName}; this member joins as a household member.'
-                          : _isHouseholdLeader
-                          ? 'A new household is created for this member, and you can add the rest of the household below.'
-                          : 'Tick if this member heads their household.',
-                      style: GoogleFonts.inter(fontSize: 11.5, color: subtextCol),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Row 1: Household search dropdown & LGU
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: _labeledField(
-                          'Household',
-                          subtextCol,
-                          _buildHouseholdNameBox(isDark, borderCol, textCol, subtextCol),
+                        // Section 2: Household & Location (leader choice first: it decides the household)
+                        _buildSectionHeader('Household & Location', textCol),
+                        const SizedBox(height: 14),
+                        if (_joiningHousehold)
+                          // Joining an existing household: shown but can't be ticked
+                          Row(
+                            children: [
+                              Icon(Icons.check_box_outline_blank, size: 22, color: subtextCol.withValues(alpha: 0.45)),
+                              const SizedBox(width: 10),
+                              Text('Household Leader',
+                                  style: GoogleFonts.inter(fontSize: 13, color: subtextCol.withValues(alpha: 0.7))),
+                            ],
+                          )
+                        else
+                          _buildCheckbox(
+                            label: 'Household Leader',
+                            value: _isHouseholdLeader,
+                            onChanged: (v) => setState(() => _isHouseholdLeader = v ?? false),
+                            textCol: textCol,
+                            primaryCol: primaryCol,
+                            onPrimaryCol: onPrimaryCol,
+                          ),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 32, top: 2),
+                          child: Text(
+                            _joiningHousehold
+                                ? 'Adding to ${widget.presetHousehold!.householdName}; this member joins as a household member.'
+                                : _isHouseholdLeader
+                                    ? 'A new household is created for this member, and you can add the rest of the household below.'
+                                    : 'Tick if this member heads their household.',
+                            style: GoogleFonts.inter(fontSize: 11.5, color: subtextCol),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 28),
-                      Expanded(
-                        child: _labeledField(
-                            'LGU *',
-                            subtextCol,
-                            DropdownButtonFormField<String>(
-                              value: _lgu.isEmpty ? null : _lgu,
-                              isExpanded: true,
-                              icon: Icon(Icons.keyboard_arrow_down, size: 20, color: textCol),
-                              decoration: _searchBoxDecoration(null, borderCol, _fieldFill, primaryCol, subtextCol),
-                              dropdownColor: isDark ? TropaColors.darkSurface8dp : Colors.white,
-                              hint: Text('Select LGU', style: GoogleFonts.inter(fontSize: 13, color: textCol)),
-                              disabledHint: _lockedValue(_lgu, textCol),
-                              items: _withCurrent(_lgus, _lgu).map((l) {
-                                return DropdownMenuItem(
-                                  value: l,
-                                  child: Text(l, overflow: TextOverflow.ellipsis, style: GoogleFonts.inter(fontSize: 13, color: textCol)),
-                                );
-                              }).toList(),
-                              validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
-                              onChanged: _joiningHousehold
-                                  ? null
-                                  : (v) {
-                                if (v != null) {
-                                  setState(() {
-                                    _lgu = v;
-                                    // Barangay list depends on the LGU
-                                    if (!_barangaysFor(v).contains(_barangay)) _barangay = '';
-                                    _purok = '';
-                                    _purokId = null;
-                                  });
-                                }
-                              },
-                            )),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Row 2: Barangay & Purok
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: _labeledField(
-                            'Barangay *',
-                            subtextCol,
-                            DropdownButtonFormField<String>(
-                              // Keyed by LGU so the field resets cleanly when the LGU changes
-                              key: ValueKey('barangay-$_lgu'),
-                              value: _barangay.isEmpty ? null : _barangay,
-                              isExpanded: true,
-                              icon: Icon(Icons.keyboard_arrow_down, size: 20, color: textCol),
-                              decoration: _searchBoxDecoration(null, borderCol, _fieldFill, primaryCol, subtextCol),
-                              dropdownColor: isDark ? TropaColors.darkSurface8dp : Colors.white,
-                              hint: Text(
-                                _lgu.isEmpty ? 'Select LGU First' : 'Select Barangay',
-                                style: GoogleFonts.inter(fontSize: 13, color: textCol),
+                        const SizedBox(height: 16),
+                        // Row 1: Household search dropdown & LGU
+                        ResponsiveFieldRow(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: _labeledField(
+                                'Household',
+                                subtextCol,
+                                _buildHouseholdNameBox(isDark, borderCol, textCol, subtextCol),
                               ),
-                              disabledHint: _joiningHousehold ? _lockedValue(_barangay, textCol) : null,
-                              items: _lgu.isEmpty
-                                  ? const []
-                                  : _withCurrent(_barangaysFor(_lgu), _barangay).map((b) {
+                            ),
+                            const SizedBox(width: 28),
+                            Expanded(
+                              child: _labeledField(
+                                  'LGU *',
+                                  subtextCol,
+                                  DropdownButtonFormField<String>(
+                                    value: _lgu.isEmpty ? null : _lgu,
+                                    isExpanded: true,
+                                    icon: Icon(Icons.keyboard_arrow_down, size: 20, color: textCol),
+                                    decoration:
+                                        _searchBoxDecoration(null, borderCol, _fieldFill, primaryCol, subtextCol),
+                                    dropdownColor: TropaColors.cardOf(context),
+                                    hint: Text('Select LGU', style: GoogleFonts.inter(fontSize: 13, color: textCol)),
+                                    disabledHint: _lockedValue(_lgu, textCol),
+                                    items: _withCurrent(_lgus, _lgu).map((l) {
                                       return DropdownMenuItem(
-                                        value: b,
-                                        child: Text(b, overflow: TextOverflow.ellipsis, style: GoogleFonts.inter(fontSize: 13, color: textCol)),
+                                        value: l,
+                                        child: Text(l,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.inter(fontSize: 13, color: textCol)),
                                       );
                                     }).toList(),
-                              validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
-                              onChanged: _joiningHousehold
-                                  ? null
-                                  : (v) {
-                                if (v != null && v != _barangay) {
-                                  setState(() {
-                                    _barangay = v;
-                                    _purok = '';
-                                    _purokId = null;
-                                  });
-                                }
-                              },
-                            )),
-                      ),
-                      const SizedBox(width: 28),
-                      Expanded(
-                        child: _labeledField(
-                            'Purok *',
-                            subtextCol,
-                            _buildPurokDropdown(isDark, borderCol, textCol, primaryCol, subtextCol)),
-                      ),
-                    ],
-                  ),
-                  if (_joiningHousehold) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(Icons.lock_outline, size: 14, color: subtextCol),
-                        const SizedBox(width: 6),
-                        Text('Location follows the household.', style: GoogleFonts.inter(fontSize: 11.5, color: subtextCol)),
+                                    validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+                                    onChanged: _joiningHousehold
+                                        ? null
+                                        : (v) {
+                                            if (v != null) {
+                                              setState(() {
+                                                _lgu = v;
+                                                // Barangay list depends on the LGU
+                                                if (!_barangaysFor(v).contains(_barangay)) _barangay = '';
+                                                _purok = '';
+                                                _purokId = null;
+                                              });
+                                            }
+                                          },
+                                  )),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+
+                        // Row 2: Barangay & Purok
+                        ResponsiveFieldRow(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: _labeledField(
+                                  'Barangay *',
+                                  subtextCol,
+                                  DropdownButtonFormField<String>(
+                                    // Keyed by LGU so the field resets cleanly when the LGU changes
+                                    key: ValueKey('barangay-$_lgu'),
+                                    value: _barangay.isEmpty ? null : _barangay,
+                                    isExpanded: true,
+                                    icon: Icon(Icons.keyboard_arrow_down, size: 20, color: textCol),
+                                    decoration:
+                                        _searchBoxDecoration(null, borderCol, _fieldFill, primaryCol, subtextCol),
+                                    dropdownColor: TropaColors.cardOf(context),
+                                    hint: Text(
+                                      _lgu.isEmpty ? 'Select LGU First' : 'Select Barangay',
+                                      style: GoogleFonts.inter(fontSize: 13, color: textCol),
+                                    ),
+                                    disabledHint: _joiningHousehold ? _lockedValue(_barangay, textCol) : null,
+                                    items: _lgu.isEmpty
+                                        ? const []
+                                        : _withCurrent(_barangaysFor(_lgu), _barangay).map((b) {
+                                            return DropdownMenuItem(
+                                              value: b,
+                                              child: Text(b,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: GoogleFonts.inter(fontSize: 13, color: textCol)),
+                                            );
+                                          }).toList(),
+                                    validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+                                    onChanged: _joiningHousehold
+                                        ? null
+                                        : (v) {
+                                            if (v != null && v != _barangay) {
+                                              setState(() {
+                                                _barangay = v;
+                                                _purok = '';
+                                                _purokId = null;
+                                              });
+                                            }
+                                          },
+                                  )),
+                            ),
+                            const SizedBox(width: 28),
+                            Expanded(
+                              child: _labeledField('Purok *', subtextCol,
+                                  _buildPurokDropdown(isDark, borderCol, textCol, primaryCol, subtextCol)),
+                            ),
+                          ],
+                        ),
+                        if (_joiningHousehold) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Icon(Icons.lock_outline, size: 14, color: subtextCol),
+                              const SizedBox(width: 6),
+                              Text('Location follows the household.',
+                                  style: GoogleFonts.inter(fontSize: 11.5, color: subtextCol)),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 24),
+
+                        // Section 3: Status & Qualifications (status shown as a badge)
+                        _buildSectionHeader(
+                          'Status & Qualifications',
+                          textCol,
+                          trailing: [
+                            _buildBadge(
+                              (_listingStatus.toUpperCase() == 'MEMBER' || _listingStatus.toUpperCase() == 'COOP')
+                                  ? 'TROPA MEMBER'
+                                  : _listingStatus,
+                              primaryCol,
+                            ),
+                            if (_selectedVoter != null)
+                              Text('From voter record', style: GoogleFonts.inter(fontSize: 11, color: subtextCol)),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        // Read-only: follows whether a record from the voters table was selected
+                        Row(
+                          children: [
+                            Icon(
+                              _isVoter ? Icons.check_box : Icons.check_box_outline_blank,
+                              size: 22,
+                              color: _isVoter ? primaryCol : subtextCol.withValues(alpha: 0.6),
+                            ),
+                            const SizedBox(width: 10),
+                            Text('Registered Voter', style: GoogleFonts.inter(fontSize: 13, color: textCol)),
+                          ],
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(left: 32, top: 2),
+                          child: Text(
+                            _isVoter
+                                ? (_selectedVoter != null
+                                    ? 'Found in the voters table.'
+                                    : 'Saved as a registered voter.')
+                                : 'Ticked automatically when a voter record is selected.',
+                            style: GoogleFonts.inter(fontSize: 11.5, color: subtextCol),
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+
+                        // Section 4: Household Members / Dependents
+                        // (only household leaders can add the rest of their household)
+                        if (_isHouseholdLeader) ...[
+                          _buildHouseholdMembersSection(
+                              isDark, cardBg, borderCol, textCol, subtextCol, inputFill, primaryCol, onPrimaryCol),
+                          const SizedBox(height: 20),
+                        ],
                       ],
                     ),
-                  ],
-                  const SizedBox(height: 24),
-
-                  // Section 3: Status & Qualifications (status shown as a badge)
-                  _buildSectionHeader(
-                    'Status & Qualifications',
-                    textCol,
-                    trailing: [
-                      _buildBadge(
-                        (_listingStatus.toUpperCase() == 'MEMBER' || _listingStatus.toUpperCase() == 'COOP') ? 'TROPA MEMBER' : _listingStatus,
-                        primaryCol,
-                      ),
-                      if (_selectedVoter != null) Text('From voter record', style: GoogleFonts.inter(fontSize: 11, color: subtextCol)),
-                    ],
                   ),
-                  const SizedBox(height: 14),
-                  // Read-only: follows whether a record from the voters table was selected
-                  Row(
-                    children: [
-                      Icon(
-                        _isVoter ? Icons.check_box : Icons.check_box_outline_blank,
-                        size: 22,
-                        color: _isVoter ? primaryCol : subtextCol.withValues(alpha: 0.6),
-                      ),
-                      const SizedBox(width: 10),
-                      Text('Registered Voter', style: GoogleFonts.inter(fontSize: 13, color: textCol)),
-                    ],
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 32, top: 2),
-                    child: Text(
-                      _isVoter
-                          ? (_selectedVoter != null ? 'Found in the voters table.' : 'Saved as a registered voter.')
-                          : 'Ticked automatically when a voter record is selected.',
-                      style: GoogleFonts.inter(fontSize: 11.5, color: subtextCol),
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-
-                  // Section 4: Household Members / Dependents
-                  // (only household leaders can add the rest of their household)
-                  if (_isHouseholdLeader) ...[
-                    _buildHouseholdMembersSection(isDark, cardBg, borderCol, textCol, subtextCol, inputFill, primaryCol, onPrimaryCol),
-                    const SizedBox(height: 20),
-                  ],
-                ],
-              ),
-            ),
-          ),
+                ),
               ),
               if (_sidebarVisible) _buildSummarySidebar(isDark, borderCol, textCol, subtextCol, primaryCol),
             ],
@@ -1967,8 +2045,11 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
           decoration: BoxDecoration(
             border: Border(top: BorderSide(color: borderCol)),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+          // Wraps onto two lines when the three buttons don't fit (phones)
+          child: Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 12,
+            runSpacing: 10,
             children: [
               OutlinedButton(
                 style: OutlinedButton.styleFrom(
@@ -1979,8 +2060,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                 onPressed: () => Navigator.of(context).pop(_savedMember),
                 child: Text('Cancel', style: GoogleFonts.inter(color: textCol, fontWeight: FontWeight.w500)),
               ),
-              const SizedBox(width: 12),
-              if (widget.existing == null) ...[
+              if (widget.existing == null)
                 // Secondary action: tinted version of the theme colour so it follows the theme
                 OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
@@ -2001,8 +2081,6 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                           }
                         },
                 ),
-                const SizedBox(width: 12),
-              ],
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primaryCol,
@@ -2012,7 +2090,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                   elevation: 0,
                 ),
                 icon: _isSaving
-                    ? SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: onPrimaryCol, strokeWidth: 2))
+                    ? SizedBox(
+                        width: 16, height: 16, child: CircularProgressIndicator(color: onPrimaryCol, strokeWidth: 2))
                     : const Icon(Icons.save, size: 18),
                 label: Text(
                   widget.existing == null ? 'Save TROPA Member' : 'Update Profile',
@@ -2056,7 +2135,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
       decoration: BoxDecoration(
-        color: active ? _fieldFill : (isDark ? TropaColors.darkSurface2dp : TropaColors.lightSurfaceLow),
+        color: active ? _fieldFill : TropaColors.subtleOf(context),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: borderCol),
       ),
@@ -2070,8 +2149,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
 
   /// Purok options come from the `puroks` table for the selected LGU + barangay.
   /// Shows a locked dropdown's current value (a disabled dropdown otherwise only shows its hint).
-  Widget _lockedValue(String value, Color textCol) =>
-      Text(value.isEmpty ? '—' : value, overflow: TextOverflow.ellipsis, style: GoogleFonts.inter(fontSize: 13, color: textCol.withValues(alpha: 0.7)));
+  Widget _lockedValue(String value, Color textCol) => Text(value.isEmpty ? '—' : value,
+      overflow: TextOverflow.ellipsis, style: GoogleFonts.inter(fontSize: 13, color: textCol.withValues(alpha: 0.7)));
 
   Widget _buildPurokDropdown(bool isDark, Color borderCol, Color textCol, Color primaryCol, Color subtextCol) {
     final locationId = _locationId;
@@ -2097,7 +2176,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       isExpanded: true,
       icon: Icon(Icons.keyboard_arrow_down, size: 20, color: textCol),
       decoration: _searchBoxDecoration(null, borderCol, _fieldFill, primaryCol, subtextCol),
-      dropdownColor: isDark ? TropaColors.darkSurface8dp : Colors.white,
+      dropdownColor: TropaColors.cardOf(context),
       menuMaxHeight: 360,
       hint: Text(hint, style: GoogleFonts.inter(fontSize: 13, color: textCol)),
       disabledHint: _joiningHousehold ? _lockedValue(_purok, textCol) : null,
@@ -2106,7 +2185,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
           : names
               .map((n) => DropdownMenuItem(
                     value: n,
-                    child: Text(n, overflow: TextOverflow.ellipsis, style: GoogleFonts.inter(fontSize: 13, color: textCol)),
+                    child: Text(n,
+                        overflow: TextOverflow.ellipsis, style: GoogleFonts.inter(fontSize: 13, color: textCol)),
                   ))
               .toList(),
       // Only required when this barangay actually has puroks listed
@@ -2114,15 +2194,15 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       onChanged: _joiningHousehold
           ? null
           : (v) {
-        if (v == null) return;
-        setState(() {
-          _purok = v;
-          _purokId = null;
-          for (final p in puroks) {
-            if (p.name == v) _purokId = p.id;
-          }
-        });
-      },
+              if (v == null) return;
+              setState(() {
+                _purok = v;
+                _purokId = null;
+                for (final p in puroks) {
+                  if (p.name == v) _purokId = p.id;
+                }
+              });
+            },
     );
   }
 
@@ -2144,10 +2224,11 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
         isExpanded: true,
         icon: Icon(Icons.keyboard_arrow_down, size: 20, color: textCol),
         decoration: _searchBoxDecoration(null, borderCol, _fieldFill, primaryCol, subtextCol),
-        dropdownColor: isDark ? TropaColors.darkSurface8dp : Colors.white,
+        dropdownColor: TropaColors.cardOf(context),
         hint: Text('Select Year Level', style: GoogleFonts.inter(fontSize: 13, color: textCol)),
         items: _yearLevels
-            .map((y) => DropdownMenuItem(value: y, child: Text(y, style: GoogleFonts.inter(fontSize: 13, color: textCol))))
+            .map((y) =>
+                DropdownMenuItem(value: y, child: Text(y, style: GoogleFonts.inter(fontSize: 13, color: textCol))))
             .toList(),
         validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
         onChanged: (v) {
@@ -2161,12 +2242,13 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 2),
       decoration: BoxDecoration(color: primaryCol.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)),
-      child: Text(text, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.3, color: primaryCol)),
+      child: Text(text,
+          style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.3, color: primaryCol)),
     );
   }
 
   Widget _buildSectionHeader(String title, Color textCol, {List<Widget> trailing = const []}) {
-    final borderCol = Theme.of(context).brightness == Brightness.dark ? TropaColors.darkOutlineVariant : TropaColors.lightSurfaceHighest;
+    final borderCol = TropaColors.borderOf(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2192,6 +2274,21 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     );
   }
 
+  Widget _voterSelectButton(VoterSearchResult v, Color primaryCol) => OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: primaryCol,
+          backgroundColor: primaryCol.withValues(alpha: 0.08),
+          side: BorderSide(color: primaryCol.withValues(alpha: 0.25)),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+        ),
+        icon: const Icon(Icons.person_add_alt_outlined, size: 14),
+        label: Text('Select', style: GoogleFonts.inter(fontSize: 11.5, fontWeight: FontWeight.w600)),
+        onPressed: () => _selectVoterAndProceed(v),
+      );
+
   Widget _tableHeader(String label, Color subtextCol) {
     return Text(
       label,
@@ -2215,10 +2312,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     final titleCol = isDark ? const Color(0xFFFCD34D) : const Color(0xFF92400E);
     final bodyCol = isDark ? const Color(0xFFFDE68A) : const Color(0xFFB45309);
     final count = matches.length;
-    final typedName = nameCtrls
-        .map((c) => c.text.trim().toUpperCase())
-        .where((n) => n.isNotEmpty)
-        .join(' ');
+    final typedName = nameCtrls.map((c) => c.text.trim().toUpperCase()).where((n) => n.isNotEmpty).join(' ');
 
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
@@ -2351,9 +2445,12 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             children: [
               Icon(Icons.group_add_outlined, color: primaryCol, size: 20),
               const SizedBox(width: 8),
-              Text(
-                'Household Members',
-                style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: textCol),
+              Flexible(
+                child: Text(
+                  'Household Members',
+                  style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: textCol),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               if (_dependentMembers.isNotEmpty) ...[
                 const SizedBox(width: 6),
@@ -2367,14 +2464,13 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             style: GoogleFonts.inter(fontSize: 11.5, color: subtextCol),
           ),
           const SizedBox(height: 14),
-
           for (int i = 0; i < _dependentMembers.length; i++) ...[
             _dependentMembers[i].expanded
-                ? _buildDependentMemberCard(i, isDark, borderCol, textCol, subtextCol, inputFill, primaryCol, onPrimaryCol)
+                ? _buildDependentMemberCard(
+                    i, isDark, borderCol, textCol, subtextCol, inputFill, primaryCol, onPrimaryCol)
                 : _buildDependentSummaryRow(i, isDark, borderCol, textCol, subtextCol, primaryCol),
             const SizedBox(height: 10),
           ],
-
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
               foregroundColor: primaryCol,
@@ -2394,13 +2490,17 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
 
   String _dependentDisplayName(DependentMemberData d) {
     final last = d.lastNameCtrl.text.trim().toUpperCase();
-    final given = [d.firstNameCtrl.text, d.middleNameCtrl.text].map((n) => n.trim().toUpperCase()).where((n) => n.isNotEmpty).join(' ');
+    final given = [d.firstNameCtrl.text, d.middleNameCtrl.text]
+        .map((n) => n.trim().toUpperCase())
+        .where((n) => n.isNotEmpty)
+        .join(' ');
     if (last.isEmpty && given.isEmpty) return 'New household member';
     return [last, given].where((n) => n.isNotEmpty).join(', ');
   }
 
   /// Folded household member: one line with name, age, sectors and year level.
-  Widget _buildDependentSummaryRow(int index, bool isDark, Color borderCol, Color textCol, Color subtextCol, Color primaryCol) {
+  Widget _buildDependentSummaryRow(
+      int index, bool isDark, Color borderCol, Color textCol, Color subtextCol, Color primaryCol) {
     final dep = _dependentMembers[index];
     final problems = _dependentProblems(dep);
     final meta = [
@@ -2420,7 +2520,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
 
     return Material(
       key: dep.cardKey,
-      color: isDark ? TropaColors.darkSurface2dp : Colors.white,
+      color: TropaColors.cardOf(context),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
         side: BorderSide(color: problems.isNotEmpty ? warn.withValues(alpha: 0.6) : borderCol),
@@ -2497,7 +2597,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       key: dep.cardKey,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? TropaColors.darkSurface2dp : Colors.white,
+        color: TropaColors.cardOf(context),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: primaryCol.withValues(alpha: 0.45)),
       ),
@@ -2523,7 +2623,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                   ),
                   const SizedBox(width: 6),
                   TextButton(
-                    style: TextButton.styleFrom(foregroundColor: primaryCol, padding: const EdgeInsets.symmetric(horizontal: 10)),
+                    style: TextButton.styleFrom(
+                        foregroundColor: primaryCol, padding: const EdgeInsets.symmetric(horizontal: 10)),
                     onPressed: () => setState(() => dep.expanded = false),
                     child: const Text('Done', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                   ),
@@ -2549,7 +2650,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
           ],
 
           // Row 1: Last Name, First Name, Middle Name, Birthday
-          Row(
+          ResponsiveFieldRow(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
@@ -2608,13 +2709,14 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
           const SizedBox(height: 14),
 
           // Row 2: Contact No., Gender (membership date is the leader's, set on save)
-          Row(
+          ResponsiveFieldRow(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: _buildTextField(
                   controller: dep.contactCtrl,
                   label: 'Contact No.',
+                  upperCase: false,
                   hint: '0917 123 4567',
                   inputFormatters: [_PhMobileFormatter()],
                   keyboardType: TextInputType.phone,
@@ -2659,7 +2761,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
           // Row 3 (only when needed): Year Level (students), PHIC No.
           if (dep.sectors.contains('Student') || (moreOpen && dep.phicMember)) ...[
             const SizedBox(height: 14),
-            Row(
+            ResponsiveFieldRow(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
@@ -2681,6 +2783,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                       ? _buildTextField(
                           controller: dep.phicNoCtrl,
                           label: 'PhilHealth (PHIC) No.',
+                          upperCase: false,
                           hint: '12-digit number',
                           textCol: textCol,
                           borderCol: borderCol,
@@ -2771,11 +2874,14 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                   onSelected: (_) => onChanged(g),
                   showCheckmark: true,
                   checkmarkColor: primaryCol,
-                  labelStyle: GoogleFonts.inter(fontSize: 12.5, fontWeight: FontWeight.w500, color: on ? primaryCol : textCol),
+                  labelStyle:
+                      GoogleFonts.inter(fontSize: 12.5, fontWeight: FontWeight.w500, color: on ? primaryCol : textCol),
                   backgroundColor: _fieldFill,
                   selectedColor: primaryCol.withValues(alpha: 0.1),
                   side: BorderSide(
-                    color: field.hasError ? TropaColors.errorOf(context) : (on ? primaryCol.withValues(alpha: 0.45) : borderCol),
+                    color: field.hasError
+                        ? TropaColors.errorOf(context)
+                        : (on ? primaryCol.withValues(alpha: 0.45) : borderCol),
                   ),
                   shape: const StadiumBorder(),
                   visualDensity: VisualDensity.compact,
@@ -2786,7 +2892,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             if (field.hasError)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
-                child: Text(field.errorText!, style: GoogleFonts.inter(fontSize: 11, color: TropaColors.errorOf(context))),
+                child:
+                    Text(field.errorText!, style: GoogleFonts.inter(fontSize: 11, color: TropaColors.errorOf(context))),
               ),
           ],
         );
@@ -2851,12 +2958,16 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   /// ID photo beside the personal details.
   Widget _buildPhotoPicker(bool isDark, Color borderCol, Color textCol, Color subtextCol, Color primaryCol) {
     final hasExisting = widget.existing?.profilePictureUrl != null;
-    final initials = [_firstNameCtrl.text, _lastNameCtrl.text].map((n) => n.trim()).where((n) => n.isNotEmpty).map((n) => n[0].toUpperCase()).join();
+    final initials = [_firstNameCtrl.text, _lastNameCtrl.text]
+        .map((n) => n.trim())
+        .where((n) => n.isNotEmpty)
+        .map((n) => n[0].toUpperCase())
+        .join();
     return Container(
       width: 150,
       padding: const EdgeInsets.fromLTRB(10, 16, 10, 12),
       decoration: BoxDecoration(
-        color: isDark ? TropaColors.darkSurface2dp : TropaColors.lightSurfaceLow,
+        color: TropaColors.chipOf(context),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: borderCol),
       ),
@@ -2870,7 +2981,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                 : (hasExisting ? NetworkImage(widget.existing!.profilePictureUrl!) as ImageProvider : null),
             child: (_avatarBytes == null && !hasExisting)
                 ? (initials.isNotEmpty
-                    ? Text(initials, style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w700, color: primaryCol))
+                    ? Text(initials,
+                        style: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w700, color: primaryCol))
                     : Icon(Icons.person_outline, size: 30, color: primaryCol))
                 : null,
           ),
@@ -2896,7 +3008,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             onPressed: _isUploadingPhoto ? null : _pickAvatar,
             child: _isUploadingPhoto
                 ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-                : Text(_avatarBytes != null || hasExisting ? 'Change' : 'Browse', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600)),
+                : Text(_avatarBytes != null || hasExisting ? 'Change' : 'Browse',
+                    style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -2923,17 +3036,25 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
 
   Widget _buildSummarySidebar(bool isDark, Color borderCol, Color textCol, Color subtextCol, Color primaryCol) {
     const warn = Color(0xFFD97706);
-    final name = [_lastNameCtrl.text.trim().toUpperCase(), [_firstNameCtrl.text, _middleNameCtrl.text].map((n) => n.trim().toUpperCase()).where((n) => n.isNotEmpty).join(' ')]
-        .where((n) => n.isNotEmpty)
-        .join(', ');
+    final name = [
+      _lastNameCtrl.text.trim().toUpperCase(),
+      [_firstNameCtrl.text, _middleNameCtrl.text]
+          .map((n) => n.trim().toUpperCase())
+          .where((n) => n.isNotEmpty)
+          .join(' ')
+    ].where((n) => n.isNotEmpty).join(', ');
     final ageText = _birthDate != null ? '${_ageOn(_birthDate!)} yrs' : 'No birthday yet';
     final householdName = widget.presetHousehold?.householdName ??
-        (widget.existing != null ? _selectedHousehold?.householdName : (_isHouseholdLeader ? _generatedHouseholdName : null));
+        (widget.existing != null
+            ? _selectedHousehold?.householdName
+            : (_isHouseholdLeader ? _generatedHouseholdName : null));
     final checklist = _saveChecklist;
 
     Widget heading(String t) => Padding(
           padding: const EdgeInsets.only(bottom: 8),
-          child: Text(t.toUpperCase(), style: GoogleFonts.inter(fontSize: 10.5, fontWeight: FontWeight.w600, letterSpacing: 0.8, color: subtextCol)),
+          child: Text(t.toUpperCase(),
+              style: GoogleFonts.inter(
+                  fontSize: 10.5, fontWeight: FontWeight.w600, letterSpacing: 0.8, color: subtextCol)),
         );
     Widget kv(String k, String v) => Padding(
           padding: const EdgeInsets.only(bottom: 4),
@@ -2949,7 +3070,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     return Container(
       width: 290,
       decoration: BoxDecoration(
-        color: isDark ? TropaColors.darkSurface1dp : TropaColors.lightSurfaceLow,
+        color: TropaColors.subtleOf(context),
         border: Border(left: BorderSide(color: borderCol)),
       ),
       child: SingleChildScrollView(
@@ -2958,9 +3079,11 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             heading('Member'),
-            Text(name.isEmpty ? 'New member' : name, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: textCol)),
+            Text(name.isEmpty ? 'New member' : name,
+                style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: textCol)),
             const SizedBox(height: 2),
-            Text([ageText, if (_gender != null) _gender!, _joinSectors(_selectedSectors)].join(' · '), style: GoogleFonts.inter(fontSize: 12, color: subtextCol)),
+            Text([ageText, if (_gender != null) _gender!, _joinSectors(_selectedSectors)].join(' · '),
+                style: GoogleFonts.inter(fontSize: 12, color: subtextCol)),
             const SizedBox(height: 20),
             heading('Location'),
             kv('LGU', _lgu),
@@ -2968,7 +3091,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             kv('Purok', _purok),
             const SizedBox(height: 16),
             heading('Household'),
-            Text(householdName ?? 'Not a household leader', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: textCol)),
+            Text(householdName ?? 'Not a household leader',
+                style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: textCol)),
             if (_isHouseholdLeader) ...[
               const SizedBox(height: 6),
               for (final d in _dependentMembers)
@@ -2976,12 +3100,16 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Row(
                     children: [
-                      Expanded(child: Text(_dependentDisplayName(d), overflow: TextOverflow.ellipsis, style: GoogleFonts.inter(fontSize: 12, color: textCol))),
-                      Text(d.birthDate != null ? '${_ageOn(d.birthDate!)}' : '—', style: GoogleFonts.inter(fontSize: 12, color: subtextCol)),
+                      Expanded(
+                          child: Text(_dependentDisplayName(d),
+                              overflow: TextOverflow.ellipsis, style: GoogleFonts.inter(fontSize: 12, color: textCol))),
+                      Text(d.birthDate != null ? '${_ageOn(d.birthDate!)}' : '—',
+                          style: GoogleFonts.inter(fontSize: 12, color: subtextCol)),
                     ],
                   ),
                 ),
-              if (_dependentMembers.isEmpty) Text('No household members added', style: GoogleFonts.inter(fontSize: 12, color: subtextCol)),
+              if (_dependentMembers.isEmpty)
+                Text('No household members added', style: GoogleFonts.inter(fontSize: 12, color: subtextCol)),
             ],
             const SizedBox(height: 20),
             heading('Before saving'),
@@ -2991,10 +3119,12 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(item.done ? Icons.check_circle : Icons.radio_button_unchecked, size: 15, color: item.done ? const Color(0xFF1F7A4D) : warn),
+                    Icon(item.done ? Icons.check_circle : Icons.radio_button_unchecked,
+                        size: 15, color: item.done ? const Color(0xFF1F7A4D) : warn),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(item.label, style: GoogleFonts.inter(fontSize: 12, color: item.done ? subtextCol : textCol)),
+                      child: Text(item.label,
+                          style: GoogleFonts.inter(fontSize: 12, color: item.done ? subtextCol : textCol)),
                     ),
                   ],
                 ),
@@ -3012,12 +3142,13 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     String? Function(String?)? validator,
     List<TextInputFormatter>? inputFormatters,
     TextInputType? keyboardType,
+    bool upperCase = true,
     required Color textCol,
     required Color borderCol,
     required Color fillCol,
     required Color primaryCol,
   }) {
-    final subtextCol = Theme.of(context).brightness == Brightness.dark ? TropaColors.darkOnSurfaceVariant : TropaColors.lightOnSurfaceVariant;
+    final subtextCol = TropaColors.textMedium(context);
     return _labeledField(
       label,
       subtextCol,
@@ -3026,7 +3157,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
         style: GoogleFonts.inter(fontSize: 13, color: textCol),
         decoration: _searchBoxDecoration(hint, borderCol, _fieldFill, primaryCol, subtextCol),
         validator: validator,
-        inputFormatters: inputFormatters,
+        inputFormatters: [if (upperCase) const UpperCaseFormatter(), ...?inputFormatters],
+        textCapitalization: upperCase ? TextCapitalization.characters : TextCapitalization.none,
         keyboardType: keyboardType,
       ),
     );
@@ -3045,7 +3177,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     required Color fillCol,
     required Color primaryCol,
   }) {
-    final subtextCol = Theme.of(context).brightness == Brightness.dark ? TropaColors.darkOnSurfaceVariant : TropaColors.lightOnSurfaceVariant;
+    final subtextCol = TropaColors.textMedium(context);
 
     return _labeledField(
       label,
@@ -3127,8 +3259,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     );
   }
 
-  Color get _fieldFill => Theme.of(context).brightness == Brightness.dark ? TropaColors.darkSurface : Colors.white;
-
+  Color get _fieldFill => TropaColors.fieldFillOf(context);
 }
 
 /// Date box that accepts typing (mm/dd/yyyy, slashes added automatically)
@@ -3276,7 +3407,8 @@ class _TypeableDateFieldState extends State<_TypeableDateField> {
     final yesterday = _today.subtract(const Duration(days: 1));
     final first = widget.isBirthDate ? DateTime(_today.year - 100, _today.month, _today.day) : _firstDate;
     final last = widget.isBirthDate ? yesterday : _lastDate;
-    var initial = _parse(_ctrl.text) ?? widget.date ?? (widget.isBirthDate ? DateTime(_today.year - 30, 1, 1) : phToday());
+    var initial =
+        _parse(_ctrl.text) ?? widget.date ?? (widget.isBirthDate ? DateTime(_today.year - 30, 1, 1) : phToday());
     if (initial.isBefore(first)) initial = first;
     if (initial.isAfter(last)) initial = last;
     final picked = await showDatePicker(
@@ -3306,7 +3438,8 @@ class _TypeableDateFieldState extends State<_TypeableDateField> {
       inputFormatters: [_DateSlashFormatter()],
       decoration: widget.decoration.copyWith(
         suffixIcon: IconButton(
-          icon: Icon(showError ? Icons.event_busy_outlined : Icons.calendar_today_outlined, size: 18, color: showError ? errorCol : widget.iconColor),
+          icon: Icon(showError ? Icons.event_busy_outlined : Icons.calendar_today_outlined,
+              size: 18, color: showError ? errorCol : widget.iconColor),
           tooltip: 'Pick from calendar',
           onPressed: _openCalendar,
         ),
@@ -3359,3 +3492,4 @@ class _PhMobileFormatter extends TextInputFormatter {
     return TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length));
   }
 }
+

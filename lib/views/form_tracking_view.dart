@@ -7,9 +7,11 @@ import '../widgets/form_fields.dart';
 import '../core/geo.dart';
 import '../models/models.dart';
 import '../providers/admin_provider.dart';
+import '../providers/auth_provider.dart';
 import '../providers/form_tracking_provider.dart';
 import '../providers/voter_provider.dart';
 import '../widgets/form_tracking_dialog.dart';
+import '../widgets/page_header.dart';
 import '../core/ph_time.dart';
 
 final _dateFmt = DateFormat('MMM d, y, h:mm a');
@@ -18,11 +20,8 @@ final _cardDateFmt = DateFormat('MMM d · h:mm a');
 final _cardDateYearFmt = DateFormat('MMM d, y');
 
 /// "JUN HERMOSURA" → "Jun Hermosura": names are stored in caps, which reads heavy on dense cards.
-String _titleCase(String v) => v
-    .toLowerCase()
-    .split(' ')
-    .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
-    .join(' ');
+String _titleCase(String v) =>
+    v.toLowerCase().split(' ').map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}').join(' ');
 
 // Below this width the board scrolls sideways instead of squeezing the columns.
 const _minBoardWidth = 1040.0;
@@ -34,7 +33,7 @@ Color _stageColor(BuildContext context, String status) {
   return switch (status) {
     FormTrackingStatus.completed => isDark ? TropaColors.secondaryOf(context) : const Color(0xFF059669),
     FormTrackingStatus.inProgress => TropaColors.primaryOf(context),
-    FormTrackingStatus.returned => isDark ? TropaColors.errorDark : TropaColors.errorLight,
+    FormTrackingStatus.returned => TropaColors.errorOf(context),
     _ => TropaColors.offline,
   };
 }
@@ -89,11 +88,13 @@ class _FormTrackingViewState extends ConsumerState<FormTrackingView> {
       isExpanded: true,
       icon: Icon(Icons.keyboard_arrow_down, size: 18, color: textCol),
       decoration: TropaStyles.filterField(context),
-      dropdownColor: isDark ? TropaColors.darkSurface8dp : Colors.white,
+      dropdownColor: TropaColors.cardOf(context),
       style: style,
       items: [
-        if (allLabel != null) DropdownMenuItem(value: 'All', child: Text(allLabel, style: style, overflow: TextOverflow.ellipsis)),
-        ...options.map((o) => DropdownMenuItem(value: o, child: Text(o, style: style, overflow: TextOverflow.ellipsis))),
+        if (allLabel != null)
+          DropdownMenuItem(value: 'All', child: Text(allLabel, style: style, overflow: TextOverflow.ellipsis)),
+        ...options
+            .map((o) => DropdownMenuItem(value: o, child: Text(o, style: style, overflow: TextOverflow.ellipsis))),
       ],
       onChanged: (v) {
         if (v != null) onChanged(v);
@@ -128,17 +129,21 @@ class _FormTrackingViewState extends ConsumerState<FormTrackingView> {
   @override
   Widget build(BuildContext context) {
     final batchesAsync = ref.watch(formBatchNotifierProvider);
+    final canDelete = ref.watch(canPermissionProvider(AppPermissions.deleteRecords));
     final users = ref.watch(adminUsersProvider).valueOrNull ?? const <AppUser>[];
     final userNames = {for (final u in users) u.id: u.fullName};
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryCol = TropaColors.primaryOf(context);
-    final borderCol = isDark ? TropaColors.darkOutlineVariant : const Color(0xFFE2E8F0);
-    final textCol = isDark ? TropaColors.darkOnSurface : TropaColors.lightOnSurface;
-    final subtextCol = isDark ? TropaColors.darkOnSurfaceVariant : TropaColors.lightOnSurfaceVariant;
-    final fieldFill = isDark ? TropaColors.darkSurface : Colors.white;
+    final borderCol = TropaColors.borderOf(context);
+    final textCol = TropaColors.textHigh(context);
+    final fieldFill = TropaColors.fieldFillOf(context);
     final filter = ref.watch(formTrackingFilterProvider);
     final locations = ref.watch(locationsProvider).valueOrNull ?? const <LocationOption>[];
-    final lgus = ({for (final l in locations) if (l.lgu.isNotEmpty) l.lgu}).toList()..sort();
+    final lgus = ({
+      for (final l in locations)
+        if (l.lgu.isNotEmpty) l.lgu
+    }).toList()
+      ..sort();
     final barangays = ({
       for (final l in locations)
         if (l.barangay.isNotEmpty && (filter.lgu == 'All' || l.lgu == filter.lgu)) l.barangay
@@ -148,21 +153,14 @@ class _FormTrackingViewState extends ConsumerState<FormTrackingView> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(context.isCompactScreen ? 16 : 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Form Tracking & Field Intake', style: TropaText.pageTitle(textCol)),
-                    Text('Physical forms submitted per purok, who received them and who is encoding them',
-                        style: TropaText.meta(subtextCol)),
-                  ],
-                ),
+            TropaPageHeader(
+              title: 'Form Tracking & Field Intake',
+              subtitle: 'Physical forms submitted per purok, who received them and who is encoding them',
+              actions: [
                 ElevatedButton.icon(
                   style: TropaStyles.primaryAction(context),
                   icon: const Icon(Icons.add_circle, size: 18),
@@ -191,7 +189,11 @@ class _FormTrackingViewState extends ConsumerState<FormTrackingView> {
                     allLabel: 'All Barangays',
                     options: barangays,
                     onChanged: (v) => _applyFilter((f) => f.copyWith(barangay: v)),
-                    isDark: isDark, textCol: textCol, borderCol: borderCol, fillCol: fieldFill, primaryCol: primaryCol,
+                    isDark: isDark,
+                    textCol: textCol,
+                    borderCol: borderCol,
+                    fillCol: fieldFill,
+                    primaryCol: primaryCol,
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -200,7 +202,11 @@ class _FormTrackingViewState extends ConsumerState<FormTrackingView> {
                     value: filter.sort,
                     options: const [FormTrackingFilter.newestFirst, FormTrackingFilter.oldestFirst],
                     onChanged: (v) => _applyFilter((f) => f.copyWith(sort: v)),
-                    isDark: isDark, textCol: textCol, borderCol: borderCol, fillCol: fieldFill, primaryCol: primaryCol,
+                    isDark: isDark,
+                    textCol: textCol,
+                    borderCol: borderCol,
+                    fillCol: fieldFill,
+                    primaryCol: primaryCol,
                   ),
                 ),
               ],
@@ -209,7 +215,8 @@ class _FormTrackingViewState extends ConsumerState<FormTrackingView> {
             Expanded(
               child: batchesAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (err, _) => Center(child: Text('Error loading submissions: $err', style: TextStyle(color: textCol))),
+                error: (err, _) =>
+                    Center(child: Text('Error loading submissions: $err', style: TextStyle(color: textCol))),
                 data: (batches) => LayoutBuilder(
                   builder: (context, constraints) {
                     const stages = FormTrackingStatus.all;
@@ -229,12 +236,15 @@ class _FormTrackingViewState extends ConsumerState<FormTrackingView> {
                                 width: columnWidth,
                                 child: _StageColumn(
                                   status: status,
-                                  items: [for (final b in batches) if (b.status == status) b],
+                                  items: [
+                                    for (final b in batches)
+                                      if (b.status == status) b
+                                  ],
                                   userNames: userNames,
                                   cardWidth: columnWidth - 24,
                                   onMove: _move,
                                   onEdit: (b) => _openBatchDialog(existing: b),
-                                  onDelete: _confirmDelete,
+                                  onDelete: canDelete ? _confirmDelete : null,
                                 ),
                               ),
                             ],
@@ -261,7 +271,9 @@ class _StageColumn extends StatelessWidget {
   final double cardWidth;
   final void Function(FormTracking, String) onMove;
   final void Function(FormTracking) onEdit;
-  final void Function(FormTracking) onDelete;
+
+  /// Null when the user may not delete.
+  final void Function(FormTracking)? onDelete;
 
   const _StageColumn({
     required this.status,
@@ -275,12 +287,11 @@ class _StageColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final color = _stageColor(context, status);
-    final laneBg = isDark ? TropaColors.darkSurface2dp : const Color(0xFFF1F5F9);
-    final borderCol = isDark ? TropaColors.darkOutlineVariant : const Color(0xFFE2E8F0);
-    final textCol = isDark ? TropaColors.darkOnSurface : TropaColors.lightOnSurface;
-    final subtextCol = isDark ? TropaColors.darkOnSurfaceVariant : TropaColors.lightOnSurfaceVariant;
+    final laneBg = TropaColors.chipOf(context);
+    final borderCol = TropaColors.borderOf(context);
+    final textCol = TropaColors.textHigh(context);
+    final subtextCol = TropaColors.textMedium(context);
     final totalForms = items.fold(0, (sum, b) => sum + b.numberOfForms);
 
     return DragTarget<FormTracking>(
@@ -304,7 +315,9 @@ class _StageColumn extends StatelessWidget {
                   children: [
                     Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
                     const SizedBox(width: 8),
-                    Flexible(child: Text(status.toUpperCase(), style: TropaText.badge(textCol), overflow: TextOverflow.ellipsis)),
+                    Flexible(
+                        child: Text(status.toUpperCase(),
+                            style: TropaText.badge(textCol), overflow: TextOverflow.ellipsis)),
                     const SizedBox(width: 8),
                     TropaBadge('${items.length}', color: color),
                     const Spacer(),
@@ -328,7 +341,8 @@ class _StageColumn extends StatelessWidget {
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: (hovering ? color : subtextCol).withValues(alpha: 0.35)),
                           ),
-                          child: Text(hovering ? 'Drop to move here' : 'No submissions', style: TropaText.caption(subtextCol)),
+                          child: Text(hovering ? 'Drop to move here' : 'No submissions',
+                              style: TropaText.caption(subtextCol)),
                         ),
                       )
                     : ListView.separated(
@@ -343,7 +357,7 @@ class _StageColumn extends StatelessWidget {
                             width: cardWidth,
                             onMove: (s) => onMove(b, s),
                             onEdit: () => onEdit(b),
-                            onDelete: () => onDelete(b),
+                            onDelete: onDelete == null ? null : () => onDelete!(b),
                           );
                         },
                       ),
@@ -363,7 +377,7 @@ class _SubmissionCard extends StatelessWidget {
   final double width;
   final ValueChanged<String> onMove;
   final VoidCallback onEdit;
-  final VoidCallback onDelete;
+  final VoidCallback? onDelete;
 
   const _SubmissionCard({
     required this.batch,
@@ -395,10 +409,10 @@ class _SubmissionCard extends StatelessWidget {
 
   Widget _body(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = isDark ? TropaColors.darkSurface1dp : Colors.white;
-    final borderCol = isDark ? TropaColors.darkOutlineVariant : const Color(0xFFE2E8F0);
-    final textCol = isDark ? TropaColors.darkOnSurface : TropaColors.lightOnSurface;
-    final subtextCol = isDark ? TropaColors.darkOnSurfaceVariant : TropaColors.lightOnSurfaceVariant;
+    final cardBg = TropaColors.cardOf(context);
+    final borderCol = TropaColors.borderOf(context);
+    final textCol = TropaColors.textHigh(context);
+    final subtextCol = TropaColors.textMedium(context);
     final primaryCol = TropaColors.primaryOf(context);
     final submitted = _titleCase(batch.submittedBy);
     final received = _titleCase(batch.receivedBy);
@@ -430,7 +444,8 @@ class _SubmissionCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(batch.purok, style: TropaText.bodyStrong(textCol), maxLines: 2, overflow: TextOverflow.ellipsis),
+                      Text(batch.purok,
+                          style: TropaText.bodyStrong(textCol), maxLines: 2, overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 2),
                       Text('${batch.barangay} · $date',
                           style: TropaText.caption(subtextCol), maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -460,12 +475,14 @@ class _SubmissionCard extends StatelessWidget {
                   '${batch.returnedReceivedBy != null ? '\nReturned to ${_titleCase(batch.returnedReceivedBy!)}' : ''}',
               child: Row(
                 children: [
-                  Flexible(child: Text(submitted, style: TropaText.caption(subtextCol), overflow: TextOverflow.ellipsis)),
+                  Flexible(
+                      child: Text(submitted, style: TropaText.caption(subtextCol), overflow: TextOverflow.ellipsis)),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: Icon(Icons.arrow_forward, size: 12, color: subtextCol),
                   ),
-                  Flexible(child: Text(received, style: TropaText.caption(subtextCol), overflow: TextOverflow.ellipsis)),
+                  Flexible(
+                      child: Text(received, style: TropaText.caption(subtextCol), overflow: TextOverflow.ellipsis)),
                 ],
               ),
             ),
@@ -527,7 +544,7 @@ class _SubmissionCard extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 180),
       onSelected: (v) => switch (v) {
         'edit' => onEdit(),
-        'delete' => onDelete(),
+        'delete' => onDelete?.call(),
         _ => onMove(v),
       },
       itemBuilder: (context) => [
@@ -548,14 +565,15 @@ class _SubmissionCard extends StatelessWidget {
           value: 'edit',
           child: Row(children: [Icon(Icons.edit_outlined, size: 16), SizedBox(width: 10), Text('Edit')]),
         ),
-        const PopupMenuItem(
-          value: 'delete',
-          child: Row(children: [
-            Icon(Icons.delete_outline, size: 16, color: TropaColors.error),
-            SizedBox(width: 10),
-            Text('Delete', style: TextStyle(color: TropaColors.error)),
-          ]),
-        ),
+        if (onDelete != null)
+          const PopupMenuItem(
+            value: 'delete',
+            child: Row(children: [
+              Icon(Icons.delete_outline, size: 16, color: TropaColors.error),
+              SizedBox(width: 10),
+              Text('Delete', style: TextStyle(color: TropaColors.error)),
+            ]),
+          ),
       ],
     );
   }

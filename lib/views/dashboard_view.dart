@@ -17,10 +17,10 @@ class DashboardView extends ConsumerWidget {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryCol = TropaColors.primaryOf(context);
-    final cardBg = isDark ? TropaColors.darkSurface1dp : Colors.white;
-    final borderCol = isDark ? TropaColors.darkOutlineVariant : const Color(0xFFE2E8F0);
-    final textCol = isDark ? TropaColors.darkOnSurface : TropaColors.lightOnSurface;
-    final subtextCol = isDark ? TropaColors.darkOnSurfaceVariant : TropaColors.lightOnSurfaceVariant;
+    final cardBg = TropaColors.cardOf(context);
+    final borderCol = TropaColors.borderOf(context);
+    final textCol = TropaColors.textHigh(context);
+    final subtextCol = TropaColors.textMedium(context);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -106,10 +106,10 @@ class DashboardView extends ConsumerWidget {
 
                 return LayoutBuilder(
                   builder: (context, constraints) {
-                    final isWide = constraints.maxWidth > 900;
+                    final w = constraints.maxWidth;
                     return GridView(
                       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: isWide ? 3 : 2,
+                        crossAxisCount: w > 900 ? 3 : (w >= 480 ? 2 : 1),
                         crossAxisSpacing: 16,
                         mainAxisSpacing: 16,
                         mainAxisExtent: 150,

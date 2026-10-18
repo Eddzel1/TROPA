@@ -6,12 +6,15 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../core/design_system.dart';
+import '../core/geo.dart';
 import '../widgets/form_fields.dart';
 import '../models/models.dart';
 import '../providers/auth_provider.dart';
 import '../providers/member_provider.dart';
+import '../providers/voter_provider.dart';
 import '../widgets/member_form_dialog.dart';
 import '../widgets/transfer_member_dialog.dart';
+import 'member_id_view.dart';
 import '../core/ph_time.dart';
 
 class MembersView extends ConsumerStatefulWidget {
@@ -28,33 +31,6 @@ class _MembersViewState extends ConsumerState<MembersView> {
   Timer? _nameDebounce;
   Household? _selectedHousehold;
   bool _isPrinting = false;
-
-  final List<String> _lgus = [
-    'VALENCIA CITY',
-    'MALAYBALAY CITY',
-    'MARAMAG',
-    'QUEZON',
-  ];
-
-  final List<String> _barangays = [
-    'BANLAG',
-    'POBLACION',
-    'LILINGAYON',
-    'BAROBO',
-    'SINABUAGAN',
-    'BATANGAN',
-    'GUINOYORAN',
-    'LURUGAN',
-    'MAILAG',
-    'LUMBO',
-    'BAGONTAAS',
-    'SINAYAWAN',
-    'SUGOD',
-    'PINATILAN',
-    'DAGATKIDAVAO',
-    'MALINAO',
-    'PAMOTOLON',
-  ];
 
   final List<String> _sectors = [
     'General',
@@ -112,17 +88,30 @@ class _MembersViewState extends ConsumerState<MembersView> {
             children: [
               pw.Text('TROPA Members', style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
               pw.SizedBox(height: 2),
-              pw.Text('${members.length} members  •  Printed $printedOn', style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
+              pw.Text('${members.length} members  •  Printed $printedOn',
+                  style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700)),
               pw.SizedBox(height: 10),
             ],
           ),
           footer: (ctx) => pw.Align(
             alignment: pw.Alignment.centerRight,
-            child: pw.Text('Page ${ctx.pageNumber} of ${ctx.pagesCount}', style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+            child: pw.Text('Page ${ctx.pageNumber} of ${ctx.pagesCount}',
+                style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
           ),
           build: (_) => [
             pw.TableHelper.fromTextArray(
-              headers: ['#', 'Last Name', 'First Name', 'Middle Name', 'LGU', 'Barangay', 'Purok', 'Sector', 'Status', 'Contact'],
+              headers: [
+                '#',
+                'Last Name',
+                'First Name',
+                'Middle Name',
+                'LGU',
+                'Barangay',
+                'Purok',
+                'Sector',
+                'Status',
+                'Contact'
+              ],
               data: [
                 for (var i = 0; i < members.length; i++)
                   [
@@ -175,11 +164,12 @@ class _MembersViewState extends ConsumerState<MembersView> {
       isExpanded: true,
       icon: Icon(Icons.keyboard_arrow_down, size: 18, color: textCol),
       decoration: TropaStyles.filterField(context),
-      dropdownColor: isDark ? TropaColors.darkSurface8dp : Colors.white,
+      dropdownColor: TropaColors.cardOf(context),
       style: style,
       items: [
         DropdownMenuItem(value: 'All', child: Text(allLabel, style: style, overflow: TextOverflow.ellipsis)),
-        ...options.map((o) => DropdownMenuItem(value: o, child: Text(o, style: style, overflow: TextOverflow.ellipsis))),
+        ...options
+            .map((o) => DropdownMenuItem(value: o, child: Text(o, style: style, overflow: TextOverflow.ellipsis))),
       ],
       onChanged: (v) {
         if (v != null) onChanged(v);
@@ -188,7 +178,8 @@ class _MembersViewState extends ConsumerState<MembersView> {
   }
 
   /// Type-ahead household filter; households are looked up on the server as the user types.
-  Widget _householdFilter(bool isDark, Color textCol, Color borderCol, Color fillCol, Color primaryCol, Color subtextCol) {
+  Widget _householdFilter(
+      bool isDark, Color textCol, Color borderCol, Color fillCol, Color primaryCol, Color subtextCol) {
     return Autocomplete<Household>(
       key: ValueKey(_selectedHousehold?.id ?? 'all-households'),
       initialValue: TextEditingValue(text: _selectedHousehold?.householdName ?? ''),
@@ -203,6 +194,8 @@ class _MembersViewState extends ConsumerState<MembersView> {
       },
       fieldViewBuilder: (context, ctrl, focusNode, onSubmit) {
         return TextField(
+          inputFormatters: const [UpperCaseFormatter()],
+          textCapitalization: TextCapitalization.characters,
           controller: ctrl,
           focusNode: focusNode,
           style: TropaText.body(textCol),
@@ -226,7 +219,7 @@ class _MembersViewState extends ConsumerState<MembersView> {
           alignment: Alignment.topLeft,
           child: Material(
             elevation: 4,
-            color: isDark ? TropaColors.darkSurface8dp : Colors.white,
+            color: TropaColors.cardOf(context),
             borderRadius: BorderRadius.circular(8),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 280, maxWidth: 420),
@@ -261,21 +254,176 @@ class _MembersViewState extends ConsumerState<MembersView> {
   @override
   Widget build(BuildContext context) {
     final filter = ref.watch(memberFilterProvider);
+    // LGU and barangay options come from the locations table; barangays narrow to the chosen LGU.
+    final locations = ref.watch(locationsProvider).valueOrNull ?? const <LocationOption>[];
+    final lgus = ({
+      for (final l in locations)
+        if (l.lgu.isNotEmpty) l.lgu
+    }).toList()
+      ..sort();
+    final barangays = ({
+      for (final l in locations)
+        if (l.barangay.isNotEmpty && (filter.lgu == 'All' || l.lgu == filter.lgu)) l.barangay
+    }).toList()
+      ..sort();
     final membersAsync = ref.watch(memberListNotifierProvider);
+    final canDelete = ref.watch(canPermissionProvider(AppPermissions.deleteRecords));
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = isDark ? TropaColors.darkSurface1dp : TropaColors.lightSurface;
-    final borderCol = isDark ? TropaColors.darkOutlineVariant : TropaColors.lightSurfaceHighest;
-    final textCol = isDark ? TropaColors.darkOnSurface : TropaColors.lightOnSurface;
-    final subtextCol = isDark ? TropaColors.darkOnSurfaceVariant : TropaColors.lightOnSurfaceVariant;
-    final chipBg = isDark ? TropaColors.darkSurface2dp : TropaColors.lightSurfaceLow;
+    final cardBg = TropaColors.cardOf(context);
+    final borderCol = TropaColors.borderOf(context);
+    final textCol = TropaColors.textHigh(context);
+    final subtextCol = TropaColors.textMedium(context);
+    final chipBg = TropaColors.chipOf(context);
     final primaryCol = TropaColors.primaryOf(context);
-    final fieldFill = isDark ? TropaColors.darkSurface : Colors.white;
+    final fieldFill = TropaColors.fieldFillOf(context);
     final counts = ref.watch(memberCountsProvider);
+
+    final addButton = ElevatedButton.icon(
+      style: TropaStyles.primaryAction(context),
+      icon: const Icon(Icons.add, size: 18),
+      label: const Text('Add Member'),
+      onPressed: () => _openMemberDialog(),
+    );
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Padding(
-        padding: const EdgeInsets.all(24),
+      body: LayoutBuilder(builder: (context, constraints) {
+        // Phones and tablets: filters scroll sideways, row actions fold into a menu.
+        final narrow = constraints.maxWidth < 900;
+        final compact = TropaBreakpoints.isCompact(constraints.maxWidth);
+        // Filter slot: shares the row on desktop, fixed width in the sideways-scrolling row.
+        Widget slot(int flex, Widget child) =>
+            narrow ? SizedBox(width: 56.0 * flex, child: child) : Expanded(flex: flex, child: child);
+
+        final lastNameField = TextField(
+          inputFormatters: const [UpperCaseFormatter()],
+          textCapitalization: TextCapitalization.characters,
+          controller: _lastNameCtrl,
+          style: TropaText.body(textCol),
+          decoration: TropaStyles.filterField(context, hint: 'Last Name', search: true),
+          onChanged: (_) => _onNameChanged(),
+        );
+
+        final filterRow = IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  slot(
+                    3,
+                    _filterDropdown(
+                      value: filter.lgu,
+                      allLabel: 'All LGUs',
+                      options: lgus,
+                      onChanged: (v) => _applyFilter((f) => f.copyWith(lgu: v, barangay: 'All')),
+                      isDark: isDark,
+                      textCol: textCol,
+                      borderCol: borderCol,
+                      fillCol: fieldFill,
+                      primaryCol: primaryCol,
+                      subtextCol: subtextCol,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  slot(
+                    3,
+                    _filterDropdown(
+                      value: filter.barangay,
+                      allLabel: 'All Barangays',
+                      options: barangays,
+                      onChanged: (v) => _applyFilter((f) => f.copyWith(barangay: v)),
+                      isDark: isDark,
+                      textCol: textCol,
+                      borderCol: borderCol,
+                      fillCol: fieldFill,
+                      primaryCol: primaryCol,
+                      subtextCol: subtextCol,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  slot(
+                    3,
+                    _filterDropdown(
+                      value: filter.sector,
+                      allLabel: 'All Sectors',
+                      options: _sectors,
+                      onChanged: (v) => _applyFilter((f) => f.copyWith(sector: v)),
+                      isDark: isDark,
+                      textCol: textCol,
+                      borderCol: borderCol,
+                      fillCol: fieldFill,
+                      primaryCol: primaryCol,
+                      subtextCol: subtextCol,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  slot(
+                    4,
+                    _householdFilter(isDark, textCol, borderCol, fieldFill, primaryCol, subtextCol),
+                  ),
+                  const SizedBox(width: 10),
+                  slot(
+                    3,
+                    _filterDropdown(
+                      value: filter.listingStatus,
+                      allLabel: 'All Status',
+                      options: _statuses,
+                      onChanged: (v) => _applyFilter((f) => f.copyWith(listingStatus: v)),
+                      isDark: isDark,
+                      textCol: textCol,
+                      borderCol: borderCol,
+                      fillCol: fieldFill,
+                      primaryCol: primaryCol,
+                      subtextCol: subtextCol,
+                    ),
+                  ),
+                  if (canDelete) ...[
+                    const SizedBox(width: 10),
+                    Tooltip(
+                      message: filter.archived ? 'Show active members' : 'Show archived members',
+                      child: OutlinedButton.icon(
+                        style: filter.archived
+                            ? TropaStyles.secondaryAction(context)
+                            : OutlinedButton.styleFrom(
+                                foregroundColor: subtextCol,
+                                backgroundColor: fieldFill,
+                                side: BorderSide(color: borderCol),
+                                padding: const EdgeInsets.symmetric(horizontal: 14),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                textStyle: TropaText.body(subtextCol),
+                              ),
+                        icon: const Icon(Icons.archive_outlined, size: 16),
+                        label: const Text('Archived'),
+                        onPressed: () => _applyFilter((f) => f.copyWith(archived: !filter.archived)),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(width: 10),
+                  Tooltip(
+                    message: 'Print Members',
+                    child: OutlinedButton(
+                      style: TropaStyles.secondaryAction(context).copyWith(
+                        padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 14)),
+                        minimumSize: const WidgetStatePropertyAll(Size.zero),
+                      ),
+                      onPressed: _isPrinting ? null : () => _printMembers(membersAsync.valueOrNull ?? const []),
+                      child: _isPrinting
+                          ? SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: primaryCol))
+                          : const Icon(Icons.print_outlined, size: 18, semanticLabel: 'Print Members'),
+                    ),
+                  ),
+                  if (!narrow) ...[
+                    const SizedBox(width: 10),
+                    addButton,
+                  ],
+                ],
+              ),
+            );
+
+        return Padding(
+        padding: EdgeInsets.all(compact ? 16 : 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -283,31 +431,39 @@ class _MembersViewState extends ConsumerState<MembersView> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('TROPA Members Directory', style: TropaText.pageTitle(textCol)),
-                    Text('Community roster, voter verification, and mutual-aid TROPA Members', style: TropaText.meta(subtextCol)),
-                  ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('TROPA Members Directory', style: TropaText.pageTitle(textCol)),
+                      Text('Community roster, voter verification, and mutual-aid TROPA Members',
+                          style: TropaText.meta(subtextCol)),
+                    ],
+                  ),
                 ),
+                if (narrow) ...[
+                  const SizedBox(width: 12),
+                  addButton,
+                ],
               ],
             ),
             const SizedBox(height: 20),
 
-            // Filters — Row 1: name search
+            // Filters — Row 1: name search (last name gets its own line on phones)
+            if (compact) ...[
+              lastNameField,
+              const SizedBox(height: 10),
+            ],
             Row(
               children: [
+                if (!compact) ...[
+                  Expanded(child: lastNameField),
+                  const SizedBox(width: 10),
+                ],
                 Expanded(
                   child: TextField(
-                    controller: _lastNameCtrl,
-                    style: TropaText.body(textCol),
-                    decoration: TropaStyles.filterField(context, hint: 'Last Name', search: true),
-                    onChanged: (_) => _onNameChanged(),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: TextField(
+                    inputFormatters: const [UpperCaseFormatter()],
+                    textCapitalization: TextCapitalization.characters,
                     controller: _firstNameCtrl,
                     style: TropaText.body(textCol),
                     decoration: TropaStyles.filterField(context, hint: 'First Name', search: true),
@@ -317,6 +473,8 @@ class _MembersViewState extends ConsumerState<MembersView> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: TextField(
+                    inputFormatters: const [UpperCaseFormatter()],
+                    textCapitalization: TextCapitalization.characters,
                     controller: _middleNameCtrl,
                     style: TropaText.body(textCol),
                     decoration: TropaStyles.filterField(context, hint: 'Middle Name', search: true),
@@ -327,78 +485,12 @@ class _MembersViewState extends ConsumerState<MembersView> {
             ),
             const SizedBox(height: 10),
 
-            // Filters — Row 2: location, sector, household, status + actions
-            Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: _filterDropdown(
-                    value: filter.lgu,
-                    allLabel: 'All LGUs',
-                    options: _lgus,
-                    onChanged: (v) => _applyFilter((f) => f.copyWith(lgu: v)),
-                    isDark: isDark, textCol: textCol, borderCol: borderCol, fillCol: fieldFill, primaryCol: primaryCol, subtextCol: subtextCol,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  flex: 3,
-                  child: _filterDropdown(
-                    value: filter.barangay,
-                    allLabel: 'All Barangays',
-                    options: _barangays,
-                    onChanged: (v) => _applyFilter((f) => f.copyWith(barangay: v)),
-                    isDark: isDark, textCol: textCol, borderCol: borderCol, fillCol: fieldFill, primaryCol: primaryCol, subtextCol: subtextCol,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  flex: 2,
-                  child: _filterDropdown(
-                    value: filter.sector,
-                    allLabel: 'All Sectors',
-                    options: _sectors,
-                    onChanged: (v) => _applyFilter((f) => f.copyWith(sector: v)),
-                    isDark: isDark, textCol: textCol, borderCol: borderCol, fillCol: fieldFill, primaryCol: primaryCol, subtextCol: subtextCol,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  flex: 6,
-                  child: _householdFilter(isDark, textCol, borderCol, fieldFill, primaryCol, subtextCol),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  flex: 3,
-                  child: _filterDropdown(
-                    value: filter.listingStatus,
-                    allLabel: 'All Status',
-                    options: _statuses,
-                    onChanged: (v) => _applyFilter((f) => f.copyWith(listingStatus: v)),
-                    isDark: isDark, textCol: textCol, borderCol: borderCol, fillCol: fieldFill, primaryCol: primaryCol, subtextCol: subtextCol,
-                  ),
-                ),
-                const SizedBox(width: 10),
-                OutlinedButton.icon(
-                  style: TropaStyles.secondaryAction(context),
-                  icon: _isPrinting
-                      ? SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: primaryCol))
-                      : const Icon(Icons.print_outlined, size: 16),
-                  label: const Text('Print Members'),
-                  onPressed: _isPrinting ? null : () => _printMembers(membersAsync.valueOrNull ?? const []),
-                ),
-                const SizedBox(width: 10),
-                ElevatedButton.icon(
-                  style: TropaStyles.primaryAction(context),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add Member'),
-                  onPressed: () => _openMemberDialog(),
-                ),
-              ],
-            ),
+            // Filters — Row 2: location, sector, household, status + actions.
+            // IntrinsicHeight + stretch gives the buttons the same height as the fields.
+            if (narrow) SingleChildScrollView(scrollDirection: Axis.horizontal, child: filterRow) else filterRow,
             const SizedBox(height: 16),
             Text(
-              'Showing ${NumberFormat('#,##0').format(membersAsync.valueOrNull?.length ?? 0)}${counts.matched > (membersAsync.valueOrNull?.length ?? 0) ? ' of ${NumberFormat('#,##0').format(counts.matched)}' : ''} matching out of ${NumberFormat('#,##0').format(counts.total)} total members',
+              'Showing ${NumberFormat('#,##0').format(membersAsync.valueOrNull?.length ?? 0)}${counts.matched > (membersAsync.valueOrNull?.length ?? 0) ? ' of ${NumberFormat('#,##0').format(counts.matched)}' : ''} matching out of ${NumberFormat('#,##0').format(counts.total)} ${filter.archived ? 'archived' : 'total'} members',
               style: TropaText.body(subtextCol),
             ),
             const SizedBox(height: 12),
@@ -414,11 +506,13 @@ class _MembersViewState extends ConsumerState<MembersView> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.group_outlined, size: 48, color: TropaColors.darkOutline),
+                          Icon(Icons.group_outlined, size: 48, color: TropaColors.textDisabled(context)),
                           const SizedBox(height: 12),
-                          Text('No members found', style: TropaText.sectionTitle(textCol)),
+                          Text(filter.archived ? 'No archived members' : 'No members found',
+                              style: TropaText.sectionTitle(textCol)),
                           const SizedBox(height: 4),
-                          Text('Try broadening your search or registering a new member.', style: TropaText.meta(subtextCol)),
+                          Text('Try broadening your search or registering a new member.',
+                              style: TropaText.meta(subtextCol)),
                         ],
                       ),
                     );
@@ -446,13 +540,57 @@ class _MembersViewState extends ConsumerState<MembersView> {
                         separatorBuilder: (_, __) => Divider(height: 1, color: borderCol),
                         itemBuilder: (context, index) {
                           final m = members[index];
+                          final actions = <({IconData icon, String label, Color? color, VoidCallback onTap})>[
+                            (
+                              icon: Icons.badge_outlined,
+                              label: 'View TROPA ID',
+                              color: null,
+                              onTap: () => Navigator.of(context).push(
+                                    MaterialPageRoute<void>(builder: (_) => MemberIdView(member: m)),
+                                  ),
+                            ),
+                            (
+                              icon: Icons.swap_horiz,
+                              label: 'Transfer to Household',
+                              color: null,
+                              onTap: () => showDialog<bool>(
+                                    context: context,
+                                    builder: (_) => TransferMemberDialog(member: m),
+                                  ),
+                            ),
+                            if (canDelete)
+                              (
+                                icon: m.isArchived ? Icons.unarchive_outlined : Icons.archive_outlined,
+                                label: m.isArchived ? 'Restore TROPA Member' : 'Archive TROPA Member',
+                                color: null,
+                                onTap: () => _toggleArchived(context, m),
+                              ),
+                            if (canDelete)
+                              (
+                                icon: Icons.delete_outline,
+                                label: 'Delete TROPA Member',
+                                color: TropaColors.error,
+                                onTap: () => _confirmDelete(context, m),
+                              ),
+                          ];
+                          final badges = [
+                            if (m.isCooperativeMember) TropaBadge('TROPA MEMBER', color: primaryCol, icon: Icons.verified),
+                            if (m.isVoter) TropaBadge('VOTER', color: TropaColors.secondaryStrongOf(context)),
+                          ];
+                          final editButton = IconButton(
+                            icon: Icon(Icons.edit_outlined, size: 18, color: TropaColors.textMedium(context)),
+                            tooltip: 'Edit TROPA Member',
+                            onPressed: () => _openMemberDialog(m),
+                          );
+                          final meta = Text(
+                            '${m.sector} • ${m.purok}, ${m.barangay} • Contact: ${m.contactNumber ?? "N/A"}',
+                            style: TropaText.meta(subtextCol),
+                          );
                           return ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                            contentPadding: EdgeInsets.symmetric(horizontal: compact ? 12 : 20, vertical: 8),
                             leading: CircleAvatar(
                               radius: 20,
-                              backgroundColor: m.isCooperativeMember
-                                  ? primaryCol.withValues(alpha: 0.15)
-                                  : chipBg,
+                              backgroundColor: m.isCooperativeMember ? primaryCol.withValues(alpha: 0.15) : chipBg,
                               child: Text(
                                 m.firstname.isNotEmpty ? m.firstname[0].toUpperCase() : 'M',
                                 style: TextStyle(
@@ -463,60 +601,67 @@ class _MembersViewState extends ConsumerState<MembersView> {
                             ),
                             title: Row(
                               children: [
-                                Text(m.fullName, style: TropaText.bodyStrong(textCol)),
+                                Flexible(
+                                  child: Text(m.fullName,
+                                      style: TropaText.bodyStrong(textCol), overflow: TextOverflow.ellipsis),
+                                ),
                                 const SizedBox(width: 8),
                                 if (m.isHouseholdLeader)
                                   TropaBadge('HHL', color: TropaColors.secondaryStrongOf(context)),
                               ],
                             ),
-                            subtitle: Text(
-                              '${m.sector} • ${m.purok}, ${m.barangay} • Contact: ${m.contactNumber ?? "N/A"}',
-                              style: TropaText.meta(subtextCol),
-                            ),
+                            // Narrow rows carry the badges under the details instead of beside the actions.
+                            subtitle: narrow && badges.isNotEmpty
+                                ? Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      meta,
+                                      const SizedBox(height: 6),
+                                      Wrap(spacing: 6, runSpacing: 4, children: badges),
+                                    ],
+                                  )
+                                : meta,
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (m.isCooperativeMember)
-                                  TropaBadge('TROPA MEMBER', color: primaryCol, icon: Icons.verified),
-                                const SizedBox(width: 8),
-                                if (m.isVoter)
-                                  TropaBadge('VOTER', color: TropaColors.secondaryStrongOf(context)),
-                                const SizedBox(width: 10),
-                                IconButton(
-                                  icon: Icon(Icons.edit_outlined, size: 18, color: isDark ? null : Colors.grey[700]),
-                                  tooltip: 'Edit TROPA Member',
-                                  onPressed: () => _openMemberDialog(m),
-                                ),
-                                IconButton(
-                                  icon: Icon(Icons.swap_horiz, size: 18, color: isDark ? null : Colors.grey[700]),
-                                  tooltip: 'Transfer to Household',
-                                  onPressed: () => showDialog<bool>(
-                                    context: context,
-                                    builder: (_) => TransferMemberDialog(member: m),
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete_outline, size: 18, color: TropaColors.error),
-                                  tooltip: 'Delete TROPA Member',
-                                  onPressed: () async {
-                                    final confirm = await showDialog<bool>(
-                                      context: context,
-                                      builder: (c) => AlertDialog(
-                                        backgroundColor: cardBg,
-                                        title: Text('Delete TROPA Member?', style: TextStyle(color: textCol)),
-                                        content: Text('Delete ${m.fullName}?', style: TextStyle(color: subtextCol)),
-                                        actions: [
-                                          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-                                          TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Delete', style: TextStyle(color: TropaColors.error))),
+                              children: narrow
+                                  ? [
+                                      editButton,
+                                      PopupMenuButton<int>(
+                                        icon: Icon(Icons.more_vert, size: 18, color: TropaColors.textMedium(context)),
+                                        tooltip: 'More actions',
+                                        onSelected: (i) => actions[i].onTap(),
+                                        itemBuilder: (_) => [
+                                          for (var i = 0; i < actions.length; i++)
+                                            PopupMenuItem<int>(
+                                              value: i,
+                                              child: Row(
+                                                children: [
+                                                  Icon(actions[i].icon,
+                                                      size: 18, color: actions[i].color ?? TropaColors.textMedium(context)),
+                                                  const SizedBox(width: 12),
+                                                  Text(actions[i].label, style: TextStyle(color: actions[i].color)),
+                                                ],
+                                              ),
+                                            ),
                                         ],
                                       ),
-                                    );
-                                    if (confirm == true) {
-                                      await ref.read(memberListNotifierProvider.notifier).deleteMember(m.id);
-                                    }
-                                  },
-                                ),
-                              ],
+                                    ]
+                                  : [
+                                      for (final b in badges) ...[b, const SizedBox(width: 8)],
+                                      const SizedBox(width: 2),
+                                      IconButton(
+                                        icon: Icon(actions[0].icon, size: 18, color: TropaColors.textMedium(context)),
+                                        tooltip: actions[0].label,
+                                        onPressed: actions[0].onTap,
+                                      ),
+                                      editButton,
+                                      for (final a in actions.skip(1))
+                                        IconButton(
+                                          icon: Icon(a.icon, size: 18, color: a.color ?? TropaColors.textMedium(context)),
+                                          tooltip: a.label,
+                                          onPressed: a.onTap,
+                                        ),
+                                    ],
                             ),
                           );
                         },
@@ -528,7 +673,71 @@ class _MembersViewState extends ConsumerState<MembersView> {
             ),
           ],
         ),
+      );
+      }),
+    );
+  }
+
+  Future<void> _toggleArchived(BuildContext context, FamilyMember m) async {
+    final cardBg = TropaColors.cardOf(context);
+    final textCol = TropaColors.textHigh(context);
+    final subtextCol = TropaColors.textMedium(context);
+    final archive = !m.isArchived;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: cardBg,
+        title: Text(archive ? 'Archive TROPA Member?' : 'Restore TROPA Member?',
+            style: TextStyle(color: textCol)),
+        content: Text(
+          archive
+              ? 'Archive ${m.fullName}? They will be hidden from the members list. You can restore them from the Archived filter.'
+              : 'Restore ${m.fullName} to the members list?',
+          style: TextStyle(color: subtextCol),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(c, true),
+              child: Text(archive ? 'Archive' : 'Restore')),
+        ],
       ),
     );
+    if (confirm != true) return;
+    final ok = await ref
+        .read(memberListNotifierProvider.notifier)
+        .setMemberArchived(m, archive);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(ok
+          ? '${m.fullName} ${archive ? 'archived' : 'restored'}'
+          : 'Could not ${archive ? 'archive' : 'restore'} ${m.fullName}'),
+    ));
+  }
+
+  Future<void> _confirmDelete(BuildContext context, FamilyMember m) async {
+    final cardBg = TropaColors.cardOf(context);
+    final textCol = TropaColors.textHigh(context);
+    final subtextCol = TropaColors.textMedium(context);
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: cardBg,
+        title: Text('Delete TROPA Member?', style: TextStyle(color: textCol)),
+        content: Text('Delete ${m.fullName}?', style: TextStyle(color: subtextCol)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(c, true),
+              child:
+                  const Text('Delete', style: TextStyle(color: TropaColors.error))),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await ref.read(memberListNotifierProvider.notifier).deleteMember(m.id);
+    }
   }
 }

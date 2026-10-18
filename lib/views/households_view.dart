@@ -49,13 +49,12 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
     Uint8List? selectedImageBytes;
     String? selectedImageName;
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryCol = TropaColors.primaryOf(context);
     final onPrimaryCol = TropaColors.onPrimaryOf(context);
-    final dlgBg = isDark ? TropaColors.darkSurface8dp : Colors.white;
-    final dlgText = isDark ? TropaColors.darkOnSurface : TropaColors.lightOnSurface;
-    final uploadBg = isDark ? TropaColors.darkSurface2dp : const Color(0xFFF1F5F9);
-    final uploadBorder = isDark ? TropaColors.darkOutlineVariant : const Color(0xFFE2E8F0);
+    final dlgBg = TropaColors.cardOf(context);
+    final dlgText = TropaColors.textHigh(context);
+    final uploadBg = TropaColors.chipOf(context);
+    final uploadBorder = TropaColors.borderOf(context);
 
     showDialog(
       context: context,
@@ -86,6 +85,8 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
                     LabeledField(
                       label: 'Household Family Name *',
                       child: FormBuilderTextField(
+                        inputFormatters: const [UpperCaseFormatter()],
+                        textCapitalization: TextCapitalization.characters,
                         style: TropaStyles.fieldText(context),
                         name: 'household_name',
                         decoration: TropaStyles.formField(context, hint: 'e.g. DELA CRUZ, JUAN FAMILY'),
@@ -119,6 +120,8 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
                           child: LabeledField(
                             label: 'Purok *',
                             child: FormBuilderTextField(
+                              inputFormatters: const [UpperCaseFormatter()],
+                              textCapitalization: TextCapitalization.characters,
                               style: TropaStyles.fieldText(context),
                               name: 'purok',
                               decoration: TropaStyles.formField(context, hint: 'e.g. P-1 Proper'),
@@ -188,13 +191,16 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  selectedImageName ?? (existing?.housePictureUrl != null ? 'Photo Attached' : 'Attach House Picture (Storage Bucket: house-pictures)'),
+                                  selectedImageName ??
+                                      (existing?.housePictureUrl != null
+                                          ? 'Photo Attached'
+                                          : 'Attach House Picture (Storage Bucket: house-pictures)'),
                                   style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500),
                                   overflow: TextOverflow.ellipsis,
                                 ),
                                 Text(
                                   'Accepted: JPG, PNG',
-                                  style: TropaText.caption(TropaColors.darkOutline),
+                                  style: TropaText.caption(TropaColors.textDisabled(context)),
                                 ),
                               ],
                             ),
@@ -311,19 +317,19 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
     required List<String> options,
     required ValueChanged<String> onChanged,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textCol = isDark ? TropaColors.darkOnSurface : TropaColors.lightOnSurface;
+    final textCol = TropaColors.textHigh(context);
     // Keep the selection valid while locations are still loading
     final items = ['All', ...options, if (value != 'All' && !options.contains(value)) value];
     return DropdownButtonFormField<String>(
       value: value,
       isExpanded: true,
       icon: Icon(Icons.keyboard_arrow_down, size: 18, color: textCol),
-      dropdownColor: isDark ? TropaColors.darkSurface8dp : Colors.white,
+      dropdownColor: TropaColors.cardOf(context),
       style: TropaStyles.fieldText(context),
       decoration: TropaStyles.filterField(context),
       items: items
-          .map((o) => DropdownMenuItem(value: o, child: Text(o == 'All' ? allLabel : o, overflow: TextOverflow.ellipsis)))
+          .map((o) =>
+              DropdownMenuItem(value: o, child: Text(o == 'All' ? allLabel : o, overflow: TextOverflow.ellipsis)))
           .toList(),
       onChanged: (v) {
         if (v != null) onChanged(v);
@@ -335,14 +341,19 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
   Widget build(BuildContext context) {
     final filter = ref.watch(householdFilterProvider);
     final householdsAsync = ref.watch(householdListNotifierProvider);
+    final canDelete = ref.watch(canPermissionProvider(AppPermissions.deleteRecords));
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryCol = TropaColors.primaryOf(context);
-    final cardBg = isDark ? TropaColors.darkSurface1dp : Colors.white;
-    final borderCol = isDark ? TropaColors.darkOutlineVariant : const Color(0xFFE2E8F0);
-    final textCol = isDark ? TropaColors.darkOnSurface : TropaColors.lightOnSurface;
-    final subtextCol = isDark ? TropaColors.darkOnSurfaceVariant : TropaColors.lightOnSurfaceVariant;
+    final cardBg = TropaColors.cardOf(context);
+    final borderCol = TropaColors.borderOf(context);
+    final textCol = TropaColors.textHigh(context);
+    final subtextCol = TropaColors.textMedium(context);
     final locations = ref.watch(locationsProvider).valueOrNull ?? const <LocationOption>[];
-    final lgus = ({for (final l in locations) if (l.lgu.isNotEmpty) l.lgu}).toList()..sort();
+    final lgus = ({
+      for (final l in locations)
+        if (l.lgu.isNotEmpty) l.lgu
+    }).toList()
+      ..sort();
     final barangays = ({
       for (final l in locations)
         if (l.barangay.isNotEmpty && (filter.lgu == 'All' || l.lgu == filter.lgu)) l.barangay
@@ -351,8 +362,69 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Padding(
-        padding: const EdgeInsets.all(24),
+      body: LayoutBuilder(builder: (context, constraints) {
+        // Phones and tablets: filters stack, row actions fold into a menu.
+        final narrow = constraints.maxWidth < 900;
+        final compact = TropaBreakpoints.isCompact(constraints.maxWidth);
+        final searchField = TextField(
+  inputFormatters: const [UpperCaseFormatter()],
+  textCapitalization: TextCapitalization.characters,
+  controller: _searchCtrl,
+  style: TropaStyles.fieldText(context),
+  decoration:
+      TropaStyles.filterField(context, hint: 'Search by family or household name...', search: true)
+          .copyWith(
+    suffixIcon: _searchCtrl.text.isNotEmpty
+        ? IconButton(
+            icon: const Icon(Icons.clear, size: 18),
+            onPressed: () {
+              _searchCtrl.clear();
+              ref.read(householdFilterProvider.notifier).update(
+                    (s) => s.copyWith(query: ''),
+                  );
+              ref.read(householdListNotifierProvider.notifier).refresh();
+            },
+          )
+        : null,
+  ),
+  onSubmitted: (val) {
+    ref.read(householdFilterProvider.notifier).update(
+          (s) => s.copyWith(query: val.trim()),
+        );
+    ref.read(householdListNotifierProvider.notifier).refresh();
+  },
+);
+        final lguFilter = _filterDropdown(
+  value: filter.lgu,
+  allLabel: 'All LGUs',
+  options: lgus,
+  // Barangay list depends on the LGU, so reset it when the LGU changes
+  onChanged: (v) => _applyFilter((f) => f.copyWith(lgu: v, barangay: 'All')),
+);
+        final barangayFilter = _filterDropdown(
+  value: filter.barangay,
+  allLabel: 'All Barangays',
+  options: barangays,
+  onChanged: (v) => _applyFilter((f) => f.copyWith(barangay: v)),
+);
+        final archivedChip = FilterChip(
+  avatar: Icon(Icons.archive_outlined, size: 16, color: filter.archived ? primaryCol : subtextCol),
+  label: const Text('Archived'),
+  tooltip: 'Show archived households',
+  selected: filter.archived,
+  showCheckmark: false,
+  onSelected: (v) => _applyFilter((f) => f.copyWith(archived: v)),
+);
+        final refreshButton = IconButton.filledTonal(
+  icon: const Icon(Icons.refresh, size: 20),
+  tooltip: 'Reload from Supabase',
+  onPressed: () {
+    ref.read(householdListNotifierProvider.notifier).refresh();
+  },
+);
+
+        return Padding(
+        padding: EdgeInsets.all(compact ? 16 : 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -372,85 +444,69 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
             ),
             const SizedBox(height: 20),
 
-            // Search and Filters Bar
-            Row(
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: TextField(
-                    controller: _searchCtrl,
-                    style: TropaStyles.fieldText(context),
-                    decoration: TropaStyles.filterField(context, hint: 'Search by family or household name...', search: true).copyWith(
-                      suffixIcon: _searchCtrl.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear, size: 18),
-                              onPressed: () {
-                                _searchCtrl.clear();
-                                ref.read(householdFilterProvider.notifier).update(
-                                  (s) => s.copyWith(query: ''),
-                                );
-                                ref.read(householdListNotifierProvider.notifier).refresh();
-                              },
-                            )
-                          : null,
-                    ),
-                    onSubmitted: (val) {
-                      ref.read(householdFilterProvider.notifier).update(
-                        (s) => s.copyWith(query: val.trim()),
-                      );
-                      ref.read(householdListNotifierProvider.notifier).refresh();
-                    },
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  flex: 2,
-                  child: _filterDropdown(
-                    value: filter.lgu,
-                    allLabel: 'All LGUs',
-                    options: lgus,
-                    // Barangay list depends on the LGU, so reset it when the LGU changes
-                    onChanged: (v) => _applyFilter((f) => f.copyWith(lgu: v, barangay: 'All')),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  flex: 2,
-                  child: _filterDropdown(
-                    value: filter.barangay,
-                    allLabel: 'All Barangays',
-                    options: barangays,
-                    onChanged: (v) => _applyFilter((f) => f.copyWith(barangay: v)),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                IconButton.filledTonal(
-                  icon: const Icon(Icons.refresh, size: 20),
-                  tooltip: 'Reload from Supabase',
-                  onPressed: () {
-                    ref.read(householdListNotifierProvider.notifier).refresh();
-                  },
-                ),
+            // Search and Filters Bar (stacks on phones and tablets)
+            if (!narrow)
+              Row(
+                children: [
+                  Expanded(flex: 3, child: searchField),
+                  const SizedBox(width: 14),
+                  Expanded(flex: 2, child: lguFilter),
+                  const SizedBox(width: 14),
+                  Expanded(flex: 2, child: barangayFilter),
+                  if (canDelete) ...[
+                    const SizedBox(width: 12),
+                    archivedChip,
+                  ],
+                  const SizedBox(width: 12),
+                  refreshButton,
+                ],
+              )
+            else ...[
+              Row(
+                children: [
+                  Expanded(child: searchField),
+                  const SizedBox(width: 8),
+                  refreshButton,
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(child: lguFilter),
+                  const SizedBox(width: 10),
+                  Expanded(child: barangayFilter),
+                  if (canDelete && !compact) ...[
+                    const SizedBox(width: 10),
+                    archivedChip,
+                  ],
+                ],
+              ),
+              if (canDelete && compact) ...[
+                const SizedBox(height: 8),
+                archivedChip,
               ],
-            ),
+            ],
             const SizedBox(height: 20),
 
             // Table of Households
             Expanded(
               child: householdsAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (err, _) => Center(child: Text('Error loading households: $err', style: TextStyle(color: textCol))),
+                error: (err, _) =>
+                    Center(child: Text('Error loading households: $err', style: TextStyle(color: textCol))),
                 data: (households) {
                   if (households.isEmpty) {
                     return Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.cottage_outlined, size: 48, color: TropaColors.darkOutline),
+                          Icon(Icons.cottage_outlined, size: 48, color: TropaColors.textDisabled(context)),
                           const SizedBox(height: 12),
-                          Text('No households found', style: TropaText.sectionTitle(textCol)),
+                          Text(filter.archived ? 'No archived households' : 'No households found',
+                              style: TropaText.sectionTitle(textCol)),
                           const SizedBox(height: 4),
-                          Text('Try adjusting your search criteria or register a new household.', style: TropaText.meta(subtextCol)),
+                          Text('Try adjusting your search criteria or register a new household.',
+                              style: TropaText.meta(subtextCol)),
                         ],
                       ),
                     );
@@ -487,7 +543,7 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
                                   builder: (_) => HouseholdViewDialog(household: h),
                                 );
                               },
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                              contentPadding: EdgeInsets.symmetric(horizontal: compact ? 12 : 20, vertical: 8),
                               leading: Container(
                                 width: 44,
                                 height: 44,
@@ -500,12 +556,56 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
                               title: Text(
                                 h.householdName,
                                 style: TropaText.bodyStrong(textCol),
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              subtitle: Text(
-                                '${h.purok}, ${h.barangay}, ${h.lgu} • Click to view roster & dependents',
-                                style: TropaText.meta(subtextCol),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    narrow
+                                        ? '${h.purok}, ${h.barangay}, ${h.lgu}'
+                                        : '${h.purok}, ${h.barangay}, ${h.lgu} • Click to view roster & dependents',
+                                    style: TropaText.meta(subtextCol),
+                                  ),
+                                  if (narrow) ...[
+                                    const SizedBox(height: 6),
+                                    Wrap(spacing: 6, runSpacing: 4, children: [
+                                      TropaBadge('${h.totalMembers} members', color: subtextCol),
+                                      TropaBadge(
+                                        h.status.toUpperCase(),
+                                        color: h.status == 'active' ? TropaColors.secondaryStrongOf(context) : Colors.grey,
+                                      ),
+                                    ]),
+                                  ],
+                                ],
                               ),
-                              trailing: Row(
+                              trailing: narrow
+                                  ? PopupMenuButton<String>(
+                                      icon: Icon(Icons.more_vert, size: 18, color: TropaColors.textMedium(context)),
+                                      tooltip: 'Household actions',
+                                      onSelected: (v) => switch (v) {
+                                        'roster' => showDialog(
+                                            context: context,
+                                            builder: (_) => HouseholdViewDialog(household: h),
+                                          ),
+                                        'edit' => _openHouseholdDialog(h),
+                                        'archive' => _toggleArchived(context, h),
+                                        _ => _confirmDelete(context, h),
+                                      },
+                                      itemBuilder: (_) => [
+                                        const PopupMenuItem(value: 'roster', child: Text('View Roster & Add Dependents')),
+                                        const PopupMenuItem(value: 'edit', child: Text('Edit Household')),
+                                        if (canDelete)
+                                          PopupMenuItem(
+                                              value: 'archive',
+                                              child: Text(h.isArchived ? 'Restore Household' : 'Archive Household')),
+                                        if (canDelete)
+                                          const PopupMenuItem(
+                                              value: 'delete',
+                                              child: Text('Delete Household', style: TextStyle(color: TropaColors.error))),
+                                      ],
+                                    )
+                                  : Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   TropaBadge('${h.totalMembers} members', color: subtextCol),
@@ -526,31 +626,23 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
                                     },
                                   ),
                                   IconButton(
-                                    icon: Icon(Icons.edit_outlined, size: 18, color: isDark ? null : Colors.grey[700]),
+                                    icon: Icon(Icons.edit_outlined, size: 18, color: TropaColors.textMedium(context)),
                                     tooltip: 'Edit Household',
                                     onPressed: () => _openHouseholdDialog(h),
                                   ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete_outline, size: 18, color: TropaColors.error),
-                                    tooltip: 'Delete Household',
-                                    onPressed: () async {
-                                      final confirm = await showDialog<bool>(
-                                        context: context,
-                                        builder: (c) => AlertDialog(
-                                          backgroundColor: cardBg,
-                                          title: Text('Delete Household?', style: TextStyle(color: textCol)),
-                                          content: Text('Are you sure you want to delete ${h.householdName}?', style: TextStyle(color: subtextCol)),
-                                          actions: [
-                                            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-                                            TextButton(onPressed: () => Navigator.pop(c, true), child: const Text('Delete', style: TextStyle(color: TropaColors.error))),
-                                          ],
-                                        ),
-                                      );
-                                      if (confirm == true) {
-                                        await ref.read(householdListNotifierProvider.notifier).deleteHousehold(h.id);
-                                      }
-                                    },
-                                  ),
+                                  if (canDelete)
+                                    IconButton(
+                                      icon: Icon(h.isArchived ? Icons.unarchive_outlined : Icons.archive_outlined,
+                                          size: 18, color: TropaColors.textMedium(context)),
+                                      tooltip: h.isArchived ? 'Restore Household' : 'Archive Household',
+                                      onPressed: () => _toggleArchived(context, h),
+                                    ),
+                                  if (canDelete)
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline, size: 18, color: TropaColors.error),
+                                      tooltip: 'Delete Household',
+                                      onPressed: () => _confirmDelete(context, h),
+                                    ),
                                 ],
                               ),
                             ),
@@ -564,7 +656,74 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
             ),
           ],
         ),
+      );
+      }),
+    );
+  }
+
+  Future<void> _toggleArchived(BuildContext context, Household h) async {
+    final cardBg = TropaColors.cardOf(context);
+    final textCol = TropaColors.textHigh(context);
+    final subtextCol = TropaColors.textMedium(context);
+    final archive = !h.isArchived;
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: cardBg,
+        title: Text(archive ? 'Archive Household?' : 'Restore Household?',
+            style: TextStyle(color: textCol)),
+        content: Text(
+          archive
+              ? 'Archive ${h.householdName}? The household and all of its members will be hidden. You can restore them from the Archived filter.'
+              : 'Restore ${h.householdName} and all of its members?',
+          style: TextStyle(color: subtextCol),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(c, true),
+              child: Text(archive ? 'Archive' : 'Restore')),
+        ],
       ),
     );
+    if (confirm != true) return;
+    final ok = await ref
+        .read(householdListNotifierProvider.notifier)
+        .setHouseholdArchived(h, archive);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(ok
+          ? '${h.householdName} ${archive ? 'archived' : 'restored'} with its members'
+          : 'Could not ${archive ? 'archive' : 'restore'} ${h.householdName}'),
+    ));
+  }
+
+  Future<void> _confirmDelete(BuildContext context, Household h) async {
+    final cardBg = TropaColors.cardOf(context);
+    final textCol = TropaColors.textHigh(context);
+    final subtextCol = TropaColors.textMedium(context);
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: cardBg,
+        title: Text('Delete Household?', style: TextStyle(color: textCol)),
+        content: Text('Are you sure you want to delete ${h.householdName}?',
+            style: TextStyle(color: subtextCol)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(c, false),
+              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(c, true),
+              child:
+                  const Text('Delete', style: TextStyle(color: TropaColors.error))),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await ref.read(householdListNotifierProvider.notifier).deleteHousehold(h.id);
+    }
   }
 }

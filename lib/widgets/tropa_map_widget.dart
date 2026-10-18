@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -94,67 +96,81 @@ class _TropaMapWidgetState extends ConsumerState<TropaMapWidget> {
     setState(() => _members = members);
   }
 
+  // In the browser a trackpad pinch (and Ctrl + wheel) arrives as a PointerScaleEvent, which
+  // flutter_map ignores; native apps get pan-zoom events that its scale gesture already handles.
+  void _onPointerSignal(PointerSignalEvent event) {
+    if (event is! PointerScaleEvent) return;
+    GestureBinding.instance.pointerSignalResolver.register(event, (e) {
+      final camera = _mapController.camera;
+      final zoom = camera.clampZoom(camera.zoom + math.log((e as PointerScaleEvent).scale) / math.ln2);
+      _mapController.move(camera.focusedZoomCenter(e.localPosition, zoom), zoom);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final selected = _selected;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = isDark ? TropaColors.darkSurface : Colors.white;
-    final borderCol = isDark ? TropaColors.darkSurfaceHighest : const Color(0xFFE2E8F0);
-    final textCol = isDark ? TropaColors.darkOnSurface : TropaColors.lightOnSurface;
-    final subtextCol = isDark ? TropaColors.darkOnSurfaceVariant : TropaColors.lightOnSurfaceVariant;
-    final avatarBg = isDark ? TropaColors.darkSurfaceHigh : const Color(0xFFF1F5F9);
+    final cardBg = TropaColors.cardOf(context);
+    final borderCol = TropaColors.borderOf(context);
+    final textCol = TropaColors.textHigh(context);
+    final subtextCol = TropaColors.textMedium(context);
+    final avatarBg = TropaColors.chipOf(context);
 
     return Stack(
       children: [
-        FlutterMap(
-          mapController: _mapController,
-          options: MapOptions(
-            initialCenter: widget.initialCenter,
-            initialZoom: widget.initialZoom,
-            minZoom: 5,
-            maxZoom: 18,
-          ),
-          children: [
-            TileLayer(
-              urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-              userAgentPackageName: 'com.tropa.v2',
-              tileProvider: _tileProvider,
+        Listener(
+          onPointerSignal: _onPointerSignal,
+          child: FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: widget.initialCenter,
+              initialZoom: widget.initialZoom,
+              minZoom: 5,
+              maxZoom: 18,
             ),
-            ValueListenableBuilder<LayerHitResult<Household>?>(
-              valueListenable: _hitNotifier,
-              builder: (context, hit, child) => MouseRegion(
-                cursor: hit == null ? MouseCursor.defer : SystemMouseCursors.click,
-                child: child,
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.tropa.v2',
+                tileProvider: _tileProvider,
               ),
-              child: GestureDetector(
-                onTap: () {
-                  final hits = _hitNotifier.value?.hitValues;
-                  if (hits != null && hits.isNotEmpty) _select(hits.first);
-                },
-                child: CircleLayer<Household>(circles: _circles, hitNotifier: _hitNotifier),
-              ),
-            ),
-            // Only the selected household gets a full widget marker
-            if (selected != null)
-              MarkerLayer(markers: [
-                Marker(
-                  point: LatLng(selected.latitude!, selected.longitude!),
-                  width: 44,
-                  height: 44,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: _isActive(selected) ? TropaColors.primaryOf(context) : TropaColors.tertiary,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 6, offset: const Offset(0, 2)),
-                      ],
-                      border: Border.all(color: Colors.white, width: 3),
-                    ),
-                    child: const Icon(Icons.cottage, color: Colors.black, size: 22),
-                  ),
+              ValueListenableBuilder<LayerHitResult<Household>?>(
+                valueListenable: _hitNotifier,
+                builder: (context, hit, child) => MouseRegion(
+                  cursor: hit == null ? MouseCursor.defer : SystemMouseCursors.click,
+                  child: child,
                 ),
-              ]),
-          ],
+                child: GestureDetector(
+                  onTap: () {
+                    final hits = _hitNotifier.value?.hitValues;
+                    if (hits != null && hits.isNotEmpty) _select(hits.first);
+                  },
+                  child: CircleLayer<Household>(circles: _circles, hitNotifier: _hitNotifier),
+                ),
+              ),
+              // Only the selected household gets a full widget marker
+              if (selected != null)
+                MarkerLayer(markers: [
+                  Marker(
+                    point: LatLng(selected.latitude!, selected.longitude!),
+                    width: 44,
+                    height: 44,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: _isActive(selected) ? TropaColors.primaryOf(context) : TropaColors.tertiary,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 6, offset: const Offset(0, 2)),
+                        ],
+                        border: Border.all(color: Colors.white, width: 3),
+                      ),
+                      child: const Icon(Icons.cottage, color: Colors.black, size: 22),
+                    ),
+                  ),
+                ]),
+            ],
+          ),
         ),
 
         // Map Overlay Legend / Info

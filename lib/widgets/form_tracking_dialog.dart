@@ -124,12 +124,11 @@ class _FormTrackingDialogState extends ConsumerState<FormTrackingDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryCol = TropaColors.primaryOf(context);
     final onPrimaryCol = TropaColors.onPrimaryOf(context);
-    final dlgBg = isDark ? TropaColors.darkSurface8dp : Colors.white;
-    final dlgText = isDark ? TropaColors.darkOnSurface : TropaColors.lightOnSurface;
-    final subtextCol = isDark ? TropaColors.darkOnSurfaceVariant : TropaColors.lightOnSurfaceVariant;
+    final dlgBg = TropaColors.cardOf(context);
+    final dlgText = TropaColors.textHigh(context);
+    final subtextCol = TropaColors.textMedium(context);
 
     final locations = ref.watch(locationsProvider).valueOrNull ?? const <LocationOption>[];
     _resolveLocation(locations);
@@ -145,7 +144,10 @@ class _FormTrackingDialogState extends ConsumerState<FormTrackingDialog> {
       ..sort((a, b) => a.barangay.compareTo(b.barangay));
     final puroks = _locationId == null
         ? const <String>[]
-        : <String>[for (final p in ref.watch(puroksProvider(_locationId!)).valueOrNull ?? const <({String id, String name})>[]) p.name];
+        : <String>[
+            for (final p in ref.watch(puroksProvider(_locationId!)).valueOrNull ?? const <({String id, String name})>[])
+              p.name
+          ];
 
     // A stored id/name missing from the current lists would make the dropdown assert; drop it.
     String? known(String? v, Iterable<String> options) => options.contains(v) ? v : null;
@@ -181,8 +183,7 @@ class _FormTrackingDialogState extends ConsumerState<FormTrackingDialog> {
         titlePadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
         contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
         actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
-        title: Text(_isEdit ? 'Edit Form Tracking' : 'New Form Tracking',
-            style: TropaText.dialogTitle(dlgText)),
+        title: Text(_isEdit ? 'Edit Form Tracking' : 'New Form Tracking', style: TropaText.dialogTitle(dlgText)),
         content: SizedBox(
           width: 440,
           child: SingleChildScrollView(
@@ -255,13 +256,15 @@ class _FormTrackingDialogState extends ConsumerState<FormTrackingDialog> {
                   ),
                   for (var i = 0; i < _entries.length; i++) _purokRow(i, puroks, required),
                   const SizedBox(height: 10),
-                  Row(
+                  ResponsiveFieldRow(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
                         child: LabeledField(
                           label: 'Submitted By *',
                           child: TextFormField(
+                            inputFormatters: const [UpperCaseFormatter()],
+                            textCapitalization: TextCapitalization.characters,
                             style: TropaStyles.fieldText(context),
                             controller: _submittedBy,
                             decoration: TropaStyles.formField(context),
@@ -278,7 +281,8 @@ class _FormTrackingDialogState extends ConsumerState<FormTrackingDialog> {
                             key: ValueKey('received-$receivedBy'),
                             initialValue: receivedBy,
                             enabled: false,
-                            decoration: TropaStyles.formField(context, helper: _isEdit ? null : 'Automatically tracked to current user.'),
+                            decoration: TropaStyles.formField(context,
+                                helper: _isEdit ? null : 'Automatically tracked to current user.'),
                           ),
                         ),
                       ),
@@ -310,7 +314,7 @@ class _FormTrackingDialogState extends ConsumerState<FormTrackingDialog> {
                   ),
                   if (_status == FormTrackingStatus.returned) ...[
                     const SizedBox(height: 10),
-                    Row(
+                    ResponsiveFieldRow(
                       children: [
                         Expanded(
                           child: LabeledField(
@@ -330,6 +334,8 @@ class _FormTrackingDialogState extends ConsumerState<FormTrackingDialog> {
                           child: LabeledField(
                             label: 'Returned - Received By',
                             child: TextFormField(
+                              inputFormatters: const [UpperCaseFormatter()],
+                              textCapitalization: TextCapitalization.characters,
                               style: TropaStyles.fieldText(context),
                               controller: _returnedReceivedBy,
                               decoration: TropaStyles.formField(context),

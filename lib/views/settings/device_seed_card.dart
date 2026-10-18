@@ -30,7 +30,8 @@ class _DeviceSeedCardState extends ConsumerState<DeviceSeedCard> {
 
   Future<void> _load() async {
     final manifest = await fetchDeviceSeedManifest(Supabase.instance.client);
-    final rows = await ref.read(localDbProvider).getAll("SELECT name FROM ps_buckets WHERE name <> '\$local' ORDER BY name");
+    final rows =
+        await ref.read(localDbProvider).getAll("SELECT name FROM ps_buckets WHERE name <> '\$local' ORDER BY name");
     if (!mounted) return;
     setState(() {
       _manifest = manifest;
@@ -66,7 +67,9 @@ class _DeviceSeedCardState extends ConsumerState<DeviceSeedCard> {
       final denied = e is StorageException && (e.statusCode == '403' || e.message.contains('row-level security'));
       showSettingsMessage(
         context,
-        denied ? 'Only users with the admin role can publish the starter database.' : errorMessage(e),
+        denied
+            ? 'Only users with the Publish offline data permission can publish the starter database.'
+            : errorMessage(e),
         error: true,
       );
     } finally {
@@ -99,9 +102,8 @@ class _DeviceSeedCardState extends ConsumerState<DeviceSeedCard> {
     final published = parsePh(_manifest?['version']?.toString());
     final bytes = (_manifest?['bytes'] as num?)?.toInt();
     final publishedBuckets = (_manifest?['buckets'] as List?)?.cast<String>() ?? const [];
-    final stale = published != null &&
-        _localBuckets.isNotEmpty &&
-        publishedBuckets.join(',') != _localBuckets.join(',');
+    final stale =
+        published != null && _localBuckets.isNotEmpty && publishedBuckets.join(',') != _localBuckets.join(',');
     final age = published == null ? null : phNow().difference(published);
     final ageText = age == null
         ? ''
@@ -168,7 +170,8 @@ class _DeviceSeedCardState extends ConsumerState<DeviceSeedCard> {
             ],
             if (pending > 0) ...[
               const SizedBox(height: 8),
-              Text('Download is disabled while $pending change${pending == 1 ? '' : 's'} on this device wait to upload.',
+              Text(
+                  'Download is disabled while $pending change${pending == 1 ? '' : 's'} on this device wait to upload.',
                   style: p.meta),
             ],
             if (busy || installProgress != null) ...[

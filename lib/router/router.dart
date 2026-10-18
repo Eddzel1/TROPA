@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../models/models.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/desktop_scaffold.dart';
 import '../views/login_view.dart';
@@ -28,43 +29,52 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (!isAuth && !isLogin) {
         return '/login';
       }
-      if (isAuth && isLogin) {
-        return '/dashboard';
-      }
 
-      // Role-Based Access Control (RBAC) Guard
-      bool can(String perm) =>
-          permissions.contains('all') || permissions.contains(perm);
+      // Permission guard
+      bool can(String perm) => permissions.contains(AppPermissions.systemAdmin) || permissions.contains(perm);
+
+      // First page the user may open, in sidebar order.
+      final home = [
+        if (can('view_dashboard')) '/dashboard',
+        if (can('view_households') || can('manage_households')) '/households',
+        if (can('view_members') || can('manage_members')) '/members',
+        if (can('dues_collection')) '/dues',
+        if (can('view_reports')) '/reports',
+        if (can('form_tracking')) '/form-tracking',
+        if (can('tropa_finder')) '/tropa-finder',
+        if (can('view_audit_logs')) '/logs',
+        // Open to everyone for Appearance.
+        '/settings',
+      ].first;
+
+      if (isAuth && isLogin) {
+        return home;
+      }
 
       final path = state.matchedLocation;
       if (path.startsWith('/dashboard') && !can('view_dashboard')) {
-        return '/login';
+        return home;
       }
-      if (path.startsWith('/households') &&
-          !(can('view_households') || can('manage_households'))) {
-        return '/dashboard';
+      if (path.startsWith('/households') && !(can('view_households') || can('manage_households'))) {
+        return home;
       }
-      if (path.startsWith('/members') &&
-          !(can('view_members') || can('manage_members'))) {
-        return '/dashboard';
+      if (path.startsWith('/members') && !(can('view_members') || can('manage_members'))) {
+        return home;
       }
       if (path.startsWith('/dues') && !can('dues_collection')) {
-        return '/dashboard';
+        return home;
       }
       if (path.startsWith('/reports') && !can('view_reports')) {
-        return '/dashboard';
+        return home;
       }
-      if (path.startsWith('/form-tracking') && !can('user_management')) {
-        return '/dashboard';
+      if (path.startsWith('/form-tracking') && !can('form_tracking')) {
+        return home;
       }
-      if (path.startsWith('/settings') && !can('user_management')) {
-        return '/dashboard';
-      }
-      if (path.startsWith('/logs') && !can('user_management')) {
-        return '/dashboard';
+      if (path.startsWith('/logs') && !can('view_audit_logs')) {
+        return home;
       }
       if (path.startsWith('/tropa-finder') && !can('tropa_finder')) {
-        return '/dashboard';
+        return home;
       }
 
       return null;
@@ -79,48 +89,39 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: '/dashboard',
-            pageBuilder: (context, state) =>
-                NoTransitionPage(key: state.pageKey, child: const DashboardView()),
+            pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const DashboardView()),
           ),
           GoRoute(
             path: '/households',
-            pageBuilder: (context, state) =>
-                NoTransitionPage(key: state.pageKey, child: const HouseholdsView()),
+            pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const HouseholdsView()),
           ),
           GoRoute(
             path: '/members',
-            pageBuilder: (context, state) =>
-                NoTransitionPage(key: state.pageKey, child: const MembersView()),
+            pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const MembersView()),
           ),
           GoRoute(
             path: '/dues',
-            pageBuilder: (context, state) =>
-                NoTransitionPage(key: state.pageKey, child: const DuesCollectionView()),
+            pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const DuesCollectionView()),
           ),
           GoRoute(
             path: '/reports',
-            pageBuilder: (context, state) =>
-                NoTransitionPage(key: state.pageKey, child: const ReportsAnalyticsView()),
+            pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const ReportsAnalyticsView()),
           ),
           GoRoute(
             path: '/form-tracking',
-            pageBuilder: (context, state) =>
-                NoTransitionPage(key: state.pageKey, child: const FormTrackingView()),
+            pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const FormTrackingView()),
           ),
           GoRoute(
             path: '/tropa-finder',
-            pageBuilder: (context, state) =>
-                NoTransitionPage(key: state.pageKey, child: const TropaFinderView()),
+            pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const TropaFinderView()),
           ),
           GoRoute(
             path: '/settings',
-            pageBuilder: (context, state) =>
-                NoTransitionPage(key: state.pageKey, child: const SettingsAdminView()),
+            pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const SettingsAdminView()),
           ),
           GoRoute(
             path: '/logs',
-            pageBuilder: (context, state) =>
-                NoTransitionPage(key: state.pageKey, child: const ActivityLogsView()),
+            pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const ActivityLogsView()),
           ),
         ],
       ),

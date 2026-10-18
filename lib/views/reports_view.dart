@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../core/design_system.dart';
 import '../models/models.dart';
 import '../providers/reports_provider.dart';
+import '../widgets/page_header.dart';
 
 class ReportsAnalyticsView extends ConsumerStatefulWidget {
   const ReportsAnalyticsView({super.key});
@@ -22,52 +23,41 @@ class _ReportsAnalyticsViewState extends ConsumerState<ReportsAnalyticsView> {
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryCol = TropaColors.primaryOf(context);
-    final cardBg = isDark ? TropaColors.darkSurface1dp : Colors.white;
-    final borderCol = isDark ? TropaColors.darkOutlineVariant : const Color(0xFFE2E8F0);
-    final textCol = isDark ? TropaColors.darkOnSurface : TropaColors.lightOnSurface;
-    final subtextCol = isDark ? TropaColors.darkOnSurfaceVariant : TropaColors.lightOnSurfaceVariant;
+    final cardBg = TropaColors.cardOf(context);
+    final borderCol = TropaColors.borderOf(context);
+    final textCol = TropaColors.textHigh(context);
+    final subtextCol = TropaColors.textMedium(context);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(context.isCompactScreen ? 16 : 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Reports & Analytics', style: TropaText.pageTitle(textCol)),
-                    Text('Membership and voter averages by LGU and barangay', style: TropaText.meta(subtextCol)),
-                  ],
+            TropaPageHeader(
+              title: 'Reports & Analytics',
+              subtitle: 'Membership and voter averages by LGU and barangay',
+              actions: [
+                OutlinedButton.icon(
+                  style: TropaStyles.secondaryAction(context),
+                  icon: const Icon(Icons.table_chart_outlined, size: 16),
+                  label: const Text('Export CSV'),
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Generated CSV Export for Barangay Registry.')),
+                    );
+                  },
                 ),
-                Wrap(
-                  spacing: 10,
-                  children: [
-                    OutlinedButton.icon(
-                      style: TropaStyles.secondaryAction(context),
-                      icon: const Icon(Icons.table_chart_outlined, size: 16),
-                      label: const Text('Export CSV'),
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Generated CSV Export for Barangay Registry.')),
-                        );
-                      },
-                    ),
-                    ElevatedButton.icon(
-                      style: TropaStyles.primaryAction(context),
-                      icon: const Icon(Icons.picture_as_pdf, size: 18),
-                      label: const Text('Print Official Report'),
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Preparing PDF Print Roster for City Mayor & Cooperative Union...')),
-                        );
-                      },
-                    ),
-                  ],
+                ElevatedButton.icon(
+                  style: TropaStyles.primaryAction(context),
+                  icon: const Icon(Icons.picture_as_pdf, size: 18),
+                  label: const Text('Print Official Report'),
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Preparing PDF Print Roster for City Mayor & Cooperative Union...')),
+                    );
+                  },
                 ),
               ],
             ),
@@ -84,18 +74,34 @@ class _ReportsAnalyticsViewState extends ConsumerState<ReportsAnalyticsView> {
 
                 return Column(
                   children: [
-                    // Overview averages (always across all LGUs)
-                    Row(
-                      children: [
-                        Expanded(child: _metricBox('Avg. Members per Barangay', _dec1.format(membersPerBarangay), Icons.location_city, cardBg: cardBg, borderCol: borderCol, textCol: textCol, subtextCol: subtextCol, isDark: isDark, primaryCol: primaryCol)),
-                        const SizedBox(width: 14),
-                        Expanded(child: _metricBox('Avg. Voters per Member', _dec2.format(total.votersPerMember), Icons.how_to_vote, cardBg: cardBg, borderCol: borderCol, textCol: textCol, subtextCol: subtextCol, isDark: isDark, primaryCol: primaryCol)),
-                        const SizedBox(width: 14),
-                        Expanded(child: _metricBox('Avg. Voters per Household', _dec2.format(total.votersPerHousehold), Icons.home_work, cardBg: cardBg, borderCol: borderCol, textCol: textCol, subtextCol: subtextCol, isDark: isDark, primaryCol: primaryCol)),
-                        const SizedBox(width: 14),
-                        Expanded(child: _metricBox('Avg. Members per Household', _dec2.format(total.membersPerHousehold), Icons.family_restroom, cardBg: cardBg, borderCol: borderCol, textCol: textCol, subtextCol: subtextCol, isDark: isDark, primaryCol: primaryCol)),
-                      ],
-                    ),
+                    // Overview averages (always across all LGUs); 2×2 on phones and tablets
+                    LayoutBuilder(builder: (context, constraints) {
+                      final metrics = [
+                        _metricBox('Avg. Members per Barangay', _dec1.format(membersPerBarangay), Icons.location_city, cardBg: cardBg, borderCol: borderCol, textCol: textCol, subtextCol: subtextCol, isDark: isDark, primaryCol: primaryCol),
+                        _metricBox('Avg. Voters per Member', _dec2.format(total.votersPerMember), Icons.how_to_vote, cardBg: cardBg, borderCol: borderCol, textCol: textCol, subtextCol: subtextCol, isDark: isDark, primaryCol: primaryCol),
+                        _metricBox('Avg. Voters per Household', _dec2.format(total.votersPerHousehold), Icons.home_work, cardBg: cardBg, borderCol: borderCol, textCol: textCol, subtextCol: subtextCol, isDark: isDark, primaryCol: primaryCol),
+                        _metricBox('Avg. Members per Household', _dec2.format(total.membersPerHousehold), Icons.family_restroom, cardBg: cardBg, borderCol: borderCol, textCol: textCol, subtextCol: subtextCol, isDark: isDark, primaryCol: primaryCol),
+                      ];
+                      final perRow = constraints.maxWidth >= 900 ? 4 : 2;
+                      return Column(
+                        children: [
+                          for (var r = 0; r < metrics.length; r += perRow) ...[
+                            if (r > 0) const SizedBox(height: 14),
+                            IntrinsicHeight(
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  for (var i = r; i < r + perRow; i++) ...[
+                                    if (i > r) const SizedBox(width: 14),
+                                    Expanded(child: metrics[i]),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      );
+                    }),
                     const SizedBox(height: 24),
                     _breakdownTable(stats, cardBg: cardBg, borderCol: borderCol, textCol: textCol, subtextCol: subtextCol, isDark: isDark, primaryCol: primaryCol),
                   ],
@@ -178,7 +184,7 @@ class _ReportsAnalyticsViewState extends ConsumerState<ReportsAnalyticsView> {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(context.isCompactScreen ? 14 : 20),
       decoration: BoxDecoration(
         color: cardBg,
         borderRadius: BorderRadius.circular(14),
@@ -196,9 +202,14 @@ class _ReportsAnalyticsViewState extends ConsumerState<ReportsAnalyticsView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Flex(
+            // Dropdown drops under the title on phones
+            direction: context.isCompactScreen ? Axis.vertical : Axis.horizontal,
+            crossAxisAlignment: context.isCompactScreen ? CrossAxisAlignment.stretch : CrossAxisAlignment.center,
             children: [
-              Expanded(
+              Flexible(
+                flex: context.isCompactScreen ? 0 : 1,
+                fit: context.isCompactScreen ? FlexFit.loose : FlexFit.tight,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -210,14 +221,15 @@ class _ReportsAnalyticsViewState extends ConsumerState<ReportsAnalyticsView> {
                   ],
                 ),
               ),
+              if (context.isCompactScreen) const SizedBox(height: 12),
               SizedBox(
-                width: 240,
+                width: context.isCompactScreen ? null : 240,
                 child: DropdownButtonFormField<String>(
                   key: ValueKey(lgu),
                   initialValue: lgu,
                   isExpanded: true,
                   icon: Icon(Icons.keyboard_arrow_down, size: 18, color: textCol),
-                  dropdownColor: isDark ? TropaColors.darkSurface8dp : Colors.white,
+                  dropdownColor: TropaColors.cardOf(context),
                   style: TropaStyles.fieldText(context),
                   decoration: TropaStyles.filterField(context),
                   items: [

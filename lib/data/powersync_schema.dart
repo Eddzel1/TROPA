@@ -18,6 +18,7 @@ const schema = Schema([
     Column.text('house_picture_path'),
     Column.real('latitude'),
     Column.real('longitude'),
+    Column.integer('is_archived'),
     Column.text('created_date'),
     Column.text('updated_date'),
     Column.text('created_by'),
@@ -58,6 +59,8 @@ const schema = Schema([
     Column.integer('phic_member'),
     Column.text('phic_no'),
     Column.integer('trucare_member'),
+    Column.text('id_number'),
+    Column.integer('is_archived'),
     Column.text('created_date'),
     Column.text('updated_date'),
     Column.text('created_by'),
@@ -83,10 +86,23 @@ const schema = Schema([
     Column.text('created_by'),
     Column.text('created_date'),
     Column.text('updated_date'),
+    // Shared by the per-member rows of one household payment; null on rows logged one at a time.
+    Column.text('receipt_id'),
+    Column.text('void_reason'),
   ], indexes: [
     Index('member', [IndexedColumn('member_id')]),
     Index('household', [IndexedColumn('household_id')]),
     Index('paid', [IndexedColumn.descending('payment_date')]),
+    Index('receipt', [IndexedColumn('receipt_id')]),
+  ]),
+  // One monthly dues rate per member; the row with the latest effective_month (YYYY-MM) on or
+  // before a month sets that month's rate.
+  Table('dues_rates', [
+    Column.real('amount'),
+    Column.text('effective_month'),
+    Column.text('created_by'),
+    Column.text('created_at'),
+    Column.text('updated_at'),
   ]),
   Table('form_tracking', [
     Column.text('barangay'),
@@ -133,9 +149,10 @@ const schema = Schema([
     Column.text('email'),
     Column.text('firstname'),
     Column.text('lastname'),
-    Column.text('role'),
     Column.text('status'),
     Column.text('permissions'),
+    // locations.id values this user collects dues for (JSON text locally).
+    Column.text('dues_barangays'),
     Column.text('last_login'),
     Column.text('created_date'),
     Column.text('updated_date'),
@@ -196,16 +213,18 @@ const snapshotVoterLgus = {'VALENCIA CITY', 'KALILANGAN', 'PANGANTUCAN'};
 
 /// Columns that are Postgres booleans; stored locally as 0/1 and converted back on upload.
 const booleanColumns = <String, Set<String>>{
+  'households': {'is_archived'},
   'family_members': {
     'is_voter',
     'is_household_leader',
     'is_cooperative_member',
     'phic_member',
     'trucare_member',
+    'is_archived',
   },
 };
 
 /// Columns that are Postgres json/array types; stored locally as JSON text and decoded on upload.
 const jsonColumns = <String, Set<String>>{
-  'users': {'permissions'},
+  'users': {'permissions', 'dues_barangays'},
 };

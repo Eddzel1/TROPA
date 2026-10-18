@@ -28,6 +28,7 @@ const fallbackTables = <FallbackTable>[
   (table: 'voter_flags', cursorColumn: 'created_at', select: '*'),
   (table: 'locations', cursorColumn: null, select: '*'),
   (table: 'puroks', cursorColumn: null, select: 'id,location_id,name'),
+  (table: 'dues_rates', cursorColumn: null, select: '*'),
 ];
 
 const _deletesCursorKey = '__deletes';
@@ -157,7 +158,8 @@ Future<void> _saveCursor(String key, String cursor) => localDb.writeTransaction(
 /// Ids with local edits still waiting to upload; those rows are never overwritten or deleted here.
 Future<Set<String>> _pendingIds(String table) async {
   final rows = await localDb.getAll(
-      "SELECT DISTINCT json_extract(data, '\$.id') AS id FROM ps_crud WHERE json_extract(data, '\$.type') = ?", [table]);
+      "SELECT DISTINCT json_extract(data, '\$.id') AS id FROM ps_crud WHERE json_extract(data, '\$.type') = ?",
+      [table]);
   return {for (final r in rows) r['id'].toString()};
 }
 
@@ -168,8 +170,8 @@ Future<void> _writeRows(String table, List<Map<String, dynamic>> rows) async {
     for (final row in rows) {
       final id = row['id']?.toString();
       if (id == null || pending.contains(id)) continue;
-      await tx.execute('INSERT OR REPLACE INTO ps_data__$table (id, data) VALUES (?, ?)',
-          [id, jsonEncode(toLocalRow(table, row))]);
+      await tx.execute(
+          'INSERT OR REPLACE INTO ps_data__$table (id, data) VALUES (?, ?)', [id, jsonEncode(toLocalRow(table, row))]);
     }
   });
 }

@@ -8,12 +8,16 @@ class HouseholdFilter {
   final String query;
   final String lgu;
   final String barangay;
+
+  /// Show archived households instead of active ones.
+  final bool archived;
   final int page;
 
   const HouseholdFilter({
     this.query = '',
     this.lgu = 'All',
     this.barangay = 'All',
+    this.archived = false,
     this.page = 0,
   });
 
@@ -21,12 +25,14 @@ class HouseholdFilter {
     String? query,
     String? lgu,
     String? barangay,
+    bool? archived,
     int? page,
   }) {
     return HouseholdFilter(
       query: query ?? this.query,
       lgu: lgu ?? this.lgu,
       barangay: barangay ?? this.barangay,
+      archived: archived ?? this.archived,
       page: page ?? this.page,
     );
   }
@@ -72,7 +78,9 @@ class HouseholdListNotifier extends StateNotifier<AsyncValue<List<Household>>> {
   HouseholdListNotifier(this.ref) : super(const AsyncValue.loading()) {
     refresh();
     // Re-query quietly when local edits or synced rows touch this table.
-    _changes = ref.read(localDbProvider).onChange(['households'], triggerImmediately: false).listen((_) => refresh(quiet: true));
+    _changes = ref
+        .read(localDbProvider)
+        .onChange(['households'], triggerImmediately: false).listen((_) => refresh(quiet: true));
   }
 
   @override
@@ -91,6 +99,7 @@ class HouseholdListNotifier extends StateNotifier<AsyncValue<List<Household>>> {
         query: filter.query,
         lgu: filter.lgu == 'All' ? null : filter.lgu,
         barangay: filter.barangay == 'All' ? null : filter.barangay,
+        archived: filter.archived,
         page: filter.page,
       );
       state = AsyncValue.data(list);
@@ -113,6 +122,16 @@ class HouseholdListNotifier extends StateNotifier<AsyncValue<List<Household>>> {
     try {
       final service = ref.read(supabaseServiceProvider);
       await service.updateHousehold(item);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<bool> setHouseholdArchived(Household household, bool archived) async {
+    try {
+      final service = ref.read(supabaseServiceProvider);
+      await service.setHouseholdArchived(household, archived);
       return true;
     } catch (e) {
       return false;

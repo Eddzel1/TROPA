@@ -1,35 +1,33 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'theme_palettes.dart';
 
-/// App-level theme choice. `light` and `tropa` both render with light brightness.
-enum AppTheme { dark, light, tropa }
-
-final appThemeProvider = StateNotifierProvider<AppThemeNotifier, AppTheme>((ref) {
+/// Id of the chosen palette in `tropaPalettes`.
+final appThemeProvider = StateNotifierProvider<AppThemeNotifier, String>((ref) {
   return AppThemeNotifier();
 });
 
-class AppThemeNotifier extends StateNotifier<AppTheme> {
-  AppThemeNotifier() : super(AppTheme.tropa) {
+class AppThemeNotifier extends StateNotifier<String> {
+  AppThemeNotifier() : super(TropaPalette.defaultId) {
     _loadPreference();
   }
 
   static const _prefKey = 'tropa_theme_mode';
 
+  // The old 'dark' and 'light' choices no longer exist and fall back to TROPA; 'tropa' still matches.
   Future<void> _loadPreference() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final saved = prefs.getString(_prefKey);
-      for (final t in AppTheme.values) {
-        if (t.name == saved) state = t;
-      }
+      if (tropaPalettes.any((p) => p.id == saved)) state = saved!;
     } catch (_) {}
   }
 
-  Future<void> setTheme(AppTheme theme) async {
-    state = theme;
+  Future<void> setTheme(String id) async {
+    state = id;
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_prefKey, theme.name);
+      await prefs.setString(_prefKey, id);
     } catch (_) {}
   }
 }

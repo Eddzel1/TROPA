@@ -95,8 +95,8 @@ class _OfficerFormDialogState extends ConsumerState<OfficerFormDialog> {
     }
     final memberId = _memberId!;
     final existing = widget.officer;
-    final duplicate = widget.current.where((o) =>
-        o.id != existing?.id && o.memberId == memberId && o.position == _position);
+    final duplicate =
+        widget.current.where((o) => o.id != existing?.id && o.memberId == memberId && o.position == _position);
     if (duplicate.isNotEmpty) {
       showSettingsMessage(context, '$_memberName is already a $_position here.', error: true);
       return;
@@ -163,7 +163,8 @@ class _OfficerFormDialogState extends ConsumerState<OfficerFormDialog> {
             if (_memberId != null)
               Container(
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: p.primary.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)),
+                decoration:
+                    BoxDecoration(color: p.primary.withValues(alpha: 0.08), borderRadius: BorderRadius.circular(8)),
                 child: Row(
                   children: [
                     Icon(Icons.how_to_reg, size: 18, color: p.primary),
@@ -176,6 +177,8 @@ class _OfficerFormDialogState extends ConsumerState<OfficerFormDialog> {
             LabeledField(
               label: 'Member *',
               child: TextField(
+                inputFormatters: const [UpperCaseFormatter()],
+                textCapitalization: TextCapitalization.characters,
                 autofocus: true,
                 style: TropaStyles.fieldText(context),
                 decoration: TropaStyles.formField(context, icon: Icons.search, hint: 'Search member by name...'),
@@ -198,7 +201,10 @@ class _OfficerFormDialogState extends ConsumerState<OfficerFormDialog> {
               child: _searching
                   ? const Center(child: CircularProgressIndicator())
                   : _results.isEmpty
-                      ? Center(child: Text('No members found in this ${widget.purok == null || !_onlyPurokMembers ? 'barangay' : 'purok'}.', style: p.caption))
+                      ? Center(
+                          child: Text(
+                              'No members found in this ${widget.purok == null || !_onlyPurokMembers ? 'barangay' : 'purok'}.',
+                              style: p.caption))
                       : ListView.builder(
                           itemCount: _results.length,
                           itemBuilder: (_, i) {
@@ -207,9 +213,12 @@ class _OfficerFormDialogState extends ConsumerState<OfficerFormDialog> {
                             return ListTile(
                               dense: true,
                               selected: selected,
-                              leading: Icon(selected ? Icons.radio_button_checked : Icons.radio_button_unchecked, size: 18),
+                              leading:
+                                  Icon(selected ? Icons.radio_button_checked : Icons.radio_button_unchecked, size: 18),
                               title: Text(m.fullName, style: p.body),
-                              subtitle: Text([m.purok, m.contactNumber].where((s) => s != null && s.isNotEmpty).join(' • '), style: p.meta),
+                              subtitle: Text(
+                                  [m.purok, m.contactNumber].where((s) => s != null && s.isNotEmpty).join(' • '),
+                                  style: p.meta),
                               onTap: () => setState(() {
                                 _memberId = m.id;
                                 _memberName = m.fullName;

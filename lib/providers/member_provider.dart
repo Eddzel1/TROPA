@@ -15,6 +15,9 @@ class MemberFilter {
   final String listingStatus;
   final bool? isCooperativeMember;
   final String? householdId;
+
+  /// Show archived members instead of active ones.
+  final bool archived;
   final int page;
 
   const MemberFilter({
@@ -28,6 +31,7 @@ class MemberFilter {
     this.listingStatus = 'All',
     this.isCooperativeMember,
     this.householdId,
+    this.archived = false,
     this.page = 0,
   });
 
@@ -44,6 +48,7 @@ class MemberFilter {
     bool? isCooperativeMember,
     String? householdId,
     bool clearHousehold = false,
+    bool? archived,
     int? page,
   }) {
     return MemberFilter(
@@ -57,6 +62,7 @@ class MemberFilter {
       listingStatus: listingStatus ?? this.listingStatus,
       isCooperativeMember: isCooperativeMember ?? this.isCooperativeMember,
       householdId: clearHousehold ? null : (householdId ?? this.householdId),
+      archived: archived ?? this.archived,
       page: page ?? this.page,
     );
   }
@@ -98,7 +104,9 @@ class MemberListNotifier extends StateNotifier<AsyncValue<List<FamilyMember>>> {
   MemberListNotifier(this.ref) : super(const AsyncValue.loading()) {
     refresh();
     // Re-query quietly when local edits or synced rows touch this table.
-    _changes = ref.read(localDbProvider).onChange(['family_members'], triggerImmediately: false).listen((_) => refresh(quiet: true));
+    _changes = ref
+        .read(localDbProvider)
+        .onChange(['family_members'], triggerImmediately: false).listen((_) => refresh(quiet: true));
   }
 
   @override
@@ -125,10 +133,11 @@ class MemberListNotifier extends StateNotifier<AsyncValue<List<FamilyMember>>> {
           listingStatus: filter.listingStatus,
           isCoopMember: filter.isCooperativeMember,
           householdId: filter.householdId,
+          archived: filter.archived,
           page: filter.page,
           pageSize: memberPageSize,
         ),
-        service.countAllMembers(),
+        service.countAllMembers(archived: filter.archived),
       ]);
       // Ignore stale responses if the filters changed while this request was in flight
       if (!identical(filter, ref.read(memberFilterProvider))) return;
@@ -174,6 +183,16 @@ class MemberListNotifier extends StateNotifier<AsyncValue<List<FamilyMember>>> {
   Future<bool> transferMember(String memberId, String targetHouseholdId) {
     final service = ref.read(supabaseServiceProvider);
     return service.transferMember(memberId: memberId, targetHouseholdId: targetHouseholdId);
+  }
+
+  Future<bool> setMemberArchived(FamilyMember member, bool archived) async {
+    try {
+      final service = ref.read(supabaseServiceProvider);
+      await service.setMemberArchived(member, archived);
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   Future<bool> deleteMember(String id) async {

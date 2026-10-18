@@ -19,12 +19,12 @@ class SettingsPalette {
   SettingsPalette._(this.isDark, ColorScheme scheme)
       : primary = scheme.primary,
         onPrimary = scheme.onPrimary,
-        cardBg = isDark ? TropaColors.darkSurface1dp : Colors.white,
-        border = isDark ? TropaColors.darkOutlineVariant : const Color(0xFFE2E8F0),
-        text = isDark ? TropaColors.darkOnSurface : TropaColors.lightOnSurface,
-        subtext = isDark ? TropaColors.darkOnSurfaceVariant : TropaColors.lightOnSurfaceVariant,
-        chipBg = isDark ? TropaColors.darkSurface2dp : const Color(0xFFF1F5F9),
-        error = isDark ? TropaColors.errorDark : TropaColors.errorLight,
+        cardBg = scheme.surface,
+        border = scheme.outlineVariant,
+        text = scheme.onSurface,
+        subtext = scheme.onSurfaceVariant,
+        chipBg = scheme.surfaceContainerHighest,
+        error = scheme.error,
         success = isDark ? const Color(0xFF4ADE80) : const Color(0xFF15803D),
         warning = isDark ? const Color(0xFFFBBF24) : const Color(0xFFB45309);
 
@@ -107,7 +107,7 @@ class SettingsCard extends StatelessWidget {
   }
 }
 
-/// Small rounded label, e.g. a role, status or permission scope.
+/// Small rounded label, e.g. an access level, status or permission scope.
 class SettingsChip extends StatelessWidget {
   final String label;
   final Color? color;
@@ -163,10 +163,12 @@ Future<String?> promptText(
   required String label,
   String initial = '',
   String confirmLabel = 'Save',
+  bool upperCase = false,
 }) {
   return showDialog<String>(
     context: context,
-    builder: (_) => _PromptDialog(title: title, label: label, initial: initial, confirmLabel: confirmLabel),
+    builder: (_) =>
+        _PromptDialog(title: title, label: label, initial: initial, confirmLabel: confirmLabel, upperCase: upperCase),
   );
 }
 
@@ -175,8 +177,14 @@ class _PromptDialog extends StatefulWidget {
   final String label;
   final String initial;
   final String confirmLabel;
+  final bool upperCase;
 
-  const _PromptDialog({required this.title, required this.label, required this.initial, required this.confirmLabel});
+  const _PromptDialog(
+      {required this.title,
+      required this.label,
+      required this.initial,
+      required this.confirmLabel,
+      required this.upperCase});
 
   @override
   State<_PromptDialog> createState() => _PromptDialogState();
@@ -202,6 +210,8 @@ class _PromptDialogState extends State<_PromptDialog> {
           child: TextField(
             controller: _controller,
             autofocus: true,
+            inputFormatters: widget.upperCase ? const [UpperCaseFormatter()] : null,
+            textCapitalization: widget.upperCase ? TextCapitalization.characters : TextCapitalization.none,
             style: TropaStyles.fieldText(context),
             decoration: TropaStyles.formField(context),
             onSubmitted: (v) => Navigator.pop(context, v.trim()),
@@ -210,7 +220,8 @@ class _PromptDialogState extends State<_PromptDialog> {
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        FilledButton(onPressed: () => Navigator.pop(context, _controller.text.trim()), child: Text(widget.confirmLabel)),
+        FilledButton(
+            onPressed: () => Navigator.pop(context, _controller.text.trim()), child: Text(widget.confirmLabel)),
       ],
     );
   }

@@ -4,6 +4,7 @@ import '../core/design_system.dart';
 import '../models/models.dart';
 import '../providers/auth_provider.dart';
 import '../providers/member_provider.dart';
+import 'form_fields.dart';
 
 /// Moves a member into another existing household as a regular member, e.g. when they were
 /// encoded as a household leader by mistake. Pops `true` once the transfer is saved.
@@ -46,7 +47,8 @@ class _TransferMemberDialogState extends ConsumerState<TransferMemberDialog> {
     setState(() => _isSaving = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      final deletedOld = await ref.read(memberListNotifierProvider.notifier).transferMember(widget.member.id, target.id);
+      final deletedOld =
+          await ref.read(memberListNotifierProvider.notifier).transferMember(widget.member.id, target.id);
       messenger.showSnackBar(SnackBar(
         content: Text('${widget.member.fullName} moved to ${target.householdName}'
             '${deletedOld ? '; the empty household was removed.' : '.'}'),
@@ -61,9 +63,9 @@ class _TransferMemberDialogState extends ConsumerState<TransferMemberDialog> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final dlgBg = isDark ? TropaColors.darkSurface8dp : TropaColors.lightSurface;
-    final textCol = isDark ? TropaColors.darkOnSurface : TropaColors.lightOnSurface;
-    final subtextCol = isDark ? TropaColors.darkOnSurfaceVariant : TropaColors.lightOnSurfaceVariant;
+    final dlgBg = TropaColors.cardOf(context);
+    final textCol = TropaColors.textHigh(context);
+    final subtextCol = TropaColors.textMedium(context);
     final currentName = _currentHousehold?.householdName ?? '—';
 
     return AlertDialog(
@@ -118,6 +120,8 @@ class _TransferMemberDialogState extends ConsumerState<TransferMemberDialog> {
       onSelected: (h) => setState(() => _target = h),
       fieldViewBuilder: (context, ctrl, focusNode, onSubmit) {
         return TextField(
+          inputFormatters: const [UpperCaseFormatter()],
+          textCapitalization: TextCapitalization.characters,
           controller: ctrl,
           focusNode: focusNode,
           style: TropaText.body(textCol),
@@ -132,7 +136,7 @@ class _TransferMemberDialogState extends ConsumerState<TransferMemberDialog> {
           alignment: Alignment.topLeft,
           child: Material(
             elevation: 4,
-            color: isDark ? TropaColors.darkSurface8dp : Colors.white,
+            color: TropaColors.cardOf(context),
             borderRadius: BorderRadius.circular(8),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 280, maxWidth: 440),

@@ -9,6 +9,7 @@ bucket_definitions:
       - SELECT * FROM households
       - SELECT * FROM family_members
       - SELECT * FROM dues_payments
+      - SELECT * FROM dues_rates
       - SELECT * FROM form_tracking
       - SELECT * FROM locations
       - SELECT id, location_id, name FROM puroks

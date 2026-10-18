@@ -68,9 +68,8 @@ class _LocationsTabState extends ConsumerState<LocationsTab> {
       loading: () => const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator())),
       error: (e, _) => Text('Could not load locations: $e', style: p.body),
       data: (locations) {
-        final filtered = locations
-            .where((l) => _query.isEmpty || '${l.lgu} ${l.barangay}'.toLowerCase().contains(_query))
-            .toList();
+        final filtered =
+            locations.where((l) => _query.isEmpty || '${l.lgu} ${l.barangay}'.toLowerCase().contains(_query)).toList();
         final selected = locations.where((l) => l.id == _selectedId).firstOrNull;
         final lguCount = locations.map((l) => l.lgu).toSet().length;
         final purokCount = locations.fold<int>(0, (sum, l) => sum + l.purokCount);
@@ -89,6 +88,8 @@ class _LocationsTabState extends ConsumerState<LocationsTab> {
           child: Column(
             children: [
               TextField(
+                inputFormatters: const [UpperCaseFormatter()],
+                textCapitalization: TextCapitalization.characters,
                 style: TropaStyles.fieldText(context),
                 decoration: TropaStyles.filterField(context, hint: 'Search barangay or LGU...', search: true),
                 onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
@@ -110,7 +111,8 @@ class _LocationsTabState extends ConsumerState<LocationsTab> {
                     ),
                     title: Text(l.barangay, style: p.bodyStrong),
                     subtitle: Text(l.lgu, style: p.meta),
-                    trailing: Text('${l.householdCount} HH • ${l.memberCount} mbr • ${l.purokCount} prk', style: p.meta),
+                    trailing:
+                        Text('${l.householdCount} HH • ${l.memberCount} mbr • ${l.purokCount} prk', style: p.meta),
                     onTap: () => setState(() => _selectedId = l.id),
                   ),
             ],
@@ -154,7 +156,8 @@ class _LocationDetail extends ConsumerWidget {
   const _LocationDetail({required this.location, required this.onEdit, required this.onDelete});
 
   Future<void> _addPurok(BuildContext context, WidgetRef ref) async {
-    final name = await promptText(context, title: 'Add purok to ${location.barangay}', label: 'Purok name', confirmLabel: 'Add');
+    final name = await promptText(context,
+        title: 'Add purok to ${location.barangay}', label: 'Purok name', confirmLabel: 'Add', upperCase: true);
     if (name == null || name.isEmpty || !context.mounted) return;
     try {
       await ref.read(supabaseServiceProvider).createPurok(location.id, name);
@@ -164,7 +167,8 @@ class _LocationDetail extends ConsumerWidget {
   }
 
   Future<void> _renamePurok(BuildContext context, WidgetRef ref, ({String id, String name}) purok) async {
-    final name = await promptText(context, title: 'Rename purok', label: 'Purok name', initial: purok.name);
+    final name =
+        await promptText(context, title: 'Rename purok', label: 'Purok name', initial: purok.name, upperCase: true);
     if (name == null || name.isEmpty || name == purok.name || !context.mounted) return;
     try {
       await ref.read(supabaseServiceProvider).renamePurok(location.id, purok.id, name);
@@ -234,7 +238,8 @@ class _LocationDetail extends ConsumerWidget {
           ),
           Divider(height: 1, color: p.border),
           puroksAsync.when(
-            loading: () => const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator())),
+            loading: () =>
+                const Padding(padding: EdgeInsets.all(16), child: Center(child: CircularProgressIndicator())),
             error: (e, _) => Text('Could not load puroks: $e', style: p.body),
             data: (puroks) => puroks.isEmpty
                 ? Padding(padding: const EdgeInsets.all(16), child: Text('No puroks yet.', style: p.caption))
@@ -321,7 +326,8 @@ class _LocationFormDialogState extends ConsumerState<_LocationFormDialog> {
       if (widget.location == null) {
         await service.createLocation(lgu: _lgu.text, barangay: _barangay.text, latitude: lat, longitude: lng);
       } else {
-        await service.updateLocation(widget.location!, lgu: _lgu.text, barangay: _barangay.text, latitude: lat, longitude: lng);
+        await service.updateLocation(widget.location!,
+            lgu: _lgu.text, barangay: _barangay.text, latitude: lat, longitude: lng);
       }
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -347,6 +353,7 @@ class _LocationFormDialogState extends ConsumerState<_LocationFormDialog> {
               LabeledField(
                 label: 'LGU (city / municipality)',
                 child: TextFormField(
+                  inputFormatters: const [UpperCaseFormatter()],
                   style: TropaStyles.fieldText(context),
                   controller: _lgu,
                   enabled: !_namesLocked,
@@ -359,6 +366,7 @@ class _LocationFormDialogState extends ConsumerState<_LocationFormDialog> {
               LabeledField(
                 label: 'Barangay',
                 child: TextFormField(
+                  inputFormatters: const [UpperCaseFormatter()],
                   style: TropaStyles.fieldText(context),
                   controller: _barangay,
                   enabled: !_namesLocked,
@@ -372,7 +380,7 @@ class _LocationFormDialogState extends ConsumerState<_LocationFormDialog> {
                 Text('The name is locked because households and members are registered under it.', style: p.caption),
               ],
               const SizedBox(height: 12),
-              Row(
+              ResponsiveFieldRow(
                 children: [
                   Expanded(
                     child: LabeledField(

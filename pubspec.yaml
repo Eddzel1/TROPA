@@ -42,8 +42,11 @@ dependencies:
   file_picker: ^8.1.2
   csv: ^6.0.0
   pdf: ^3.11.1
+  image: ^4.1.2
   printing: ^5.13.2
   google_fonts: ^6.2.1
+  qr_flutter: ^4.1.0
+  barcode_widget: ^2.0.4
   shared_preferences: ^2.3.2
   cached_network_image: ^3.4.1
   powersync: ^1.18.0
@@ -68,3 +71,4 @@ flutter:
   assets:
     - .env
     - assets/images/
+    - assets/tropa_id/

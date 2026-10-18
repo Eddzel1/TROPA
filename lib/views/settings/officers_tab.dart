@@ -46,7 +46,8 @@ class _OfficersTabState extends ConsumerState<OfficersTab> {
               ),
               DropdownMenu<String>(
                 key: ValueKey(locations.length),
-                width: 340,
+                // Leaves room for page and card padding on phones.
+                width: (context.screenWidth - 112).clamp(200.0, 340.0),
                 enableFilter: true,
                 requestFocusOnTap: true,
                 initialSelection: _locationId,

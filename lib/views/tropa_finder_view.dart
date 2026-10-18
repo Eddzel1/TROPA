@@ -10,6 +10,7 @@ import '../models/models.dart';
 import '../providers/voter_provider.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/voter_snapshot_status.dart';
+import '../widgets/page_header.dart';
 
 class TropaFinderView extends ConsumerStatefulWidget {
   const TropaFinderView({super.key});
@@ -54,6 +55,72 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
       return 'TROPA MEMBER';
     }
     return raw.trim();
+  }
+
+  Widget _pageBody({required bool scroll, required EdgeInsets padding, required Widget child}) =>
+      scroll ? SingleChildScrollView(padding: padding, child: child) : Padding(padding: padding, child: child);
+
+  /// Flagging voters is switched off for now; flagged voters still show HOLD.
+  static const _flaggingEnabled = false;
+
+  Widget _flagAction(Voter v) => v.isFlagged
+      ? const TropaBadge('HOLD', color: TropaColors.error)
+      : !_flaggingEnabled
+          ? const SizedBox.shrink()
+          : OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(foregroundColor: TropaColors.error, visualDensity: VisualDensity.compact),
+          icon: const Icon(Icons.flag_outlined, size: 16),
+          label: Text('Flag', style: TropaText.action()),
+          onPressed: () => _openFlagDialog(v),
+        );
+
+  /// Phone/tablet row: name, location, status and PC/HHL stacked, flag action on the right.
+  Widget _stackedVoterRow(Voter v, String statusText, Color textCol, Color subtextCol, Color primaryCol) {
+    final nameCol = v.isFlagged ? TropaColors.error : textCol;
+    final name = [
+      '${v.lastname},',
+      v.firstname,
+      if ((v.middlename ?? '').trim().isNotEmpty) v.middlename!.trim(),
+      if ((v.ext ?? '').trim().isNotEmpty) v.ext!.trim(),
+    ].join(' ');
+    final place = [v.purok, v.barangay, v.lgu].where((x) => (x ?? '').trim().isNotEmpty).join(', ');
+    final pc = v.pc?.trim() ?? '';
+    final hhl = v.hhl?.trim() ?? '';
+    return Tooltip(
+      message: v.isFlagged ? 'FLAG: ${v.flagReason ?? ''}' : '',
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(name, style: TropaText.bodyStrong(nameCol)),
+                  if (place.isNotEmpty) Text(place, style: TropaText.meta(subtextCol)),
+                  if (statusText != '—' || pc.isNotEmpty || hhl.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        if (statusText != '—')
+                          TropaBadge(statusText, color: statusText == 'TROPA MEMBER' ? primaryCol : subtextCol),
+                        if (pc.isNotEmpty) Text('PC: $pc', style: TropaText.caption(subtextCol)),
+                        if (hhl.isNotEmpty) Text('HHL: $hhl', style: TropaText.caption(subtextCol)),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            _flagAction(v),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _statusCell(String text, int flex, bool isDark, Color primaryCol, TextStyle defaultStyle) {
@@ -185,8 +252,11 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
         ));
   }
 
-  Widget _nameField(TextEditingController ctrl, String hint, Color textCol, Color borderCol, Color fillCol, Color primaryCol, Color subtextCol) {
+  Widget _nameField(TextEditingController ctrl, String hint, Color textCol, Color borderCol, Color fillCol,
+      Color primaryCol, Color subtextCol) {
     return TextField(
+      inputFormatters: const [UpperCaseFormatter()],
+      textCapitalization: TextCapitalization.characters,
       controller: ctrl,
       style: TropaText.body(textCol),
       decoration: TropaStyles.filterField(context, hint: hint, search: true),
@@ -213,11 +283,12 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
       isExpanded: true,
       icon: Icon(Icons.keyboard_arrow_down, size: 18, color: textCol),
       decoration: TropaStyles.filterField(context),
-      dropdownColor: isDark ? TropaColors.darkSurface8dp : Colors.white,
+      dropdownColor: TropaColors.cardOf(context),
       style: style,
       items: [
         DropdownMenuItem(value: 'All', child: Text(allLabel, style: style, overflow: TextOverflow.ellipsis)),
-        ...options.map((o) => DropdownMenuItem(value: o, child: Text(o, style: style, overflow: TextOverflow.ellipsis))),
+        ...options
+            .map((o) => DropdownMenuItem(value: o, child: Text(o, style: style, overflow: TextOverflow.ellipsis))),
       ],
       onChanged: (v) {
         if (v != null) onChanged(v);
@@ -227,9 +298,8 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
 
   void _openFlagDialog(Voter voter) {
     final reasonCtrl = TextEditingController(text: 'Dual Precinct Registration Hold');
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final dlgBg = isDark ? TropaColors.darkSurface : Colors.white;
-    final dlgText = isDark ? TropaColors.darkOnSurface : TropaColors.lightOnSurface;
+    final dlgBg = TropaColors.cardOf(context);
+    final dlgText = TropaColors.textHigh(context);
 
     showDialog(
       context: context,
@@ -245,6 +315,8 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
             LabeledField(
               label: 'Flagging Audit Reason *',
               child: TextField(
+                inputFormatters: const [UpperCaseFormatter()],
+                textCapitalization: TextCapitalization.characters,
                 style: TropaStyles.fieldText(context),
                 controller: reasonCtrl,
                 decoration: TropaStyles.formField(context),
@@ -270,17 +342,22 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
   @override
   Widget build(BuildContext context) {
     final votersAsync = ref.watch(voterNotifierProvider);
+    final compact = context.isCompactScreen;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryCol = TropaColors.primaryOf(context);
-    final cardBg = isDark ? TropaColors.darkSurface1dp : Colors.white;
-    final borderCol = isDark ? TropaColors.darkOutlineVariant : const Color(0xFFE2E8F0);
-    final textCol = isDark ? TropaColors.darkOnSurface : TropaColors.lightOnSurface;
-    final subtextCol = isDark ? TropaColors.darkOnSurfaceVariant : TropaColors.lightOnSurfaceVariant;
-    final chipBg = isDark ? TropaColors.darkSurface2dp : const Color(0xFFF1F5F9);
-    final fieldFill = isDark ? TropaColors.darkSurface : Colors.white;
+    final cardBg = TropaColors.cardOf(context);
+    final borderCol = TropaColors.borderOf(context);
+    final textCol = TropaColors.textHigh(context);
+    final subtextCol = TropaColors.textMedium(context);
+    final chipBg = TropaColors.chipOf(context);
+    final fieldFill = TropaColors.fieldFillOf(context);
     final filter = ref.watch(voterFilterProvider);
     final locations = ref.watch(locationsProvider).valueOrNull ?? const [];
-    final lgus = ({for (final l in locations) if (l.lgu.isNotEmpty) l.lgu}).toList()..sort();
+    final lgus = ({
+      for (final l in locations)
+        if (l.lgu.isNotEmpty) l.lgu
+    }).toList()
+      ..sort();
     final barangays = ({
       for (final l in locations)
         if (l.barangay.isNotEmpty && (filter.lgu == 'All' || l.lgu == filter.lgu)) l.barangay
@@ -289,35 +366,27 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Padding(
-        padding: const EdgeInsets.all(24),
+      // Phones scroll the whole page so the header and filters move out of the way of the results.
+      body: _pageBody(
+        scroll: compact,
+        padding: EdgeInsets.all(compact ? 16 : 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text('Tropa Finder — Voter Verification', style: TropaText.pageTitle(textCol)),
-                        const SizedBox(width: 10),
-                        TropaBadge('COMELEC SYNC', color: TropaColors.secondaryStrongOf(context)),
-                      ],
-                    ),
-                    Text('Real-time cross-referencing of registered voters, COMELEC precinct records, and TROPA Member status', style: TropaText.meta(subtextCol)),
-                    const SizedBox(height: 4),
-                    const VoterSnapshotStatusLine(),
-                  ],
-                ),
+            TropaPageHeader(
+              title: 'Tropa Finder — Voter Verification',
+              titleTrailing: TropaBadge('COMELEC SYNC', color: TropaColors.secondaryStrongOf(context)),
+              subtitle:
+                  'Real-time cross-referencing of registered voters, COMELEC precinct records, and TROPA Member status',
+              below: const [SizedBox(height: 4), VoterSnapshotStatusLine()],
+              actions: [
                 OutlinedButton.icon(
                   style: TropaStyles.secondaryAction(context),
                   icon: const Icon(Icons.upload_file, size: 18),
                   label: const Text('Upload Blocklist CSV'),
                   onPressed: () async {
-                    final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['csv']);
+                    final result =
+                        await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['csv']);
                     if (result != null && result.files.first.bytes != null) {
                       final service = ref.read(supabaseServiceProvider);
                       await service.uploadVoterBlocklist(
@@ -326,7 +395,8 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
                       );
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Uploaded ${result.files.first.name} to voter_blocklist storage bucket.')),
+                          SnackBar(
+                              content: Text('Uploaded ${result.files.first.name} to voter_blocklist storage bucket.')),
                         );
                       }
                     }
@@ -337,13 +407,25 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
             const SizedBox(height: 20),
 
             // Filters — Row 1: name search (COMELEC `voters` table)
+            if (compact) ...[
+              _nameField(_lastNameCtrl, 'Last Name', textCol, borderCol, fieldFill, primaryCol, subtextCol),
+              const SizedBox(height: 10),
+            ],
             Row(
               children: [
-                Expanded(child: _nameField(_lastNameCtrl, 'Last Name', textCol, borderCol, fieldFill, primaryCol, subtextCol)),
+                if (!compact) ...[
+                  Expanded(
+                      child: _nameField(
+                          _lastNameCtrl, 'Last Name', textCol, borderCol, fieldFill, primaryCol, subtextCol)),
+                  const SizedBox(width: 10),
+                ],
+                Expanded(
+                    child: _nameField(
+                        _firstNameCtrl, 'First Name', textCol, borderCol, fieldFill, primaryCol, subtextCol)),
                 const SizedBox(width: 10),
-                Expanded(child: _nameField(_firstNameCtrl, 'First Name', textCol, borderCol, fieldFill, primaryCol, subtextCol)),
-                const SizedBox(width: 10),
-                Expanded(child: _nameField(_middleNameCtrl, 'Middle Name', textCol, borderCol, fieldFill, primaryCol, subtextCol)),
+                Expanded(
+                    child: _nameField(
+                        _middleNameCtrl, 'Middle Name', textCol, borderCol, fieldFill, primaryCol, subtextCol)),
               ],
             ),
             const SizedBox(height: 10),
@@ -358,7 +440,8 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
                     options: lgus,
                     // Barangay list depends on the LGU, so reset it when the LGU changes
                     onChanged: (v) => _applyFilter((f) => f.copyWith(lgu: v, barangay: 'All')),
-                    isDark: isDark, textCol: textCol, borderCol: borderCol, fillCol: fieldFill, primaryCol: primaryCol, subtextCol: subtextCol,
+                    isDark: isDark, textCol: textCol, borderCol: borderCol, fillCol: fieldFill, primaryCol: primaryCol,
+                    subtextCol: subtextCol,
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -368,7 +451,12 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
                     allLabel: 'All Barangays',
                     options: barangays,
                     onChanged: (v) => _applyFilter((f) => f.copyWith(barangay: v)),
-                    isDark: isDark, textCol: textCol, borderCol: borderCol, fillCol: fieldFill, primaryCol: primaryCol, subtextCol: subtextCol,
+                    isDark: isDark,
+                    textCol: textCol,
+                    borderCol: borderCol,
+                    fillCol: fieldFill,
+                    primaryCol: primaryCol,
+                    subtextCol: subtextCol,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -382,7 +470,9 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
             const SizedBox(height: 20),
 
             // Voter Cross-reference list
-            Expanded(
+            Flexible(
+              flex: compact ? 0 : 1,
+              fit: compact ? FlexFit.loose : FlexFit.tight,
               child: votersAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, _) => Center(child: Text('Error querying voters: $e', style: TextStyle(color: textCol))),
@@ -392,7 +482,11 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
                       child: Text('No registered voters match these filters.', style: TropaText.body(subtextCol)),
                     );
                   }
-                  return Container(
+                  // Ten columns need ~1000px; narrower screens show each voter as a stacked row.
+                  return LayoutBuilder(builder: (context, constraints) {
+                    final stacked = constraints.maxWidth < 1000;
+                    return Container(
+                    height: compact ? null : constraints.maxHeight,
                     decoration: BoxDecoration(
                       color: cardBg,
                       borderRadius: BorderRadius.circular(14),
@@ -410,27 +504,36 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(14),
                       child: Column(
+                        mainAxisSize: compact ? MainAxisSize.min : MainAxisSize.max,
                         children: [
                           // Column header
+                          if (!stacked) ...[
                           Container(
                             color: chipBg,
                             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                             child: Row(
                               children: [
                                 for (final c in _columns) _cell(c.label, c.flex, TropaText.tableHeader(subtextCol)),
-                                const SizedBox(width: _actionWidth),
+                                const SizedBox(width: _flaggingEnabled ? _actionWidth : 64),
                               ],
                             ),
                           ),
                           Divider(height: 1, color: borderCol),
-                          Expanded(
+                          ],
+                          Flexible(
+                            flex: compact ? 0 : 1,
+                            fit: compact ? FlexFit.loose : FlexFit.tight,
                             child: ListView.separated(
+                              // At most 100 rows, so phones lay them all out inside the page scroll.
+                              shrinkWrap: compact,
+                              physics: compact ? const NeverScrollableScrollPhysics() : null,
                               itemCount: voters.length,
                               separatorBuilder: (_, __) => Divider(height: 1, color: borderCol),
                               itemBuilder: (context, index) {
                                 final v = voters[index];
                                 final rowStyle = TropaText.body(v.isFlagged ? TropaColors.error : textCol);
                                 final statusText = _formatStatus(v.status);
+                                if (stacked) return _stackedVoterRow(v, statusText, textCol, subtextCol, primaryCol);
                                 return Tooltip(
                                   message: v.isFlagged ? 'FLAG: ${v.flagReason ?? ''}' : '',
                                   child: Padding(
@@ -447,17 +550,10 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
                                         _statusCell(statusText, 3, isDark, primaryCol, rowStyle),
                                         _pcHhlCell(v.pc, v.hhl, 4, rowStyle, subtextCol),
                                         SizedBox(
-                                          width: _actionWidth,
+                                          width: _flaggingEnabled ? _actionWidth : 64,
                                           child: Align(
                                             alignment: Alignment.centerRight,
-                                            child: v.isFlagged
-                                                ? const TropaBadge('HOLD', color: TropaColors.error)
-                                                : OutlinedButton.icon(
-                                                    style: OutlinedButton.styleFrom(foregroundColor: TropaColors.error, visualDensity: VisualDensity.compact),
-                                                    icon: const Icon(Icons.flag_outlined, size: 16),
-                                                    label: Text('Flag', style: TropaText.action()),
-                                                    onPressed: () => _openFlagDialog(v),
-                                                  ),
+                                            child: _flagAction(v),
                                           ),
                                         ),
                                       ],
@@ -471,6 +567,7 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
                       ),
                     ),
                   );
+                  });
                 },
               ),
             ),

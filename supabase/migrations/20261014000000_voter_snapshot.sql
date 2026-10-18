@@ -45,12 +45,14 @@ insert into storage.buckets (id, name, public)
 values ('voter-snapshots', 'voter-snapshots', false)
 on conflict (id) do nothing;
 
--- Admin check by email: some users rows don't share the auth user id.
+-- Admin check: an active profile granting 'system_admin' or 'user_management' (same as 20261015000000_admin_settings.sql).
 create or replace function public.is_tropa_admin() returns boolean
 language sql stable security definer set search_path = public as $$
   select exists (
-    select 1 from public.users
-    where lower(email) = lower(auth.jwt() ->> 'email') and role = 'admin'
+    select 1 from public.users u
+    where u.id = auth.uid()
+      and coalesce(u.status, 'active') = 'active'
+      and (to_jsonb(u.permissions) ? 'system_admin' or to_jsonb(u.permissions) ? 'user_management')
   );
 $$;
 

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../core/design_system.dart';
 import '../widgets/form_fields.dart';
+import '../widgets/page_header.dart';
 import '../providers/activity_log_provider.dart';
 import '../core/ph_time.dart';
 
@@ -17,29 +18,26 @@ class ActivityLogsView extends ConsumerWidget {
     final dateFormat = DateFormat('yyyy-MM-dd HH:mm:ss');
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final cardBg = isDark ? TropaColors.darkSurface1dp : Colors.white;
-    final borderCol = isDark ? TropaColors.darkOutlineVariant : const Color(0xFFE2E8F0);
-    final textCol = isDark ? TropaColors.darkOnSurface : TropaColors.lightOnSurface;
-    final subtextCol = isDark ? TropaColors.darkOnSurfaceVariant : TropaColors.lightOnSurfaceVariant;
-    final payloadBg = isDark ? TropaColors.darkSurface0dp : const Color(0xFFF8FAFC);
+    final cardBg = TropaColors.cardOf(context);
+    final borderCol = TropaColors.borderOf(context);
+    final textCol = TropaColors.textHigh(context);
+    final subtextCol = TropaColors.textMedium(context);
+    final payloadBg = TropaColors.subtleOf(context);
+
+    // Phones: the action badge joins the title instead of taking a fixed leading slot.
+    final compact = context.isCompactScreen;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.all(compact ? 16 : 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Audit Logs & Mutation Inspector', style: TropaText.pageTitle(textCol)),
-                    Text('Immutable trail of all database mutations, uploads, and session authentications', style: TropaText.meta(subtextCol)),
-                  ],
-                ),
+            TropaPageHeader(
+              title: 'Audit Logs & Mutation Inspector',
+              subtitle: 'Immutable trail of all database mutations, uploads, and session authentications',
+              actions: [
                 IconButton.filledTonal(
                   icon: const Icon(Icons.refresh, size: 20),
                   tooltip: 'Poll Latest Logs',
@@ -59,7 +57,7 @@ class ActivityLogsView extends ConsumerWidget {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.receipt_long_outlined, size: 48, color: TropaColors.darkOutline),
+                          Icon(Icons.receipt_long_outlined, size: 48, color: TropaColors.textDisabled(context)),
                           const SizedBox(height: 12),
                           Text('No mutation logs recorded yet', style: TropaText.sectionTitle(textCol)),
                           const SizedBox(height: 4),
@@ -96,18 +94,21 @@ class ActivityLogsView extends ConsumerWidget {
                           final isUpdate = l.action.contains('UPDATE') || l.action.contains('FLAG');
 
                           final badgeColor = isDelete
-                              ? (isDark ? TropaColors.errorDark : TropaColors.errorLight)
+                              ? TropaColors.errorOf(context)
                               : (isCreate
                                   ? TropaColors.secondaryStrongOf(context)
                                   : TropaColors.primaryOf(context));
 
                           return ExpansionTile(
-                            tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                            leading: TropaBadge(l.action, color: badgeColor),
-                            title: Row(
+                            tilePadding: EdgeInsets.symmetric(horizontal: compact ? 12 : 20, vertical: 4),
+                            leading: compact ? null : TropaBadge(l.action, color: badgeColor),
+                            title: Wrap(
+                              spacing: 8,
+                              runSpacing: 4,
+                              crossAxisAlignment: WrapCrossAlignment.center,
                               children: [
+                                if (compact) TropaBadge(l.action, color: badgeColor),
                                 Text(l.entityType, style: TropaText.bodyStrong(textCol)),
-                                const SizedBox(width: 8),
                                 if (l.entityId != null)
                                   Text(
                                     '[ID: ${l.entityId!.substring(0, l.entityId!.length > 8 ? 8 : l.entityId!.length)}...]',

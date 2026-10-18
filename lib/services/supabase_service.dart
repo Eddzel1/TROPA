@@ -5,6 +5,7 @@ import 'package:powersync/powersync.dart' show PowerSyncDatabase;
 import 'package:powersync/sqlite_async.dart' show SqliteWriteContext;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
+import '../core/dues_math.dart';
 import '../core/geo.dart';
 import '../data/powersync_schema.dart';
 import '../models/models.dart';
@@ -76,8 +77,7 @@ class SupabaseService {
   }
 
   /// Escapes LIKE wildcards in user input; pair with `ESCAPE '\'`.
-  static String _escapeLike(String v) =>
-      v.trim().replaceAll(r'\', r'\\').replaceAll('%', r'\%').replaceAll('_', r'\_');
+  static String _escapeLike(String v) => v.trim().replaceAll(r'\', r'\\').replaceAll('%', r'\%').replaceAll('_', r'\_');
 
   static Future<void> _insert(SqliteWriteContext tx, String table, Map<String, dynamic> row) async {
     final cols = row.keys.toList();
@@ -118,13 +118,13 @@ class SupabaseService {
   }) async {
     try {
       await client.storage.from(bucket).uploadBinary(
-        path,
-        bytes,
-        fileOptions: FileOptions(
-          contentType: contentType,
-          upsert: true,
-        ),
-      );
+            path,
+            bytes,
+            fileOptions: FileOptions(
+              contentType: contentType,
+              upsert: true,
+            ),
+          );
       final publicUrl = client.storage.from(bucket).getPublicUrl(path);
       return publicUrl;
     } catch (e) {
@@ -133,27 +133,32 @@ class SupabaseService {
     }
   }
 
-  Future<String?> uploadProfilePicture({
+  /// Uploads a member photo, already compressed to JPEG (see compressPhoto), and returns its
+  /// public URL. Throws when the upload fails, so the caller doesn't save the member without it.
+  Future<String> uploadProfilePicture({
     required String memberId,
     required Uint8List bytes,
-    String extension = 'jpg',
   }) async {
-    final fileName = '$memberId-${DateTime.now().millisecondsSinceEpoch}.$extension';
-    final path = 'avatars/$fileName';
-    final url = await uploadStorageFile(
-      bucket: 'profile-pictures',
-      path: path,
-      bytes: bytes,
-      contentType: 'image/$extension',
-    );
-    if (url != null) {
-      await logActivity(
-        action: 'UPLOAD_AVATAR',
-        entityType: 'FamilyMember',
-        entityId: memberId,
-        details: {'path': path, 'url': url},
-      );
+    final path = 'avatars/$memberId-${DateTime.now().millisecondsSinceEpoch}.jpg';
+    try {
+      await client.storage.from('profile-pictures').uploadBinary(
+            path,
+            bytes,
+            // Each path is new (member id + timestamp), so no upsert: that would also need read and update rights.
+            fileOptions: const FileOptions(contentType: 'image/jpeg'),
+          );
+    } on StorageException catch (e) {
+      throw Exception('the photo could not be uploaded (${e.message})');
+    } catch (_) {
+      throw Exception('the photo could not be uploaded. Uploading a photo needs an internet connection');
     }
+    final url = client.storage.from('profile-pictures').getPublicUrl(path);
+    await logActivity(
+      action: 'UPLOAD_AVATAR',
+      entityType: 'FamilyMember',
+      entityId: memberId,
+      details: {'path': path, 'url': url},
+    );
     return url;
   }
 
@@ -209,12 +214,13 @@ class SupabaseService {
     String? query,
     String? lgu,
     String? barangay,
+    bool archived = false,
     int page = 0,
     int pageSize = 50,
   }) async {
     try {
-      final where = <String>[];
-      final params = <Object?>[];
+      final where = <String>['COALESCE(is_archived, 0) = ?'];
+      final params = <Object?>[archived ? 1 : 0];
       if (lgu != null && lgu.isNotEmpty && lgu != 'All') {
         where.add('UPPER(TRIM(lgu)) = ?');
         params.add(lgu.trim().toUpperCase());
@@ -246,9 +252,21 @@ class SupabaseService {
     }
   }
 
+  // Names are stored upper case; older mixed-case rows convert the next time they are saved.
+  static const _memberNameKeys = ['firstname', 'middlename', 'lastname', 'extension'];
+  static const _householdNameKeys = ['household_name'];
+
+  Map<String, dynamic> _upperNames(Map<String, dynamic> json, List<String> keys) {
+    for (final k in keys) {
+      final v = json[k];
+      if (v is String) json[k] = v.trim().toUpperCase();
+    }
+    return json;
+  }
+
   Future<Household> createHousehold(Household item) async {
     await db.writeTransaction((tx) async {
-      await _insert(tx, 'households', item.toJson());
+      await _insert(tx, 'households', _upperNames(item.toJson(), _householdNameKeys));
       await _log(
         tx,
         action: 'CREATE',
@@ -261,7 +279,7 @@ class SupabaseService {
   }
 
   Future<Household> updateHousehold(Household item) async {
-    final payload = item.toJson();
+    final payload = _upperNames(item.toJson(), _householdNameKeys);
     payload['updated_date'] = _now();
     await db.writeTransaction((tx) async {
       await _update(tx, 'households', item.id, payload);
@@ -274,6 +292,28 @@ class SupabaseService {
       );
     });
     return Household.fromJson((await _getRow('households', item.id))!);
+  }
+
+  /// Archives (or restores) [household] together with every member in it.
+  Future<void> setHouseholdArchived(Household household, bool archived) async {
+    await db.writeTransaction((tx) async {
+      final now = _now();
+      await _update(tx, 'households', household.id, {'is_archived': archived, 'updated_date': now});
+      final members = await tx.getAll(
+        'SELECT id FROM family_members WHERE household_id = ? AND COALESCE(is_archived, 0) != ?',
+        [household.id, archived ? 1 : 0],
+      );
+      for (final m in members) {
+        await _update(tx, 'family_members', m['id'] as String, {'is_archived': archived, 'updated_date': now});
+      }
+      await _log(
+        tx,
+        action: archived ? 'ARCHIVE' : 'UNARCHIVE',
+        entityType: 'Household',
+        entityId: household.id,
+        details: {'household_name': household.householdName, 'members': members.length},
+      );
+    });
   }
 
   Future<void> deleteHousehold(String id) async {
@@ -329,6 +369,7 @@ class SupabaseService {
     String? listingStatus,
     bool? isCoopMember,
     String? householdId,
+    bool archived = false,
     int page = 0,
     int pageSize = 50,
   }) async {
@@ -346,6 +387,7 @@ class SupabaseService {
         params.add('${_escapeLike(v)}%');
       }
 
+      eq('COALESCE(is_archived, 0)', archived ? 1 : 0);
       if (has(householdId)) eq('household_id', householdId);
       if (has(lgu)) eq('lgu', lgu);
       if (has(barangay)) eq('barangay', barangay);
@@ -376,9 +418,11 @@ class SupabaseService {
     }
   }
 
-  Future<int> countAllMembers() async {
+  Future<int> countAllMembers({bool archived = false}) async {
     try {
-      return (await db.get('SELECT COUNT(*) AS n FROM family_members'))['n'] as int;
+      return (await db.get(
+              'SELECT COUNT(*) AS n FROM family_members WHERE COALESCE(is_archived, 0) = ?', [archived ? 1 : 0]))['n']
+          as int;
     } catch (e) {
       return 0;
     }
@@ -386,7 +430,7 @@ class SupabaseService {
 
   Future<FamilyMember> createMember(FamilyMember member) async {
     await db.writeTransaction((tx) async {
-      await _insert(tx, 'family_members', member.toJson());
+      await _insert(tx, 'family_members', _upperNames(member.toJson(), _memberNameKeys));
       await _log(
         tx,
         action: 'CREATE',
@@ -402,7 +446,7 @@ class SupabaseService {
     if (members.isEmpty) return [];
     await db.writeTransaction((tx) async {
       for (final m in members) {
-        await _insert(tx, 'family_members', m.toJson());
+        await _insert(tx, 'family_members', _upperNames(m.toJson(), _memberNameKeys));
       }
       await _log(
         tx,
@@ -424,7 +468,7 @@ class SupabaseService {
   }
 
   Future<FamilyMember> updateMember(FamilyMember member) async {
-    final payload = member.toJson();
+    final payload = _upperNames(member.toJson(), _memberNameKeys);
     payload['updated_date'] = _now();
     await db.writeTransaction((tx) async {
       await _update(tx, 'family_members', member.id, payload);
@@ -469,7 +513,8 @@ class SupabaseService {
       await tx.execute('UPDATE dues_payments SET household_id = ? WHERE member_id = ?', [targetHouseholdId, memberId]);
 
       // Member counts on a household are encoded by hand, so only raise them when the roster outgrows them.
-      final targetCount = (await tx.get('SELECT COUNT(*) AS n FROM family_members WHERE household_id = ?', [targetHouseholdId]))['n'] as int;
+      final targetCount = (await tx
+          .get('SELECT COUNT(*) AS n FROM family_members WHERE household_id = ?', [targetHouseholdId]))['n'] as int;
       await tx.execute(
         'UPDATE households SET total_members = MAX(COALESCE(total_members, 0), ?), '
         'active_members = MAX(COALESCE(active_members, 0), ?), updated_date = ? WHERE id = ?',
@@ -477,11 +522,17 @@ class SupabaseService {
       );
 
       if (oldId != null && oldId.isNotEmpty) {
-        final left = (await tx.get('SELECT COUNT(*) AS n FROM family_members WHERE household_id = ?', [oldId]))['n'] as int;
-        final dues = (await tx.get('SELECT COUNT(*) AS n FROM dues_payments WHERE household_id = ?', [oldId]))['n'] as int;
+        final left =
+            (await tx.get('SELECT COUNT(*) AS n FROM family_members WHERE household_id = ?', [oldId]))['n'] as int;
+        final dues =
+            (await tx.get('SELECT COUNT(*) AS n FROM dues_payments WHERE household_id = ?', [oldId]))['n'] as int;
         if (left == 0 && dues == 0) {
           await tx.execute('DELETE FROM households WHERE id = ?', [oldId]);
-          await _log(tx, action: 'DELETE', entityType: 'Household', entityId: oldId, details: {'reason': 'emptied by member transfer'});
+          await _log(tx,
+              action: 'DELETE',
+              entityType: 'Household',
+              entityId: oldId,
+              details: {'reason': 'emptied by member transfer'});
           deletedOld = true;
         } else {
           await tx.execute(
@@ -507,6 +558,20 @@ class SupabaseService {
     return deletedOld;
   }
 
+  /// Archived members drop off the Members page but keep their household, dues and history.
+  Future<void> setMemberArchived(FamilyMember member, bool archived) async {
+    await db.writeTransaction((tx) async {
+      await _update(tx, 'family_members', member.id, {'is_archived': archived, 'updated_date': _now()});
+      await _log(
+        tx,
+        action: archived ? 'ARCHIVE' : 'UNARCHIVE',
+        entityType: 'FamilyMember',
+        entityId: member.id,
+        details: {'name': member.fullName},
+      );
+    });
+  }
+
   Future<void> deleteMember(String id) async {
     await db.writeTransaction((tx) async {
       await tx.execute('DELETE FROM family_members WHERE id = ?', [id]);
@@ -515,59 +580,363 @@ class SupabaseService {
   }
 
   // ==========================================
-  // Dues Payments CRUD
+  // Dues & Ledger
   // ==========================================
-  Future<List<DuesPayment>> getDuesPayments({
-    String? memberId,
-    String? householdId,
-    String? query,
-    int page = 0,
-    int pageSize = 50,
-  }) async {
-    try {
-      final where = <String>[];
-      final params = <Object?>[];
-      if (memberId != null && memberId.isNotEmpty) {
-        where.add('member_id = ?');
-        params.add(memberId);
-      }
-      if (householdId != null && householdId.isNotEmpty) {
-        where.add('household_id = ?');
-        params.add(householdId);
-      }
-      if (query != null && query.trim().isNotEmpty) {
-        final q = '%${_escapeLike(query)}%';
-        where.add(r"(payment_month LIKE ? ESCAPE '\' OR reference_number LIKE ? ESCAPE '\')");
-        params.addAll([q, q]);
-      }
-      final rows = await _rows(
-        'SELECT * FROM dues_payments ${_whereSql(where)} ORDER BY payment_date DESC LIMIT ? OFFSET ?',
-        [...params, pageSize, page * pageSize],
-      );
-      return rows.map(DuesPayment.fromJson).toList();
-    } catch (e) {
-      return [];
+  /// [user]'s dues barangays, resolved against `locations`.
+  Future<DuesScope> getDuesScope(AppUser user) async {
+    if (user.duesCollectsEverywhere) return const DuesScope(everywhere: true);
+    final ids = user.duesBarangays.toSet();
+    final all = await getLocations();
+    return DuesScope(barangays: [
+      for (final l in all)
+        if (ids.contains(l.id)) l
+    ]);
+  }
+
+  /// SQL condition limiting rows of [alias] (which has lgu and barangay columns) to [scope].
+  static String _duesScopeSql(DuesScope scope, String alias, List<Object?> params) {
+    if (scope.everywhere) return '1';
+    final keys = scope.keys;
+    if (keys.isEmpty) return '0';
+    params.addAll(keys);
+    return "(${_n('$alias.lgu')} || '|' || ${_n('$alias.barangay')}) IN (${List.filled(keys.length, '?').join(', ')})";
+  }
+
+  /// Months covered by a member's non-void payments, as `months_paid`.
+  static const _monthsPaidSql = "(SELECT COALESCE(SUM(COALESCE(d.months_covered, 1)), 0) FROM dues_payments d "
+      "WHERE d.member_id = m.id AND COALESCE(d.status, 'completed') != 'void') AS months_paid";
+
+  static const _duesMemberSelect = 'SELECT m.id, m.firstname, m.lastname, m.middlename, m.extension, '
+      'm.household_id, h.household_name, m.lgu, m.barangay, m.purok, m.membership_date, '
+      'm.is_cooperative_member, $_monthsPaidSql '
+      'FROM family_members m LEFT JOIN households h ON h.id = m.household_id';
+
+  /// Every word of [query] must match the first, middle or last name of [alias].
+  static void _nameWords(String alias, String? query, List<String> where, List<Object?> params) {
+    for (final w in (query ?? '').trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty)) {
+      final q = '%${_escapeLike(w)}%';
+      where.add(
+          "($alias.firstname LIKE ? ESCAPE '\\' OR $alias.lastname LIKE ? ESCAPE '\\' OR $alias.middlename LIKE ? ESCAPE '\\')");
+      params.addAll([q, q, q]);
     }
   }
 
-  Future<DuesPayment> createDuesPayment(DuesPayment payment) async {
+  /// Members in [scope] whose name matches [query], by name.
+  Future<List<DuesMember>> searchDuesMembers({required DuesScope scope, String? query, int limit = 50}) async {
+    final params = <Object?>[];
+    final where = [_duesScopeSql(scope, 'm', params)];
+    _nameWords('m', query, where, params);
+    final rows = await _rows(
+      '$_duesMemberSelect ${_whereSql(where)} ORDER BY m.lastname, m.firstname LIMIT ?',
+      [...params, limit],
+    );
+    return rows.map(DuesMember.fromRow).toList();
+  }
+
+  /// Households with at least one member in [scope] whose household name, or one of whose
+  /// members' names, matches [query]. Members are matched by their own barangay, like the server's
+  /// `can_collect_dues_for`, so only in-scope members are listed.
+  Future<List<DuesHousehold>> searchDuesHouseholds({required DuesScope scope, String? query, int limit = 30}) async {
+    final params = <Object?>[];
+    final where = [
+      'EXISTS (SELECT 1 FROM family_members s WHERE s.household_id = hh.id AND ${_duesScopeSql(scope, 's', params)})'
+    ];
+    final words = (query ?? '').trim().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    if (words.isNotEmpty) {
+      final memberWhere = <String>[];
+      final memberParams = <Object?>[];
+      _nameWords('x', query, memberWhere, memberParams);
+      final q = '%${_escapeLike(query!)}%';
+      where.add("(hh.household_name LIKE ? ESCAPE '\\' OR EXISTS (SELECT 1 FROM family_members x "
+          "WHERE x.household_id = hh.id AND ${memberWhere.join(' AND ')}))");
+      params
+        ..add(q)
+        ..addAll(memberParams);
+    }
+    final households = await _rows(
+      'SELECT hh.id, hh.household_name, hh.lgu, hh.barangay, hh.purok FROM households hh '
+      '${_whereSql(where)} ORDER BY hh.household_name LIMIT ?',
+      [...params, limit],
+    );
+    return _withDuesMembers(households, scope);
+  }
+
+  /// A household with its members in [scope], or null when none of its members are.
+  Future<DuesHousehold?> getDuesHousehold(String id, DuesScope scope) async {
+    final rows = await _rows('SELECT id, household_name, lgu, barangay, purok FROM households WHERE id = ?', [id]);
+    final list = await _withDuesMembers(rows, scope);
+    return list.isEmpty || list.first.members.isEmpty ? null : list.first;
+  }
+
+  /// A member, or null when they are not in [scope].
+  Future<DuesMember?> getDuesMember(String id, DuesScope scope) async {
+    final params = <Object?>[id];
+    final rows = await _rows('$_duesMemberSelect WHERE m.id = ? AND ${_duesScopeSql(scope, 'm', params)}', params);
+    return rows.isEmpty ? null : DuesMember.fromRow(rows.first);
+  }
+
+  Future<List<DuesHousehold>> _withDuesMembers(List<Map<String, dynamic>> households, DuesScope scope) async {
+    if (households.isEmpty) return [];
+    final ids = [for (final h in households) h['id']];
+    final members = await _rows(
+      '$_duesMemberSelect WHERE m.household_id IN (${List.filled(ids.length, '?').join(', ')}) '
+      'ORDER BY m.is_household_leader DESC, m.lastname, m.firstname',
+      ids,
+    );
+    final byHousehold = <String, List<DuesMember>>{};
+    final elsewhere = <String, int>{};
+    for (final r in members) {
+      final m = DuesMember.fromRow(r);
+      if (scope.covers(m.lgu, m.barangay)) {
+        byHousehold.putIfAbsent(m.householdId, () => []).add(m);
+      } else {
+        elsewhere[m.householdId] = (elsewhere[m.householdId] ?? 0) + 1;
+      }
+    }
+    return [
+      for (final h in households)
+        DuesHousehold(
+          id: h['id'].toString(),
+          householdName: h['household_name']?.toString() ?? 'Unnamed Household',
+          lgu: h['lgu']?.toString() ?? '',
+          barangay: h['barangay']?.toString() ?? '',
+          purok: h['purok']?.toString() ?? '',
+          members: byHousehold[h['id'].toString()] ?? const [],
+          membersElsewhere: elsewhere[h['id'].toString()] ?? 0,
+        ),
+    ];
+  }
+
+  /// Records one receipt: a row per member in [months] (member id → months to pay), each covering
+  /// that member's oldest unpaid months. Balances are re-read inside the transaction.
+  Future<DuesReceipt> recordDuesPayment({
+    required DuesScope scope,
+    required Map<String, int> months,
+    required List<DuesRate> rates,
+    required String paymentMethod,
+    required String collectedBy,
+    String? referenceNumber,
+    String? notes,
+  }) async {
+    final receiptId = uuid.v4();
+    final now = phNow();
+    final createdBy = currentAuthUser?.email ?? collectedBy;
+    final currentMonth = currentMonthIndex();
     await db.writeTransaction((tx) async {
-      await _insert(tx, 'dues_payments', payment.toJson());
+      var total = 0.0;
+      final names = <String>[];
+      for (final e in months.entries.where((e) => e.value > 0)) {
+        final row = await tx.getOptional('$_duesMemberSelect WHERE m.id = ?', [e.key]);
+        if (row == null) throw Exception('Member not found.');
+        final member = DuesMember.fromRow(Map<String, dynamic>.from(row));
+        // Supabase refuses these (can_collect_dues_for) and the device would drop them on sync.
+        if (!scope.covers(member.lgu, member.barangay)) {
+          throw Exception('${member.fullName} is in ${member.barangay}, which is not one of your dues barangays.');
+        }
+        final balance = balanceFor(member, rates, currentMonth: currentMonth);
+        if (balance == null) throw Exception('${member.fullName}: ${unbilledReason(member).toLowerCase()}.');
+        if (e.value > balance.maxPayableMonths) {
+          throw Exception('${member.fullName}: dues can be paid at most $maxMonthsAhead months ahead.');
+        }
+        final amount = balance.amountFor(e.value);
+        total += amount;
+        names.add(member.fullName);
+        await _insert(
+            tx,
+            'dues_payments',
+            DuesPayment(
+              id: uuid.v4(),
+              memberId: member.id,
+              householdId: member.householdId,
+              amount: amount,
+              paymentMonth: monthKey(balance.nextUnpaidMonth),
+              monthsCovered: e.value,
+              paymentDate: now,
+              paymentMethod: paymentMethod,
+              referenceNumber: referenceNumber,
+              notes: notes,
+              status: DuesPayment.statusCompleted,
+              collectedBy: collectedBy,
+              createdBy: createdBy,
+              createdDate: now,
+              updatedDate: now,
+              receiptId: receiptId,
+            ).toJson());
+      }
+      if (names.isEmpty) throw Exception('Choose at least one member and month to pay.');
       await _log(
         tx,
         action: 'CREATE',
         entityType: 'DuesPayment',
-        entityId: payment.id,
-        details: {'amount': payment.amount, 'month': payment.paymentMonth},
+        entityId: receiptId,
+        details: {'total': total, 'members': names, 'reference': referenceNumber},
       );
     });
-    return DuesPayment.fromJson((await _getRow('dues_payments', payment.id))!);
+    final receipts = await getDuesReceipts(scope: const DuesScope(everywhere: true), receiptId: receiptId);
+    return receipts.first;
   }
 
-  Future<void> deleteDuesPayment(String id) async {
+  /// Ledger filter on `dues_payments d` joined to `family_members m`: rows in [scope] whose receipt
+  /// matches [query] (reference number, member or household name, or payment month).
+  static List<String> _duesLedgerWhere(DuesScope scope, String? query, List<Object?> params) {
+    final where = [_duesScopeSql(scope, 'm', params)];
+    if (query != null && query.trim().isNotEmpty) {
+      final q = '%${_escapeLike(query)}%';
+      where.add('COALESCE(d.receipt_id, d.id) IN (SELECT COALESCE(d2.receipt_id, d2.id) FROM dues_payments d2 '
+          'LEFT JOIN family_members m2 ON m2.id = d2.member_id LEFT JOIN households h2 ON h2.id = d2.household_id '
+          r"WHERE d2.reference_number LIKE ? ESCAPE '\' OR d2.payment_month LIKE ? ESCAPE '\' "
+          r"OR m2.lastname LIKE ? ESCAPE '\' OR m2.firstname LIKE ? ESCAPE '\' OR h2.household_name LIKE ? ESCAPE '\')");
+      params.addAll([q, q, q, q, q]);
+    }
+    return where;
+  }
+
+  /// Totals of non-void payments matching the ledger filter: everything, and this month (GMT+8).
+  Future<({double total, double thisMonth, int receipts})> getDuesLedgerTotals({
+    required DuesScope scope,
+    String? query,
+  }) async {
+    final params = <Object?>[monthKey(currentMonthIndex())];
+    final where = _duesLedgerWhere(scope, query, params)..add("COALESCE(d.status, 'completed') != 'void'");
+    final row = await db.get('''
+      SELECT COALESCE(SUM(d.amount), 0) AS total,
+        -- payment_date may carry +08:00 (written here) or +00:00 (synced); compare in GMT+8.
+        COALESCE(SUM(CASE WHEN strftime('%Y-%m', d.payment_date, '+8 hours') = ? THEN d.amount END), 0) AS this_month,
+        COUNT(DISTINCT COALESCE(d.receipt_id, d.id)) AS receipts
+      FROM dues_payments d
+      LEFT JOIN family_members m ON m.id = d.member_id
+      ${_whereSql(where)}
+    ''', params);
+    return (
+      total: (row['total'] as num).toDouble(),
+      thisMonth: (row['this_month'] as num).toDouble(),
+      receipts: row['receipts'] as int,
+    );
+  }
+
+  /// Ledger receipts in [scope], newest first. [query] matches reference numbers, member and
+  /// household names, and payment months.
+  Future<List<DuesReceipt>> getDuesReceipts({
+    required DuesScope scope,
+    String? query,
+    String? receiptId,
+    int page = 0,
+    int pageSize = 50,
+  }) async {
+    final params = <Object?>[];
+    final where = _duesLedgerWhere(scope, query, params);
+    if (receiptId != null) {
+      where.add('COALESCE(d.receipt_id, d.id) = ?');
+      params.add(receiptId);
+    }
+    final rows = await _rows('''
+      SELECT COALESCE(d.receipt_id, d.id) AS rid,
+        MIN(d.payment_date) AS payment_date,
+        SUM(d.amount) AS total,
+        COUNT(*) AS member_count,
+        SUM(COALESCE(d.months_covered, 1)) AS months,
+        MIN(d.payment_month) AS first_month,
+        MAX(substr(date(d.payment_month || '-01', '+' || (COALESCE(d.months_covered, 1) - 1) || ' months'), 1, 7)) AS last_month,
+        MAX(d.payment_method) AS payment_method,
+        MAX(d.reference_number) AS reference_number,
+        MAX(d.notes) AS notes,
+        MAX(d.status) AS status,
+        MAX(d.void_reason) AS void_reason,
+        MAX(d.collected_by) AS collected_by,
+        MAX(h.household_name) AS household_name,
+        MAX(m.barangay) AS barangay,
+        GROUP_CONCAT(m.lastname || ', ' || m.firstname, '; ') AS member_names
+      FROM dues_payments d
+      LEFT JOIN family_members m ON m.id = d.member_id
+      LEFT JOIN households h ON h.id = d.household_id
+      ${_whereSql(where)}
+      GROUP BY rid
+      ORDER BY payment_date DESC
+      LIMIT ? OFFSET ?
+    ''', [...params, pageSize, page * pageSize]);
+    return rows.map(DuesReceipt.fromRow).toList();
+  }
+
+  /// Marks every row of a receipt void; they stay in the ledger but no longer count as paid.
+  Future<void> voidDuesReceipt(String receiptId, String reason) async {
     await db.writeTransaction((tx) async {
-      await tx.execute('DELETE FROM dues_payments WHERE id = ?', [id]);
-      await _log(tx, action: 'DELETE', entityType: 'DuesPayment', entityId: id);
+      await tx.execute(
+        'UPDATE dues_payments SET status = ?, void_reason = ?, updated_date = ? WHERE COALESCE(receipt_id, id) = ?',
+        [DuesPayment.statusVoid, reason, _now(), receiptId],
+      );
+      await _log(tx, action: 'VOID', entityType: 'DuesPayment', entityId: receiptId, details: {'reason': reason});
+    });
+  }
+
+  Future<void> deleteDuesReceipt(String receiptId) async {
+    await db.writeTransaction((tx) async {
+      await tx.execute('DELETE FROM dues_payments WHERE COALESCE(receipt_id, id) = ?', [receiptId]);
+      await _log(tx, action: 'DELETE', entityType: 'DuesPayment', entityId: receiptId);
+    });
+  }
+
+  /// Corrects the membership date of [memberIds]; balances follow because they are derived from it.
+  Future<void> setMembershipDate(List<String> memberIds, DateTime date) async {
+    final value =
+        '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    await db.writeTransaction((tx) async {
+      for (final id in memberIds) {
+        final old =
+            await tx.getOptional('SELECT lastname, firstname, membership_date FROM family_members WHERE id = ?', [id]);
+        if (old == null || old['membership_date'] == value) continue;
+        await tx.execute(
+            'UPDATE family_members SET membership_date = ?, updated_date = ? WHERE id = ?', [value, _now(), id]);
+        await _log(
+          tx,
+          action: 'UPDATE_MEMBERSHIP_DATE',
+          entityType: 'FamilyMember',
+          entityId: id,
+          details: {'name': '${old['lastname']}, ${old['firstname']}', 'from': old['membership_date'], 'to': value},
+        );
+      }
+    });
+  }
+
+  Stream<List<DuesRate>> watchDuesRates() => db
+      .watch('SELECT * FROM dues_rates ORDER BY effective_month')
+      .map((rows) => rows.map((r) => DuesRate.fromJson(Map<String, dynamic>.from(r))).toList());
+
+  /// Sets the rate from [effectiveMonth] onward, replacing a rate already set for that month.
+  Future<void> saveDuesRate({required double amount, required String effectiveMonth}) async {
+    await db.writeTransaction((tx) async {
+      final existing = await tx.getOptional('SELECT id FROM dues_rates WHERE effective_month = ?', [effectiveMonth]);
+      final now = _now();
+      final String id;
+      if (existing != null) {
+        id = existing['id'] as String;
+        await _update(tx, 'dues_rates', id, {'amount': amount, 'updated_at': now});
+      } else {
+        id = uuid.v4();
+        await _insert(tx, 'dues_rates', {
+          'id': id,
+          'amount': amount,
+          'effective_month': effectiveMonth,
+          'created_by': currentAuthUser?.email,
+          'created_at': now,
+          'updated_at': now,
+        });
+      }
+      await _log(tx,
+          action: 'SET_DUES_RATE',
+          entityType: 'DuesRate',
+          entityId: id,
+          details: {'amount': amount, 'effective_month': effectiveMonth});
+    });
+  }
+
+  Future<void> deleteDuesRate(DuesRate rate) async {
+    await db.writeTransaction((tx) async {
+      await tx.execute('DELETE FROM dues_rates WHERE id = ?', [rate.id]);
+      await _log(tx,
+          action: 'DELETE',
+          entityType: 'DuesRate',
+          entityId: rate.id,
+          details: {'amount': rate.amount, 'effective_month': rate.effectiveMonth});
     });
   }
 
@@ -592,7 +961,8 @@ class SupabaseService {
       }
       if (query != null && query.trim().isNotEmpty) {
         final q = '%${_escapeLike(query)}%';
-        where.add(r"(barangay LIKE ? ESCAPE '\' OR purok LIKE ? ESCAPE '\' OR submitted_by LIKE ? ESCAPE '\' OR received_by LIKE ? ESCAPE '\')");
+        where.add(
+            r"(barangay LIKE ? ESCAPE '\' OR purok LIKE ? ESCAPE '\' OR submitted_by LIKE ? ESCAPE '\' OR received_by LIKE ? ESCAPE '\')");
         params.addAll([q, q, q, q]);
       }
       if (lgu != null && lgu.isNotEmpty) {
@@ -695,7 +1065,10 @@ class SupabaseService {
   /// Whether to search the installed voter snapshot: it must be installed and cover the requested
   /// LGU (or all LGUs). Otherwise the caller queries Supabase.
   Future<bool> _useLocalVoters(String? lgu) async {
-    if (lgu != null && lgu.trim().isNotEmpty && !_isAllFilter(lgu) && !snapshotVoterLgus.contains(lgu.trim().toUpperCase())) {
+    if (lgu != null &&
+        lgu.trim().isNotEmpty &&
+        !_isAllFilter(lgu) &&
+        !snapshotVoterLgus.contains(lgu.trim().toUpperCase())) {
       return false;
     }
     try {
@@ -724,7 +1097,8 @@ class SupabaseService {
           lastName: lastName, firstName: firstName, middleName: middleName, lgu: lgu, barangay: barangay, limit: limit);
     }
     try {
-      final w = _voterWhere(lastName: lastName, firstName: firstName, middleName: middleName, lgu: lgu, barangay: barangay);
+      final w =
+          _voterWhere(lastName: lastName, firstName: firstName, middleName: middleName, lgu: lgu, barangay: barangay);
       final rows = await _rows(
         '$_localVoterSelect ${_whereSql(w.where)} ORDER BY v.lastname, v.firstname LIMIT ?',
         [...w.params, limit],
@@ -753,11 +1127,9 @@ class SupabaseService {
       if (has(middleName)) req = req.ilike('middlename', '%${middleName!.trim()}%');
       if (has(barangay) && !isAll(barangay!)) req = req.ilike('brgy', barangay.trim());
 
-      final response = await req
-          .order('lastname', ascending: true)
-          .order('firstname', ascending: true)
-          .limit(limit);
-      var results = (response as List).map((row) => VoterSearchResult.fromVoterRow(row as Map<String, dynamic>)).toList();
+      final response = await req.order('lastname', ascending: true).order('firstname', ascending: true).limit(limit);
+      var results =
+          (response as List).map((row) => VoterSearchResult.fromVoterRow(row as Map<String, dynamic>)).toList();
 
       // LGU is filtered locally because not every voters import carries an `lgu` column
       if (has(lgu) && !isAll(lgu!)) {
@@ -839,12 +1211,19 @@ class SupabaseService {
   }) async {
     if (!await _useLocalVoters(lgu)) {
       return _getVotersOnline(
-          lastName: lastName, firstName: firstName, middleName: middleName, lgu: lgu, barangay: barangay, flaggedOnly: flaggedOnly);
+          lastName: lastName,
+          firstName: firstName,
+          middleName: middleName,
+          lgu: lgu,
+          barangay: barangay,
+          flaggedOnly: flaggedOnly);
     }
     try {
-      final w = _voterWhere(lastName: lastName, firstName: firstName, middleName: middleName, lgu: lgu, barangay: barangay);
+      final w =
+          _voterWhere(lastName: lastName, firstName: firstName, middleName: middleName, lgu: lgu, barangay: barangay);
       if (flaggedOnly == true) w.where.add('f.voter_id IS NOT NULL');
-      final rows = await _rows('$_localVoterSelect ${_whereSql(w.where)} ORDER BY v.lastname, v.firstname LIMIT 100', w.params);
+      final rows =
+          await _rows('$_localVoterSelect ${_whereSql(w.where)} ORDER BY v.lastname, v.firstname LIMIT 100', w.params);
       return rows.map(Voter.fromJson).toList();
     } catch (e) {
       return [];
@@ -870,10 +1249,7 @@ class SupabaseService {
       if (flaggedOnly == true) {
         req = req.eq('is_flagged', true);
       }
-      final response = await req
-          .order('lastname', ascending: true)
-          .order('firstname', ascending: true)
-          .limit(100);
+      final response = await req.order('lastname', ascending: true).order('firstname', ascending: true).limit(100);
       var results = (response as List).map((row) => Voter.fromJson(row as Map<String, dynamic>)).toList();
 
       // LGU is filtered locally because not every voters import carries an `lgu` column
@@ -907,11 +1283,7 @@ class SupabaseService {
   /// Online only: activity logs are uploaded from every device but never downloaded.
   Future<List<ActivityLog>> getActivityLogs({int limit = 100}) async {
     try {
-      final response = await client
-          .from('activity_logs')
-          .select()
-          .order('created_at', ascending: false)
-          .limit(limit);
+      final response = await client.from('activity_logs').select().order('created_at', ascending: false).limit(limit);
       return (response as List).map((row) => ActivityLog.fromJson(row as Map<String, dynamic>)).toList();
     } catch (e) {
       return [];
@@ -936,7 +1308,7 @@ class SupabaseService {
       if (authUser == null) return null;
       final email = authUser.email;
 
-      // Local first, so an offline cold start still knows the user's role and permissions.
+      // Local first, so an offline cold start still knows the user's permissions.
       // Profile rows created outside Supabase Auth may not share the auth id; match by email instead.
       var row = await _getRow('users', authUser.id);
       if (row == null && email != null && email.isNotEmpty) {
@@ -972,7 +1344,7 @@ class SupabaseService {
         action: 'UPDATE_USER',
         entityType: 'User',
         entityId: user.id,
-        details: {'role': user.role, 'permissions': user.permissions},
+        details: {'permissions': user.permissions, 'dues_barangays': user.duesBarangays},
       );
     });
     return AppUser.fromJson((await _getRow('users', user.id))!);
@@ -992,8 +1364,8 @@ class SupabaseService {
     required String password,
     required String firstname,
     required String lastname,
-    required String role,
     required List<String> permissions,
+    List<String> duesBarangays = const [],
   }) async {
     final data = await _adminUsers({
       'action': 'create',
@@ -1001,15 +1373,15 @@ class SupabaseService {
       'password': password,
       'firstname': firstname,
       'lastname': lastname,
-      'role': role,
       'permissions': permissions,
+      'dues_barangays': duesBarangays,
     });
     final user = AppUser.fromJson(Map<String, dynamic>.from(data['user'] as Map));
     await logActivity(
       action: 'CREATE_USER',
       entityType: 'User',
       entityId: user.id,
-      details: {'email': email, 'role': role, 'permissions': permissions},
+      details: {'email': email, 'permissions': permissions},
     );
     return user;
   }
@@ -1030,6 +1402,14 @@ class SupabaseService {
       entityType: 'User',
       entityId: userId,
     );
+  }
+
+  /// Permanently deletes a user's profile and Auth account. Online only.
+  Future<void> deleteUserAccount(AppUser user) async {
+    await _adminUsers({'action': 'delete', 'user_id': user.id});
+    // Mirror locally so the list updates before the change syncs back down.
+    await db.execute('DELETE FROM users WHERE id = ?', [user.id]);
+    await logActivity(action: 'DELETE_USER', entityType: 'User', entityId: user.id, details: {'email': user.email});
   }
 
   Future<Map<String, dynamic>> _adminUsers(Map<String, dynamic> body) async {
@@ -1094,13 +1474,15 @@ class SupabaseService {
         'latitude': latitude,
         'longitude': longitude,
       });
-      await _log(tx, action: 'CREATE', entityType: 'Location', entityId: id, details: {'lgu': lgu, 'barangay': barangay});
+      await _log(tx,
+          action: 'CREATE', entityType: 'Location', entityId: id, details: {'lgu': lgu, 'barangay': barangay});
     });
     return Location.fromJson((await _getRow('locations', id))!);
   }
 
   /// Renaming is blocked while households or members use the barangay, since they store its name as text.
-  Future<void> updateLocation(Location before, {
+  Future<void> updateLocation(
+    Location before, {
     required String lgu,
     required String barangay,
     double? latitude,
@@ -1123,7 +1505,10 @@ class SupabaseService {
         'latitude': latitude,
         'longitude': longitude,
       });
-      await _log(tx, action: 'UPDATE', entityType: 'Location', entityId: before.id,
+      await _log(tx,
+          action: 'UPDATE',
+          entityType: 'Location',
+          entityId: before.id,
           details: {'lgu': newLgu, 'barangay': newBrgy, 'latitude': latitude, 'longitude': longitude});
     });
   }
@@ -1140,7 +1525,10 @@ class SupabaseService {
       await tx.execute('DELETE FROM officers WHERE location_id = ?', [location.id]);
       await tx.execute('DELETE FROM puroks WHERE location_id = ?', [location.id]);
       await tx.execute('DELETE FROM locations WHERE id = ?', [location.id]);
-      await _log(tx, action: 'DELETE', entityType: 'Location', entityId: location.id,
+      await _log(tx,
+          action: 'DELETE',
+          entityType: 'Location',
+          entityId: location.id,
           details: {'lgu': location.lgu, 'barangay': location.barangay});
     });
   }
@@ -1169,7 +1557,11 @@ class SupabaseService {
     final id = uuid.v4();
     await db.writeTransaction((tx) async {
       await _insert(tx, 'puroks', {'id': id, 'location_id': locationId, 'name': name.trim()});
-      await _log(tx, action: 'CREATE', entityType: 'Purok', entityId: id, details: {'name': name.trim(), 'location_id': locationId});
+      await _log(tx,
+          action: 'CREATE',
+          entityType: 'Purok',
+          entityId: id,
+          details: {'name': name.trim(), 'location_id': locationId});
     });
   }
 
@@ -1178,7 +1570,8 @@ class SupabaseService {
     if (name.trim().isEmpty) throw Exception('Purok name is required.');
     final usage = await purokUsage(purokId);
     if (usage.households > 0 || usage.members > 0) {
-      throw Exception('Cannot rename: ${usage.households} households and ${usage.members} members are assigned to this purok.');
+      throw Exception(
+          'Cannot rename: ${usage.households} households and ${usage.members} members are assigned to this purok.');
     }
     await _checkUniquePurok(locationId, name, exceptId: purokId);
     await db.writeTransaction((tx) async {
@@ -1190,7 +1583,8 @@ class SupabaseService {
   Future<void> deletePurok(String purokId, String name) async {
     final usage = await purokUsage(purokId);
     if (usage.households > 0 || usage.members > 0) {
-      throw Exception('Cannot delete: ${usage.households} households and ${usage.members} members are assigned to this purok.');
+      throw Exception(
+          'Cannot delete: ${usage.households} households and ${usage.members} members are assigned to this purok.');
     }
     await db.writeTransaction((tx) async {
       await tx.execute('DELETE FROM officers WHERE purok_id = ?', [purokId]);
@@ -1286,7 +1680,10 @@ class SupabaseService {
   Future<void> deleteOfficer(Officer officer) async {
     await db.writeTransaction((tx) async {
       await tx.execute('DELETE FROM officers WHERE id = ?', [officer.id]);
-      await _log(tx, action: 'REMOVE_OFFICER', entityType: 'Officer', entityId: officer.id,
+      await _log(tx,
+          action: 'REMOVE_OFFICER',
+          entityType: 'Officer',
+          entityId: officer.id,
           details: {'position': officer.position, 'level': officer.level, 'member': officer.memberName});
     });
   }
@@ -1301,7 +1698,7 @@ class SupabaseService {
         (SELECT COUNT(*) FROM family_members) AS registered_members,
         (SELECT COUNT(*) FROM family_members WHERE is_cooperative_member = 1) AS coop_members,
         (SELECT COUNT(*) FROM family_members WHERE is_voter = 1) AS total_voters,
-        (SELECT COALESCE(SUM(amount), 0) FROM dues_payments) AS total_collections
+        (SELECT COALESCE(SUM(amount), 0) FROM dues_payments WHERE COALESCE(status, 'completed') != 'void') AS total_collections
     ''');
     return {
       'totalHouseholds': row['total_households'] as int,

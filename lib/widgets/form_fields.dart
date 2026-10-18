@@ -1,5 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../core/design_system.dart';
+
+/// Shows and stores typed text in upper case. Upper-casing keeps the length, so the cursor stays put.
+/// Pair with `textCapitalization: TextCapitalization.characters` so phone keyboards open in caps.
+class UpperCaseFormatter extends TextInputFormatter {
+  const UpperCaseFormatter();
+
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) =>
+      newValue.copyWith(text: newValue.text.toUpperCase());
+}
 
 /// A form field with its label above it, as in the Add TROPA Member dialog.
 /// Pair the field with `TropaStyles.formField` and `TropaStyles.fieldText`.
@@ -42,7 +53,7 @@ class TropaBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[Icon(icon, size: 12, color: c), const SizedBox(width: 4)],
-          Text(text, style: TropaText.badge(c)),
+          Flexible(child: Text(text, style: TropaText.badge(c), overflow: TextOverflow.ellipsis, maxLines: 1)),
         ],
       ),
     );
@@ -70,6 +81,34 @@ class SectionHeader extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         Divider(height: 1, thickness: 1, color: TropaColors.borderOf(context)),
+      ],
+    );
+  }
+}
+
+/// A row of form fields that stacks into a column on phones: `Expanded`/`Flexible` children are
+/// unwrapped and horizontal `SizedBox` gaps become vertical ones. Wider screens get a plain [Row].
+class ResponsiveFieldRow extends StatelessWidget {
+  final List<Widget> children;
+  final CrossAxisAlignment crossAxisAlignment;
+
+  const ResponsiveFieldRow({super.key, required this.children, this.crossAxisAlignment = CrossAxisAlignment.center});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!context.isCompactScreen) {
+      return Row(crossAxisAlignment: crossAxisAlignment, children: children);
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final c in children)
+          switch (c) {
+            Flexible(:final child) => child,
+            SizedBox(width: final w?, child: null) when w > 0 => const SizedBox(height: 14),
+            _ => c,
+          },
       ],
     );
   }

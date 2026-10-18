@@ -1,154 +1,75 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'theme_palettes.dart';
 
-/// Material Design 2 Color Palette Specifications
-/// Adheres strictly to MD2 Dark Theme & Light Theme Guidelines:
-/// - Light Primary: #6200EE (Purple 500)
-/// - Dark Primary:  #BB86FC (Purple 200, desaturated for WCAG AA)
-/// - Primary Variant: #3700B3 (Purple 700)
-/// - Secondary:     #03DAC6 (Teal 200)
-/// - Secondary Variant: #018786 (Teal 700)
-/// - Light Background & Surface: #FFFFFF
-/// - Dark Background & Surface:  #121212 (Dark Grey for shadow depth & elevation overlays)
-/// - Light Error:   #B00020
-/// - Dark Error:    #CF6679 (Light Red with 40% white overlay)
-/// - Text Hierarchy Opacities: 87% (High), 60% (Medium), 38% (Disabled)
+/// Fixed colours that stay the same in every theme. Themed colours (text, surfaces, borders,
+/// primary/accent) come from the active palette in `theme_palettes.dart`; read them through the
+/// helpers below rather than hard-coding light/dark pairs.
 class TropaColors {
-  // MD2 Primary Palette
-  static const primaryLight = Color(0xFF6200EE);       // Purple 500
-  static const primaryDark = Color(0xFFBB86FC);        // Purple 200 (desaturated for dark mode)
-  static const primaryVariant = Color(0xFF3700B3);     // Purple 700
-
-  // MD2 Secondary Palette
-  static const secondaryLight = Color(0xFF03DAC6);     // Teal 200
-  static const secondaryDark = Color(0xFF03DAC6);      // Teal 200
-  static const secondary = Color(0xFF03DAC6);          // Teal 200 (bright accent in both modes)
+  // Data accents: teal for inactive map pins and new-record badges.
+  static const secondary = Color(0xFF03DAC6);          // Teal 200
   static const secondaryVariant = Color(0xFF018786);   // Teal 700
+  static const tertiary = secondary;
 
-  // MD2 Backgrounds
-  static const lightBackground = Color(0xFFFFFFFF);    // White
-  static const darkBackground = Color(0xFF121212);     // Dark Grey #121212
+  // Error palette, light and dark
+  static const errorLight = Color(0xFFB00020);
+  static const errorDark = Color(0xFFCF6679);
+  static const onErrorLight = Color(0xFFFFFFFF);
+  static const onErrorDark = Color(0xFF000000);
+  static const error = errorDark;
+  static const errorContainer = Color(0xFFCF6679);
 
-  // MD2 Base Surfaces
-  static const lightSurface = Color(0xFFFFFFFF);       // White
-  static const darkSurface = Color(0xFF121212);        // Dark Grey #121212
-
-  // MD2 Dark Elevation Surfaces (White overlay on #121212)
-  static const darkSurface0dp = Color(0xFF121212);     // 0dp (Base background, 0% overlay)
-  static const darkSurface1dp = Color(0xFF1E1E1E);     // 1dp (5% overlay) - Cards & lists
-  static const darkSurface2dp = Color(0xFF232323);     // 2dp (7% overlay) - Raised surfaces / inputs
-  static const darkSurface4dp = Color(0xFF272727);     // 4dp (9% overlay) - App bars, search bars
-  static const darkSurface8dp = Color(0xFF2E2E2E);     // 8dp (12% overlay) - Dialogs, menus
-  static const darkSurface16dp = Color(0xFF363636);    // 16dp (15% overlay) - Modals, drawers
-  static const darkSurface24dp = Color(0xFF383838);    // 24dp (16% overlay) - High elevation
-
-  // Elevation aliases
-  static const darkSurfaceLowest = darkSurface0dp;
-  static const darkSurfaceLow = darkSurface1dp;
-  static const darkSurfaceHigh = darkSurface2dp;
-  static const darkSurfaceHighest = darkSurface4dp;
-  static const darkSurfaceBright = darkSurface8dp;
-
-  // MD2 Light Elevation & Surfaces
-  static const lightSurfaceLow = Color(0xFFF5F5F5);    // 1dp surface / inputs
-  static const lightSurfaceHigh = Color(0xFFEEEEEE);   // 2dp
-  static const lightSurfaceHighest = Color(0xFFE0E0E0);// Borders & dividers
-
-  // MD2 Typography Opacity Hierarchy
-  // Dark text on Light surface:
-  static const lightOnSurface = Color(0xDE000000);        // 87% Opacity (High emphasis)
-  static const lightOnSurfaceVariant = Color(0x99000000); // 60% Opacity (Medium emphasis / Hints)
-  static const lightOutline = Color(0x61000000);          // 38% Opacity (Disabled / Outline)
-
-  // Light text on Dark surface:
-  static const darkOnSurface = Color(0xDEFFFFFF);         // 87% Opacity (High emphasis)
-  static const darkOnSurfaceVariant = Color(0x99FFFFFF);  // 60% Opacity (Medium emphasis / Hints)
-  static const darkOutline = Color(0x61FFFFFF);           // 38% Opacity (Disabled / Outline)
-  static const darkOutlineVariant = Color(0x1FFFFFFF);    // 12% Opacity (Subtle border)
-
-  // MD2 "On" Colors
-  static const onPrimaryLight = Color(0xFFFFFFFF);     // White
-  static const onPrimaryDark = Color(0xFF000000);      // Black (high contrast on #BB86FC)
-  static const onSecondary = Color(0xFF000000);        // Black in both modes
-  static const onBackgroundLight = Color(0xDE000000);  // 87% Black
-  static const onBackgroundDark = Color(0xDEFFFFFF);   // 87% White
-  static const onSurfaceLight = Color(0xDE000000);     // 87% Black
-  static const onSurfaceDark = Color(0xDEFFFFFF);      // 87% White
-
-  // MD2 Error Palette
-  static const errorLight = Color(0xFFB00020);         // Dark Red
-  static const errorDark = Color(0xFFCF6679);          // Light Red (40% white overlay)
-  static const onErrorLight = Color(0xFFFFFFFF);       // White
-  static const onErrorDark = Color(0xFF000000);        // Black
-
-  // TROPA brand palette (used by the TROPA theme)
+  // TROPA brand palette (used by the TROPA theme and the startup screen)
   static const tropaBlue = Color(0xFF1F4DAA);
-  static const tropaBlueDark = Color(0xFF173B85);     // Containers / pressed states
   static const tropaGreen = Color(0xFF60B358);
   static const tropaWhite = Color(0xFFFFFFFF);
 
   // Status
   static const offline = Color(0xFFF5A623);           // Amber: working offline, changes queued
 
-  // Compatibility defaults
-  static const primary = primaryDark;
-  static const onPrimary = onPrimaryDark;
-  static const error = errorDark;
-  static const errorContainer = Color(0xFFCF6679);
-  static const tertiary = secondary;
-  static const tertiaryContainer = secondaryVariant;
-
-  // Theme-aware helper methods
+  // Theme-aware helper methods. Every palette fills the same ColorScheme roles (see
+  // TropaTheme.of), so these follow whichever theme is active.
   static Color primaryOf(BuildContext context) => Theme.of(context).colorScheme.primary;
 
   static Color onPrimaryOf(BuildContext context) => Theme.of(context).colorScheme.onPrimary;
 
-  /// Accent color: teal in Dark/Light, green in the TROPA theme.
+  /// Accent color of the active palette.
   static Color secondaryOf(BuildContext context) => Theme.of(context).colorScheme.secondary;
 
-  /// Higher-contrast accent for text/icons on light surfaces.
-  static Color secondaryStrongOf(BuildContext context) {
-    final theme = Theme.of(context);
-    if (theme.extension<TropaBrand>() != null) return theme.colorScheme.secondary;
-    return theme.brightness == Brightness.dark ? secondary : secondaryVariant;
-  }
+  /// Higher-contrast accent for text/icons on surfaces.
+  static Color secondaryStrongOf(BuildContext context) => Theme.of(context).colorScheme.tertiary;
 
-  static Color backgroundOf(BuildContext context) =>
-      Theme.of(context).brightness == Brightness.dark ? darkBackground : lightBackground;
+  static Color backgroundOf(BuildContext context) => Theme.of(context).scaffoldBackgroundColor;
 
   static Color surfaceOf(BuildContext context, [int dp = 1]) {
-    if (Theme.of(context).brightness == Brightness.light) {
-      return dp == 0 ? lightBackground : (dp <= 1 ? lightSurface : lightSurfaceLow);
-    }
-    switch (dp) {
-      case 0: return darkSurface0dp;
-      case 1: return darkSurface1dp;
-      case 2: return darkSurface2dp;
-      case 4: return darkSurface4dp;
-      case 8: return darkSurface8dp;
-      case 16: return darkSurface16dp;
-      case 24: return darkSurface24dp;
-      default: return darkSurface1dp;
-    }
+    if (dp == 0) return backgroundOf(context);
+    return dp <= 1 ? cardOf(context) : chipOf(context);
   }
 
-  static Color textHigh(BuildContext context) =>
-      Theme.of(context).brightness == Brightness.dark ? darkOnSurface : lightOnSurface;
+  /// Cards, dialogs, menus and dropdowns.
+  static Color cardOf(BuildContext context) => Theme.of(context).colorScheme.surface;
 
-  static Color textMedium(BuildContext context) =>
-      Theme.of(context).brightness == Brightness.dark ? darkOnSurfaceVariant : lightOnSurfaceVariant;
+  /// Panels set off slightly from the card or dialog they sit in.
+  static Color subtleOf(BuildContext context) => Theme.of(context).colorScheme.surfaceContainerLow;
 
-  static Color textDisabled(BuildContext context) =>
-      Theme.of(context).brightness == Brightness.dark ? darkOutline : lightOutline;
+  /// Chips, icon tiles, table headers and lanes.
+  static Color chipOf(BuildContext context) => Theme.of(context).colorScheme.surfaceContainerHighest;
 
-  static Color borderOf(BuildContext context) =>
-      Theme.of(context).brightness == Brightness.dark ? darkOutlineVariant : lightSurfaceHighest;
+  /// Fill of text fields and dropdown buttons.
+  static Color fieldFillOf(BuildContext context) => Theme.of(context).colorScheme.surfaceContainerLowest;
 
-  static Color errorOf(BuildContext context) =>
-      Theme.of(context).brightness == Brightness.dark ? errorDark : errorLight;
+  static Color textHigh(BuildContext context) => Theme.of(context).colorScheme.onSurface;
 
-  static Color onErrorOf(BuildContext context) =>
-      Theme.of(context).brightness == Brightness.dark ? onErrorDark : onErrorLight;
+  static Color textMedium(BuildContext context) => Theme.of(context).colorScheme.onSurfaceVariant;
+
+  static Color textDisabled(BuildContext context) => Theme.of(context).colorScheme.outline;
+
+  static Color borderOf(BuildContext context) => Theme.of(context).colorScheme.outlineVariant;
+
+  static Color errorOf(BuildContext context) => Theme.of(context).colorScheme.error;
+
+  static Color onErrorOf(BuildContext context) => Theme.of(context).colorScheme.onError;
 }
 
 /// Branding attached only to the TROPA theme (solid blue sidebar).
@@ -227,6 +148,26 @@ class TropaTheme {
         ),
       ),
       popupMenuTheme: t.popupMenuTheme.copyWith(textStyle: TropaText.body(scheme.onSurface)),
+      // Tabs and toggles use the app's Inter scale and primary colour instead of Material defaults.
+      tabBarTheme: t.tabBarTheme.copyWith(
+        labelColor: scheme.primary,
+        unselectedLabelColor: scheme.onSurfaceVariant,
+        indicatorColor: scheme.primary,
+        dividerColor: scheme.outlineVariant,
+        labelStyle: TropaText.bodyStrong(scheme.primary),
+        unselectedLabelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          textStyle: WidgetStatePropertyAll(GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
+          foregroundColor: WidgetStateProperty.resolveWith(
+              (states) => states.contains(WidgetState.selected) ? scheme.primary : scheme.onSurfaceVariant),
+          backgroundColor: WidgetStateProperty.resolveWith((states) =>
+              states.contains(WidgetState.selected) ? scheme.primary.withValues(alpha: 0.1) : Colors.transparent),
+          side: WidgetStatePropertyAll(BorderSide(color: scheme.outlineVariant)),
+          shape: WidgetStatePropertyAll(RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+        ),
+      ),
       snackBarTheme: t.snackBarTheme.copyWith(contentTextStyle: TropaText.body(scheme.onInverseSurface)),
       datePickerTheme: t.datePickerTheme.copyWith(
         headerHelpStyle: TropaText.fieldLabel(scheme.onSurfaceVariant),
@@ -245,68 +186,117 @@ class TropaTheme {
     );
   }
 
-  static ThemeData get darkTheme => _withTypography(_darkBase);
-  static ThemeData get lightTheme => _withTypography(_lightBase);
+  // Built once per palette and reused; rebuilding ThemeData on every app rebuild is wasted work.
+  static final Map<String, ThemeData> _cache = {};
 
-  static ThemeData get _darkBase {
-    final baseTextTheme = Typography.material2021().white;
+  /// The ThemeData for a palette id from `tropaPalettes`; unknown ids get the TROPA theme.
+  static ThemeData of(String id) {
+    final palette = tropaPaletteById(id);
+    return _cache.putIfAbsent(palette.id, () => _withTypography(_build(palette)));
+  }
+
+  static ThemeData get tropaTheme => of(TropaPalette.defaultId);
+
+  static double _contrast(Color a, Color b) {
+    final la = a.computeLuminance(), lb = b.computeLuminance();
+    return (math.max(la, lb) + 0.05) / (math.min(la, lb) + 0.05);
+  }
+
+  /// [fg] made darker (lighter on a dark [bg]) until it reaches WCAG AA, 4.5:1, on [bg]. Only the
+  /// lightness changes, so a pale pastel becomes a deeper shade of the same hue rather than grey.
+  static Color _readable(Color fg, Color bg) {
+    if (_contrast(fg, bg) >= 4.5) return fg;
+    final hsl = HSLColor.fromColor(fg);
+    final darken = bg.computeLuminance() > 0.5;
+    for (var step = 1; step <= 50; step++) {
+      final l = (hsl.lightness + (darken ? -step : step) * 0.02).clamp(0.0, 1.0);
+      final c = hsl.withLightness(l).toColor();
+      if (_contrast(c, bg) >= 4.5) return c;
+    }
+    return darken ? Colors.black : Colors.white;
+  }
+
+  /// Near-black or white, whichever reads better on [c].
+  static Color _onColor(Color c) {
+    const ink = Color(0xFF0B0B0F);
+    return _contrast(Colors.white, c) >= _contrast(ink, c) ? Colors.white : ink;
+  }
+
+  static ThemeData _build(TropaPalette p) {
+    final dark = p.brightness == Brightness.dark;
+    final baseTextTheme = dark ? Typography.material2021().white : Typography.material2021().black;
+    final faint = p.text.withValues(alpha: 0.38); // disabled text, hints, empty-state icons
+    // Accent and muted colours are drawn as text and icons on cards, so they are nudged darker
+    // (lighter on dark palettes) until readable; the picker swatch keeps the palette's own colour.
+    final accent = _readable(p.secondary, p.surface);
+    final muted = _readable(p.muted, p.surfaceVariant);
+    final scheme = ColorScheme(
+      brightness: p.brightness,
+      primary: p.primary,
+      onPrimary: p.onPrimary,
+      primaryContainer: p.surfaceVariant,
+      onPrimaryContainer: p.accentText,
+      secondary: accent,
+      onSecondary: _onColor(accent),
+      secondaryContainer: p.surfaceVariant,
+      onSecondaryContainer: p.accentText,
+      tertiary: _readable(p.accentText, p.surface),
+      onTertiary: p.onPrimary,
+      error: dark ? TropaColors.errorDark : TropaColors.errorLight,
+      onError: dark ? TropaColors.onErrorDark : TropaColors.onErrorLight,
+      surface: p.surface,
+      onSurface: p.text,
+      onSurfaceVariant: muted,
+      // Fields sit lighter than cards on light palettes and darker on dark ones, as before.
+      surfaceContainerLowest: dark ? p.background : p.surface,
+      surfaceContainerLow: Color.lerp(p.surface, p.surfaceVariant, 0.5),
+      surfaceContainer: p.surfaceVariant,
+      surfaceContainerHigh: p.surfaceVariant,
+      surfaceContainerHighest: p.surfaceVariant,
+      outline: faint,
+      outlineVariant: p.border,
+    );
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.dark,
-      scaffoldBackgroundColor: TropaColors.darkBackground,
-      colorScheme: const ColorScheme.dark(
-        primary: TropaColors.primaryDark,                    // #BB86FC (Purple 200)
-        onPrimary: TropaColors.onPrimaryDark,                // #000000 (Black)
-        primaryContainer: TropaColors.primaryVariant,        // #3700B3 (Purple 700)
-        onPrimaryContainer: Colors.white,
-        secondary: TropaColors.secondary,                    // #03DAC6 (Teal 200)
-        onSecondary: TropaColors.onSecondary,                // #000000 (Black)
-        secondaryContainer: TropaColors.secondaryVariant,    // #018786 (Teal 700)
-        onSecondaryContainer: Colors.white,
-        surface: TropaColors.darkSurface1dp,                 // #1E1E1E (1dp elevation)
-        onSurface: TropaColors.darkOnSurface,                // 87% White
-        onSurfaceVariant: TropaColors.darkOnSurfaceVariant,  // 60% White
-        outline: TropaColors.darkOutline,                    // 38% White
-        outlineVariant: TropaColors.darkOutlineVariant,      // 12% White
-        error: TropaColors.errorDark,                        // #CF6679
-        onError: TropaColors.onErrorDark,                    // #000000
-      ),
+      brightness: p.brightness,
+      scaffoldBackgroundColor: p.background,
+      colorScheme: scheme,
       dialogTheme: DialogThemeData(
-        backgroundColor: TropaColors.darkSurface8dp,         // #2E2E2E (8dp dialog elevation)
+        backgroundColor: p.surface,
         elevation: 8,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
       cardTheme: CardThemeData(
-        color: TropaColors.darkSurface1dp,                   // #1E1E1E (1dp)
+        color: p.surface,
         elevation: 1,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
-          side: const BorderSide(color: TropaColors.darkOutlineVariant, width: 1),
+          side: BorderSide(color: p.border, width: 1),
         ),
       ),
-      dividerColor: TropaColors.darkOutlineVariant,          // 12% White
+      dividerColor: p.border,
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: TropaColors.darkSurface2dp,               // #232323 (2dp)
+        fillColor: scheme.surfaceContainerLow,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: TropaColors.darkOutlineVariant),
+          borderSide: BorderSide(color: p.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: TropaColors.darkOutlineVariant),
+          borderSide: BorderSide(color: p.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: TropaColors.primaryDark, width: 2), // #BB86FC
+          borderSide: BorderSide(color: p.primary, width: 2),
         ),
-        labelStyle: const TextStyle(color: TropaColors.darkOnSurfaceVariant),
-        hintStyle: const TextStyle(color: TropaColors.darkOutline),
+        labelStyle: TextStyle(color: muted),
+        hintStyle: TextStyle(color: faint),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: TropaColors.primaryDark,
-          foregroundColor: TropaColors.onPrimaryDark,
+          backgroundColor: p.primary,
+          foregroundColor: p.onPrimary,
           elevation: 2,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           textStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
@@ -317,246 +307,59 @@ class TropaTheme {
       checkboxTheme: CheckboxThemeData(
         fillColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return TropaColors.primaryDark;
+            return p.primary;
           }
           return Colors.transparent;
         }),
-        checkColor: WidgetStateProperty.all(TropaColors.onPrimaryDark),
+        checkColor: WidgetStateProperty.all(p.onPrimary),
       ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return TropaColors.primaryDark;
+            return p.primary;
           }
-          return TropaColors.darkOutline;
+          return faint;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return TropaColors.primaryDark.withValues(alpha: 0.5);
+            return p.primary.withValues(alpha: 0.5);
           }
-          return TropaColors.darkSurface4dp;
+          return p.surfaceVariant;
         }),
       ),
       textTheme: GoogleFonts.interTextTheme(baseTextTheme).copyWith(
         headlineLarge: GoogleFonts.manrope(
           fontSize: 28,
           fontWeight: FontWeight.w700,
-          color: TropaColors.darkOnSurface,
+          color: p.text,
           letterSpacing: -0.5,
         ),
         headlineMedium: GoogleFonts.manrope(
           fontSize: 20,
           fontWeight: FontWeight.w600,
-          color: TropaColors.darkOnSurface,
+          color: p.text,
         ),
         titleMedium: GoogleFonts.inter(
           fontSize: 14,
           fontWeight: FontWeight.w600,
-          color: TropaColors.darkOnSurface,
+          color: p.text,
         ),
         bodyLarge: GoogleFonts.inter(
           fontSize: 14,
-          color: TropaColors.darkOnSurface,
+          color: p.text,
         ),
         bodyMedium: GoogleFonts.inter(
           fontSize: 13,
-          color: TropaColors.darkOnSurfaceVariant,
+          color: muted,
         ),
         labelSmall: GoogleFonts.inter(
           fontSize: 11,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.3,
-          color: TropaColors.darkOutline,
+          color: faint,
         ),
       ),
-    );
-  }
-
-  static ThemeData get _lightBase {
-    final baseTextTheme = Typography.material2021().black;
-    return ThemeData(
-      useMaterial3: true,
-      brightness: Brightness.light,
-      scaffoldBackgroundColor: TropaColors.lightBackground, // #FFFFFF
-      colorScheme: const ColorScheme.light(
-        primary: TropaColors.primaryLight,                   // #6200EE (Purple 500)
-        onPrimary: TropaColors.onPrimaryLight,               // #FFFFFF (White)
-        primaryContainer: TropaColors.primaryVariant,        // #3700B3 (Purple 700)
-        onPrimaryContainer: Colors.white,
-        secondary: TropaColors.secondary,                    // #03DAC6 (Teal 200)
-        onSecondary: TropaColors.onSecondary,                // #000000 (Black)
-        secondaryContainer: TropaColors.secondaryVariant,    // #018786
-        onSecondaryContainer: Colors.white,
-        surface: TropaColors.lightSurface,                   // #FFFFFF (White)
-        onSurface: TropaColors.lightOnSurface,               // 87% Black
-        onSurfaceVariant: TropaColors.lightOnSurfaceVariant, // 60% Black
-        outline: TropaColors.lightOutline,                   // 38% Black
-        outlineVariant: TropaColors.lightSurfaceHighest,     // #E0E0E0
-        error: TropaColors.errorLight,                       // #B00020
-        onError: TropaColors.onErrorLight,                   // #FFFFFF
-      ),
-      dialogTheme: DialogThemeData(
-        backgroundColor: TropaColors.lightSurface,           // #FFFFFF
-        elevation: 8,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
-      cardTheme: CardThemeData(
-        color: TropaColors.lightSurface,                     // #FFFFFF
-        elevation: 1,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
-          side: const BorderSide(color: TropaColors.lightSurfaceHighest, width: 1), // #E0E0E0
-        ),
-      ),
-      dividerColor: TropaColors.lightSurfaceHighest,         // #E0E0E0
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: TropaColors.lightSurfaceLow,              // #F5F5F5
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: TropaColors.lightSurfaceHighest),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: TropaColors.lightSurfaceHighest),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: TropaColors.primaryLight, width: 2), // #6200EE
-        ),
-        labelStyle: const TextStyle(color: TropaColors.lightOnSurfaceVariant),
-        hintStyle: const TextStyle(color: TropaColors.lightOutline),
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: TropaColors.primaryLight,
-          foregroundColor: TropaColors.onPrimaryLight,
-          elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          textStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
-        ),
-      ),
-      outlinedButtonTheme: _outlinedButtonTheme,
-      textButtonTheme: _textButtonTheme,
-      checkboxTheme: CheckboxThemeData(
-        fillColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return TropaColors.primaryLight;
-          }
-          return Colors.transparent;
-        }),
-        checkColor: WidgetStateProperty.all(TropaColors.onPrimaryLight),
-      ),
-      switchTheme: SwitchThemeData(
-        thumbColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return TropaColors.primaryLight;
-          }
-          return TropaColors.lightOutline;
-        }),
-        trackColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return TropaColors.primaryLight.withValues(alpha: 0.5);
-          }
-          return TropaColors.lightSurfaceHigh;
-        }),
-      ),
-      textTheme: GoogleFonts.interTextTheme(baseTextTheme).copyWith(
-        headlineLarge: GoogleFonts.manrope(
-          fontSize: 28,
-          fontWeight: FontWeight.w700,
-          color: TropaColors.lightOnSurface,
-          letterSpacing: -0.5,
-        ),
-        headlineMedium: GoogleFonts.manrope(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          color: TropaColors.lightOnSurface,
-        ),
-        titleMedium: GoogleFonts.inter(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: TropaColors.lightOnSurface,
-        ),
-        bodyLarge: GoogleFonts.inter(
-          fontSize: 14,
-          color: TropaColors.lightOnSurface,
-        ),
-        bodyMedium: GoogleFonts.inter(
-          fontSize: 13,
-          color: TropaColors.lightOnSurfaceVariant,
-        ),
-        labelSmall: GoogleFonts.inter(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.3,
-          color: TropaColors.lightOutline,
-        ),
-      ),
-    );
-  }
-
-  /// TROPA brand theme: white surfaces, blue primary, green accents, blue sidebar.
-  static ThemeData get tropaTheme {
-    final base = lightTheme;
-    return base.copyWith(
-      colorScheme: base.colorScheme.copyWith(
-        primary: TropaColors.tropaBlue,
-        onPrimary: TropaColors.tropaWhite,
-        primaryContainer: TropaColors.tropaBlueDark,
-        onPrimaryContainer: TropaColors.tropaWhite,
-        secondary: TropaColors.tropaGreen,
-        onSecondary: TropaColors.tropaWhite,
-        secondaryContainer: TropaColors.tropaGreen,
-        onSecondaryContainer: TropaColors.tropaWhite,
-      ),
-      inputDecorationTheme: base.inputDecorationTheme.copyWith(
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: TropaColors.tropaBlue, width: 2),
-        ),
-      ),
-      elevatedButtonTheme: ElevatedButtonThemeData(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: TropaColors.tropaBlue,
-          foregroundColor: TropaColors.tropaWhite,
-          elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          textStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
-        ),
-      ),
-      checkboxTheme: CheckboxThemeData(
-        fillColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return TropaColors.tropaBlue;
-          }
-          return Colors.transparent;
-        }),
-        checkColor: WidgetStateProperty.all(TropaColors.tropaWhite),
-      ),
-      switchTheme: SwitchThemeData(
-        thumbColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return TropaColors.tropaBlue;
-          }
-          return TropaColors.lightOutline;
-        }),
-        trackColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return TropaColors.tropaBlue.withValues(alpha: 0.5);
-          }
-          return TropaColors.lightSurfaceHigh;
-        }),
-      ),
-      extensions: const [
-        TropaBrand(
-          sidebarBg: TropaColors.tropaBlue,
-          sidebarFg: TropaColors.tropaWhite,
-          sidebarFgMuted: Color(0xB3FFFFFF), // 70% White
-          sidebarActiveBg: TropaColors.tropaWhite,
-          sidebarActiveFg: TropaColors.tropaBlue,
-        ),
-      ],
+      extensions: [if (p.brand != null) p.brand!],
     );
   }
 }
@@ -630,14 +433,13 @@ class TropaStyles {
   /// Text style for filter-bar fields and their dropdown items.
   static TextStyle fieldText(BuildContext context) => GoogleFonts.inter(
         fontSize: 13,
-        color: Theme.of(context).brightness == Brightness.dark ? TropaColors.darkOnSurface : TropaColors.lightOnSurface,
+        color: TropaColors.textHigh(context),
       );
 
   /// Decoration for dialog/form fields; pair with a label above via `LabeledField`.
   static InputDecoration formField(BuildContext context, {String? hint, IconData? icon, Widget? suffix, String? helper}) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final border = isDark ? TropaColors.darkOutlineVariant : TropaColors.lightSurfaceHighest;
-    final subtext = isDark ? TropaColors.darkOnSurfaceVariant : TropaColors.lightOnSurfaceVariant;
+    final border = TropaColors.borderOf(context);
+    final subtext = TropaColors.textMedium(context);
     final error = TropaColors.errorOf(context);
     OutlineInputBorder outline(Color c, [double w = 1]) =>
         OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: c, width: w));
@@ -652,7 +454,7 @@ class TropaStyles {
       suffixIcon: suffix,
       isDense: true,
       filled: true,
-      fillColor: isDark ? TropaColors.darkSurface : Colors.white,
+      fillColor: TropaColors.fieldFillOf(context),
       contentPadding: EdgeInsets.fromLTRB(icon != null ? 0 : 14, 13, 12, 13),
       border: outline(border),
       enabledBorder: outline(border),
@@ -666,9 +468,8 @@ class TropaStyles {
 
   /// Decoration for search boxes and filter dropdowns above lists and tables.
   static InputDecoration filterField(BuildContext context, {String? hint, bool search = false}) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final border = isDark ? TropaColors.darkOutlineVariant : const Color(0xFFE2E8F0);
-    final subtext = isDark ? TropaColors.darkOnSurfaceVariant : TropaColors.lightOnSurfaceVariant;
+    final border = TropaColors.borderOf(context);
+    final subtext = TropaColors.textMedium(context);
     return InputDecoration(
       hintText: hint,
       hintStyle: GoogleFonts.inter(fontSize: 13, color: subtext.withValues(alpha: 0.75)),
@@ -676,7 +477,7 @@ class TropaStyles {
       prefixIconConstraints: const BoxConstraints(minWidth: 40, minHeight: 20),
       isDense: true,
       filled: true,
-      fillColor: isDark ? TropaColors.darkSurface : Colors.white,
+      fillColor: TropaColors.fieldFillOf(context),
       contentPadding: EdgeInsets.fromLTRB(search ? 0 : 14, 13, 10, 13),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: border)),
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: border)),
@@ -686,4 +487,18 @@ class TropaStyles {
       ),
     );
   }
+}
+
+/// Width breakpoints shared by the shell and the pages: phone, tablet, desktop.
+class TropaBreakpoints {
+  static const double compact = 600;
+  static const double expanded = 1024;
+
+  static bool isCompact(double width) => width < compact;
+  static bool isExpanded(double width) => width >= expanded;
+}
+
+extension TropaScreen on BuildContext {
+  double get screenWidth => MediaQuery.sizeOf(this).width;
+  bool get isCompactScreen => TropaBreakpoints.isCompact(screenWidth);
 }

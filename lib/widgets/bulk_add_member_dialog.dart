@@ -6,6 +6,7 @@ import '../models/models.dart';
 import '../providers/auth_provider.dart';
 import '../providers/member_provider.dart';
 import '../core/ph_time.dart';
+import 'form_fields.dart';
 
 class BulkMemberRowData {
   String id;
@@ -111,7 +112,8 @@ class _BulkAddMemberDialogState extends ConsumerState<BulkAddMemberDialog> {
           }
         });
       }
-    } catch (_) {} finally {
+    } catch (_) {
+    } finally {
       if (mounted) setState(() => _isLoadingHouseholds = false);
     }
   }
@@ -141,11 +143,14 @@ class _BulkAddMemberDialogState extends ConsumerState<BulkAddMemberDialog> {
       return;
     }
 
-    final validRows = _rows.where((r) => r.firstnameCtrl.text.trim().isNotEmpty && r.lastnameCtrl.text.trim().isNotEmpty).toList();
+    final validRows =
+        _rows.where((r) => r.firstnameCtrl.text.trim().isNotEmpty && r.lastnameCtrl.text.trim().isNotEmpty).toList();
 
     if (validRows.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter at least one member with First Name and Last Name.'), backgroundColor: TropaColors.error),
+        const SnackBar(
+            content: Text('Please enter at least one member with First Name and Last Name.'),
+            backgroundColor: TropaColors.error),
       );
       return;
     }
@@ -181,7 +186,8 @@ class _BulkAddMemberDialogState extends ConsumerState<BulkAddMemberDialog> {
         Navigator.of(context).pop(created);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Successfully registered batch of ${created.length} members to ${_selectedHousehold!.householdName}!'),
+            content: Text(
+                'Successfully registered batch of ${created.length} members to ${_selectedHousehold!.householdName}!'),
             backgroundColor: TropaColors.secondaryOf(context),
           ),
         );
@@ -199,12 +205,11 @@ class _BulkAddMemberDialogState extends ConsumerState<BulkAddMemberDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final dlgBg = isDark ? TropaColors.darkSurface : Colors.white;
-    final textCol = isDark ? TropaColors.darkOnSurface : TropaColors.lightOnSurface;
-    final subtextCol = isDark ? TropaColors.darkOnSurfaceVariant : TropaColors.lightOnSurfaceVariant;
-    final cardSectionBg = isDark ? TropaColors.darkSurfaceLow : const Color(0xFFF8FAFC);
-    final borderCol = isDark ? TropaColors.darkSurfaceHighest : const Color(0xFFE2E8F0);
+    final dlgBg = TropaColors.cardOf(context);
+    final textCol = TropaColors.textHigh(context);
+    final subtextCol = TropaColors.textMedium(context);
+    final cardSectionBg = TropaColors.subtleOf(context);
+    final borderCol = TropaColors.borderOf(context);
 
     return AlertDialog(
       backgroundColor: dlgBg,
@@ -281,7 +286,8 @@ class _BulkAddMemberDialogState extends ConsumerState<BulkAddMemberDialog> {
                         value: _selectedHousehold,
                         isExpanded: true,
                         decoration: InputDecoration(
-                          hintText: _isLoadingHouseholds ? 'Loading households...' : 'Select Shared Household for Batch...',
+                          hintText:
+                              _isLoadingHouseholds ? 'Loading households...' : 'Select Shared Household for Batch...',
                           contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                           suffixIcon: _isLoadingHouseholds
                               ? const SizedBox(
@@ -297,7 +303,8 @@ class _BulkAddMemberDialogState extends ConsumerState<BulkAddMemberDialog> {
                         items: _householdOptions.map((h) {
                           return DropdownMenuItem<Household>(
                             value: h,
-                            child: Text('${h.householdName} (${h.purok}, ${h.barangay})', style: TropaText.meta(textCol)),
+                            child:
+                                Text('${h.householdName} (${h.purok}, ${h.barangay})', style: TropaText.meta(textCol)),
                           );
                         }).toList(),
                         onChanged: (h) => setState(() => _selectedHousehold = h),
@@ -346,9 +353,12 @@ class _BulkAddMemberDialogState extends ConsumerState<BulkAddMemberDialog> {
                               child: Row(
                                 children: [
                                   SizedBox(width: 32, child: Text('#', style: TropaText.tableHeader(subtextCol))),
-                                  SizedBox(width: 140, child: Text('FIRST NAME *', style: TropaText.tableHeader(subtextCol))),
+                                  SizedBox(
+                                      width: 140,
+                                      child: Text('FIRST NAME *', style: TropaText.tableHeader(subtextCol))),
                                   const SizedBox(width: 8),
-                                  SizedBox(width: 140, child: Text('LAST NAME *', style: TropaText.tableHeader(subtextCol))),
+                                  SizedBox(
+                                      width: 140, child: Text('LAST NAME *', style: TropaText.tableHeader(subtextCol))),
                                   const SizedBox(width: 8),
                                   SizedBox(width: 110, child: Text('MIDDLE', style: TropaText.tableHeader(subtextCol))),
                                   const SizedBox(width: 8),
@@ -357,7 +367,8 @@ class _BulkAddMemberDialogState extends ConsumerState<BulkAddMemberDialog> {
                                   SizedBox(width: 140, child: Text('SECTOR', style: TropaText.tableHeader(subtextCol))),
                                   const SizedBox(width: 8),
                                   SizedBox(width: 65, child: Text('LEADER', style: TropaText.tableHeader(subtextCol))),
-                                  SizedBox(width: 85, child: Text('TROPA MEMBER', style: TropaText.tableHeader(subtextCol))),
+                                  SizedBox(
+                                      width: 85, child: Text('TROPA MEMBER', style: TropaText.tableHeader(subtextCol))),
                                   SizedBox(width: 65, child: Text('VOTER', style: TropaText.tableHeader(subtextCol))),
                                   SizedBox(width: 65, child: Text('PHIC', style: TropaText.tableHeader(subtextCol))),
                                   SizedBox(width: 65, child: Text('TRUCARE', style: TropaText.tableHeader(subtextCol))),
@@ -376,6 +387,8 @@ class _BulkAddMemberDialogState extends ConsumerState<BulkAddMemberDialog> {
                                 SizedBox(
                                   width: 140,
                                   child: TextField(
+                                    inputFormatters: const [UpperCaseFormatter()],
+                                    textCapitalization: TextCapitalization.characters,
                                     controller: r.firstnameCtrl,
                                     style: TropaText.meta(textCol),
                                     decoration: const InputDecoration(
@@ -389,6 +402,8 @@ class _BulkAddMemberDialogState extends ConsumerState<BulkAddMemberDialog> {
                                 SizedBox(
                                   width: 140,
                                   child: TextField(
+                                    inputFormatters: const [UpperCaseFormatter()],
+                                    textCapitalization: TextCapitalization.characters,
                                     controller: r.lastnameCtrl,
                                     style: TropaText.meta(textCol),
                                     decoration: const InputDecoration(
@@ -402,6 +417,8 @@ class _BulkAddMemberDialogState extends ConsumerState<BulkAddMemberDialog> {
                                 SizedBox(
                                   width: 110,
                                   child: TextField(
+                                    inputFormatters: const [UpperCaseFormatter()],
+                                    textCapitalization: TextCapitalization.characters,
                                     controller: r.middlenameCtrl,
                                     style: TropaText.meta(textCol),
                                     decoration: const InputDecoration(
@@ -435,7 +452,10 @@ class _BulkAddMemberDialogState extends ConsumerState<BulkAddMemberDialog> {
                                       isDense: true,
                                       contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                                     ),
-                                    items: _sectors.map((s) => DropdownMenuItem(value: s, child: Text(s, style: const TextStyle(fontSize: 11)))).toList(),
+                                    items: _sectors
+                                        .map((s) => DropdownMenuItem(
+                                            value: s, child: Text(s, style: const TextStyle(fontSize: 11))))
+                                        .toList(),
                                     onChanged: (val) {
                                       if (val != null) setState(() => r.sector = val);
                                     },
@@ -511,7 +531,8 @@ class _BulkAddMemberDialogState extends ConsumerState<BulkAddMemberDialog> {
           ),
           icon: const Icon(Icons.save, size: 18),
           label: _isSaving
-              ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+              ? const SizedBox(
+                  width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
               : Text('Save Batch (${_rows.where((r) => r.firstnameCtrl.text.trim().isNotEmpty).length} TROPA Members)'),
           onPressed: _isSaving ? null : _saveBulkBatch,
         ),

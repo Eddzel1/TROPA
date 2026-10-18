@@ -1,146 +1,113 @@
-import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/db.dart';
 import '../models/models.dart';
-import '../core/ph_time.dart';
 import 'auth_provider.dart';
 
-class DuesFilter {
+/// Tables whose changes can move a dues balance or the ledger.
+const _duesTables = 'dues_payments,family_members,households,locations';
+
+/// The barangays the signed-in user collects dues for.
+final duesScopeProvider = FutureProvider<DuesScope>((ref) async {
+  ref.watch(tableChangesProvider('locations'));
+  final user = ref.watch(currentAppUserProvider).value;
+  if (user == null) return const DuesScope();
+  return ref.watch(supabaseServiceProvider).getDuesScope(user);
+});
+
+/// Every dues rate, oldest effective month first. Live.
+final duesRatesProvider = StreamProvider<List<DuesRate>>((ref) {
+  return ref.watch(supabaseServiceProvider).watchDuesRates();
+});
+
+enum DuesSearchMode { household, member }
+
+class DuesSearch {
+  final DuesSearchMode mode;
   final String query;
-  final String? memberId;
-  final String? householdId;
-  final int page;
 
-  const DuesFilter({
-    this.query = '',
-    this.memberId,
-    this.householdId,
-    this.page = 0,
-  });
+  const DuesSearch({this.mode = DuesSearchMode.household, this.query = ''});
 
-  DuesFilter copyWith({
-    String? query,
-    String? memberId,
-    String? householdId,
-    int? page,
-  }) {
-    return DuesFilter(
-      query: query ?? this.query,
-      memberId: memberId ?? this.memberId,
-      householdId: householdId ?? this.householdId,
-      page: page ?? this.page,
-    );
-  }
+  DuesSearch copyWith({DuesSearchMode? mode, String? query}) =>
+      DuesSearch(mode: mode ?? this.mode, query: query ?? this.query);
 }
 
-final duesFilterProvider = StateProvider<DuesFilter>((ref) {
-  return const DuesFilter();
+/// Id of the signed-in user. Dues page state below watches it, so it resets when another user signs in.
+final _duesUserIdProvider = Provider<String?>((ref) => ref.watch(currentAppUserProvider.select((u) => u.value?.id)));
+
+final duesSearchProvider = StateProvider<DuesSearch>((ref) {
+  ref.watch(_duesUserIdProvider);
+  return const DuesSearch();
 });
 
-final duesAsyncProvider = FutureProvider<List<DuesPayment>>((ref) async {
+/// What the Collect tab has open: a household or a single member, by id.
+typedef DuesSelection = ({DuesSearchMode mode, String id});
+
+final duesSelectionProvider = StateProvider<DuesSelection?>((ref) {
+  ref.watch(_duesUserIdProvider);
+  return null;
+});
+
+final duesHouseholdResultsProvider = FutureProvider<List<DuesHousehold>>((ref) async {
+  ref.watch(tableChangesProvider(_duesTables));
+  final scope = await ref.watch(duesScopeProvider.future);
+  final search = ref.watch(duesSearchProvider);
+  if (scope.isEmpty || search.mode != DuesSearchMode.household) return [];
+  return ref.watch(supabaseServiceProvider).searchDuesHouseholds(scope: scope, query: search.query);
+});
+
+final duesMemberResultsProvider = FutureProvider<List<DuesMember>>((ref) async {
+  ref.watch(tableChangesProvider(_duesTables));
+  final scope = await ref.watch(duesScopeProvider.future);
+  final search = ref.watch(duesSearchProvider);
+  if (scope.isEmpty || search.mode != DuesSearchMode.member) return [];
+  return ref.watch(supabaseServiceProvider).searchDuesMembers(scope: scope, query: search.query);
+});
+
+/// The members a payment panel shows: a household's members, or the one member.
+final duesPanelProvider = FutureProvider.family<DuesHousehold?, DuesSelection>((ref, sel) async {
+  ref.watch(tableChangesProvider(_duesTables));
+  final scope = await ref.watch(duesScopeProvider.future);
   final service = ref.watch(supabaseServiceProvider);
-  final filter = ref.watch(duesFilterProvider);
-  final items = await service.getDuesPayments(
-    query: filter.query,
-    memberId: filter.memberId,
-    householdId: filter.householdId,
-    page: filter.page,
+  if (sel.mode == DuesSearchMode.household) return service.getDuesHousehold(sel.id, scope);
+  final m = await service.getDuesMember(sel.id, scope);
+  if (m == null) return null;
+  return DuesHousehold(
+    id: m.householdId,
+    householdName: m.householdName ?? 'No household',
+    lgu: m.lgu,
+    barangay: m.barangay,
+    purok: m.purok,
+    members: [m],
   );
-  if (items.isNotEmpty) return items;
-
-  // Fallback demo ledger data if newly provisioned database has 0 payments
-  return [
-    DuesPayment(
-      id: 'dues-demo-1',
-      memberId: 'm-01',
-      householdId: 'hh-01',
-      amount: 250.00,
-      paymentMonth: '2026-03',
-      monthsCovered: 1,
-      paymentDate: phNow().subtract(const Duration(days: 2)),
-      paymentMethod: 'GCash',
-      referenceNumber: 'GCASH-9842109',
-      status: 'completed',
-      collectedBy: 'R. Del Rosario',
-      createdBy: 'Admin',
-      createdDate: phNow().subtract(const Duration(days: 2)),
-      updatedDate: phNow().subtract(const Duration(days: 2)),
-    ),
-    DuesPayment(
-      id: 'dues-demo-2',
-      memberId: 'm-02',
-      householdId: 'hh-02',
-      amount: 500.00,
-      paymentMonth: '2026-02 to 2026-03',
-      monthsCovered: 2,
-      paymentDate: phNow().subtract(const Duration(days: 5)),
-      paymentMethod: 'Cash',
-      referenceNumber: 'OR-772184',
-      status: 'completed',
-      collectedBy: 'M. Bautista',
-      createdBy: 'Admin',
-      createdDate: phNow().subtract(const Duration(days: 5)),
-      updatedDate: phNow().subtract(const Duration(days: 5)),
-    ),
-  ];
 });
 
-final duesListNotifierProvider = StateNotifierProvider<DuesListNotifier, AsyncValue<List<DuesPayment>>>((ref) {
-  return DuesListNotifier(ref);
+final duesLedgerQueryProvider = StateProvider<String>((ref) {
+  ref.watch(_duesUserIdProvider);
+  return '';
+});
+final duesLedgerPageProvider = StateProvider<int>((ref) {
+  ref.watch(_duesUserIdProvider);
+  return 0;
 });
 
-class DuesListNotifier extends StateNotifier<AsyncValue<List<DuesPayment>>> {
-  final Ref ref;
-
-  late final StreamSubscription<void> _changes;
-
-  DuesListNotifier(this.ref) : super(const AsyncValue.loading()) {
-    refresh();
-    // Re-query quietly when local edits or synced rows touch this table.
-    _changes = ref.read(localDbProvider).onChange(['dues_payments'], triggerImmediately: false).listen((_) => refresh(quiet: true));
-  }
-
-  @override
-  void dispose() {
-    _changes.cancel();
-    super.dispose();
-  }
-
-  /// [quiet] keeps the current rows on screen instead of flashing a loading state.
-  Future<void> refresh({bool quiet = false}) async {
-    if (!quiet || !state.hasValue) state = const AsyncValue.loading();
-    try {
-      final service = ref.read(supabaseServiceProvider);
-      final filter = ref.read(duesFilterProvider);
-      final list = await service.getDuesPayments(
-        query: filter.query,
-        memberId: filter.memberId,
-        householdId: filter.householdId,
-        page: filter.page,
+final duesReceiptsProvider = FutureProvider<List<DuesReceipt>>((ref) async {
+  ref.watch(tableChangesProvider(_duesTables));
+  final scope = await ref.watch(duesScopeProvider.future);
+  if (scope.isEmpty) return [];
+  return ref.watch(supabaseServiceProvider).getDuesReceipts(
+        scope: scope,
+        query: ref.watch(duesLedgerQueryProvider),
+        page: ref.watch(duesLedgerPageProvider),
       );
-      state = AsyncValue.data(list);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-    }
-  }
+});
 
-  Future<bool> recordPayment(DuesPayment item) async {
-    try {
-      final service = ref.read(supabaseServiceProvider);
-      await service.createDuesPayment(item);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-
-  Future<bool> deletePayment(String id) async {
-    try {
-      final service = ref.read(supabaseServiceProvider);
-      await service.deleteDuesPayment(id);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
-}
+/// Total collected (non-void) for the ledger's current search, and this month's share.
+final duesLedgerTotalsProvider = FutureProvider<({double total, double thisMonth, int receipts})>((ref) async {
+  ref.watch(tableChangesProvider(_duesTables));
+  final scope = await ref.watch(duesScopeProvider.future);
+  if (scope.isEmpty) return (total: 0.0, thisMonth: 0.0, receipts: 0);
+  return ref.watch(supabaseServiceProvider).getDuesLedgerTotals(
+        scope: scope,
+        query: ref.watch(duesLedgerQueryProvider),
+      );
+});

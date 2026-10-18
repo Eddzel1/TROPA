@@ -11,7 +11,7 @@
 -- 1. Stream officers to devices.
 alter publication powersync add table officers;
 
--- 2. True when the signed-in user's profile grants 'all' or 'user_management'.
+-- 2. True when the signed-in user's profile grants 'system_admin' or 'user_management'.
 --    security definer so it can read users regardless of users' own RLS.
 --    users.permissions may be text[] or jsonb; to_jsonb handles both.
 create or replace function public.is_tropa_admin()
@@ -25,7 +25,7 @@ as $$
     select 1 from public.users u
     where u.id = auth.uid()
       and coalesce(u.status, 'active') = 'active'
-      and (to_jsonb(u.permissions) ? 'all' or to_jsonb(u.permissions) ? 'user_management')
+      and (to_jsonb(u.permissions) ? 'system_admin' or to_jsonb(u.permissions) ? 'user_management')
   );
 $$;
 
