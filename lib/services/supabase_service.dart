@@ -256,6 +256,14 @@ class SupabaseService {
   static const _memberNameKeys = ['firstname', 'middlename', 'lastname', 'extension'];
   static const _householdNameKeys = ['household_name'];
 
+  /// New rows are credited to the signed-in encoder (by email, like dues and the activity log),
+  /// whatever the form passed in. The session is kept on the device, so this works offline too.
+  Map<String, dynamic> _stampCreator(Map<String, dynamic> json) {
+    final email = currentAuthUser?.email;
+    if (email != null && email.isNotEmpty) json['created_by'] = email;
+    return json;
+  }
+
   Map<String, dynamic> _upperNames(Map<String, dynamic> json, List<String> keys) {
     for (final k in keys) {
       final v = json[k];
@@ -266,7 +274,7 @@ class SupabaseService {
 
   Future<Household> createHousehold(Household item) async {
     await db.writeTransaction((tx) async {
-      await _insert(tx, 'households', _upperNames(item.toJson(), _householdNameKeys));
+      await _insert(tx, 'households', _stampCreator(_upperNames(item.toJson(), _householdNameKeys)));
       await _log(
         tx,
         action: 'CREATE',
@@ -283,12 +291,33 @@ class SupabaseService {
     payload['updated_date'] = _now();
     await db.writeTransaction((tx) async {
       await _update(tx, 'households', item.id, payload);
+      // Members share their household's location, so carry an address change over to them
+      final address = [payload['lgu'], payload['barangay'], payload['purok'], payload['purok_id']];
+      final moved = await tx.getAll(
+        'SELECT id FROM family_members WHERE household_id = ? AND ('
+        "COALESCE(lgu, '') != COALESCE(?, '') OR COALESCE(barangay, '') != COALESCE(?, '') OR "
+        "COALESCE(purok, '') != COALESCE(?, '') OR COALESCE(purok_id, '') != COALESCE(?, ''))",
+        [item.id, ...address],
+      );
+      for (final m in moved) {
+        await _update(tx, 'family_members', m['id'] as String, {
+          'lgu': payload['lgu'],
+          'barangay': payload['barangay'],
+          'purok': payload['purok'],
+          'purok_id': payload['purok_id'],
+          'updated_date': payload['updated_date'],
+        });
+      }
       await _log(
         tx,
         action: 'UPDATE',
         entityType: 'Household',
         entityId: item.id,
-        details: {'household_name': item.householdName, 'status': item.status},
+        details: {
+          'household_name': item.householdName,
+          'status': item.status,
+          if (moved.isNotEmpty) 'members_relocated': moved.length,
+        },
       );
     });
     return Household.fromJson((await _getRow('households', item.id))!);
@@ -430,7 +459,7 @@ class SupabaseService {
 
   Future<FamilyMember> createMember(FamilyMember member) async {
     await db.writeTransaction((tx) async {
-      await _insert(tx, 'family_members', _upperNames(member.toJson(), _memberNameKeys));
+      await _insert(tx, 'family_members', _stampCreator(_upperNames(member.toJson(), _memberNameKeys)));
       await _log(
         tx,
         action: 'CREATE',
@@ -446,7 +475,7 @@ class SupabaseService {
     if (members.isEmpty) return [];
     await db.writeTransaction((tx) async {
       for (final m in members) {
-        await _insert(tx, 'family_members', _upperNames(m.toJson(), _memberNameKeys));
+        await _insert(tx, 'family_members', _stampCreator(_upperNames(m.toJson(), _memberNameKeys)));
       }
       await _log(
         tx,

@@ -26,18 +26,6 @@ class HouseholdsView extends ConsumerStatefulWidget {
 class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
   final _searchCtrl = TextEditingController();
 
-  final List<String> _barangays = [
-    'All',
-    'BANLAG',
-    'POBLACION',
-    'LILINGAYON',
-    'BAROBO',
-    'SINABUAGAN',
-    'BATANGAN',
-    'GUINOYORAN',
-    'LURUGAN',
-  ];
-
   @override
   void dispose() {
     _searchCtrl.dispose();
@@ -56,6 +44,34 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
     final uploadBg = TropaColors.chipOf(context);
     final uploadBorder = TropaColors.borderOf(context);
 
+    // LGU and barangay choices come from the locations table, keeping the household's own values
+    // selectable even when they aren't listed there.
+    final locations = ref.read(locationsProvider).valueOrNull ?? const <LocationOption>[];
+    String norm(String? v) => (v ?? '').trim().toUpperCase();
+    String? selectedLgu = norm(existing?.lgu).isNotEmpty ? norm(existing?.lgu) : null;
+    String? selectedBarangay = norm(existing?.barangay).isNotEmpty ? norm(existing?.barangay) : null;
+    final existingPurok = (existing?.purok ?? '').trim();
+    // `locations.id` of the chosen LGU + barangay; puroks hang off it.
+    String? locationId() {
+      for (final l in locations) {
+        if (l.lgu == selectedLgu && l.barangay == selectedBarangay && l.id.isNotEmpty) return l.id;
+      }
+      return null;
+    }
+
+    List<String> lguOptions() => {
+          for (final l in locations)
+            if (l.lgu.isNotEmpty) l.lgu,
+          if (selectedLgu != null) selectedLgu!,
+        }.toList()
+          ..sort();
+    List<String> barangayOptions() => {
+          for (final l in locations)
+            if (l.barangay.isNotEmpty && l.lgu == selectedLgu) l.barangay,
+          if (selectedLgu == norm(existing?.lgu) && norm(existing?.barangay).isNotEmpty) norm(existing?.barangay),
+        }.toList()
+          ..sort();
+
     showDialog(
       context: context,
       builder: (dialogCtx) => StatefulBuilder(
@@ -73,9 +89,9 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
                 key: formKey,
                 initialValue: {
                   'household_name': existing?.householdName ?? '',
-                  'lgu': existing?.lgu ?? 'VALENCIA CITY',
-                  'barangay': existing?.barangay.isNotEmpty == true ? existing!.barangay : 'BANLAG',
-                  'purok': existing?.purok ?? 'P-1',
+                  'lgu': selectedLgu,
+                  'barangay': norm(existing?.barangay).isNotEmpty ? norm(existing?.barangay) : null,
+                  'purok': existingPurok.isNotEmpty ? existingPurok : null,
                   'total_members': (existing?.totalMembers ?? 2).toString(),
                   'status': existing?.status ?? 'active',
                 },
@@ -102,31 +118,96 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
                       children: [
                         Expanded(
                           child: LabeledField(
-                            label: 'Barangay *',
+                            label: 'LGU *',
                             child: FormBuilderDropdown<String>(
                               style: TropaStyles.fieldText(context),
-                              name: 'barangay',
-                              decoration: TropaStyles.formField(context),
-                              items: _barangays
-                                  .where((b) => b != 'All')
-                                  .map((b) => DropdownMenuItem(value: b, child: Text(b)))
+                              name: 'lgu',
+                              isExpanded: true,
+                              decoration: TropaStyles.formField(context, hint: 'Select LGU'),
+                              items: lguOptions()
+                                  .map((l) => DropdownMenuItem(value: l, child: Text(l, overflow: TextOverflow.ellipsis)))
                                   .toList(),
                               validator: FormBuilderValidators.required(),
+                              onChanged: (v) {
+                                if (v == selectedLgu) return;
+                                setDialogState(() {
+                                  selectedLgu = v;
+                                  selectedBarangay = null;
+                                });
+                                // Barangays belong to an LGU, so pick again after changing it
+                                formKey.currentState?.fields['barangay']?.didChange(null);
+                                formKey.currentState?.fields['purok']?.didChange(null);
+                              },
                             ),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: LabeledField(
-                            label: 'Purok *',
-                            child: FormBuilderTextField(
-                              inputFormatters: const [UpperCaseFormatter()],
-                              textCapitalization: TextCapitalization.characters,
+                            label: 'Barangay *',
+                            child: FormBuilderDropdown<String>(
                               style: TropaStyles.fieldText(context),
-                              name: 'purok',
-                              decoration: TropaStyles.formField(context, hint: 'e.g. P-1 Proper'),
+                              name: 'barangay',
+                              isExpanded: true,
+                              decoration: TropaStyles.formField(context, hint: 'Select barangay'),
+                              items: barangayOptions()
+                                  .map((b) => DropdownMenuItem(value: b, child: Text(b, overflow: TextOverflow.ellipsis)))
+                                  .toList(),
                               validator: FormBuilderValidators.required(),
+                              onChanged: (v) {
+                                if (v == null || v == selectedBarangay) return;
+                                setDialogState(() => selectedBarangay = v);
+                                formKey.currentState?.fields['purok']?.didChange(null);
+                              },
                             ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: LabeledField(
+                            label: 'Purok *',
+                            child: Consumer(builder: (context, ref, _) {
+                              final locId = locationId();
+                              final puroksAsync = locId == null ? null : ref.watch(puroksProvider(locId));
+                              final puroks = puroksAsync?.valueOrNull ?? const <({String id, String name})>[];
+                              final names = [for (final p in puroks) p.name];
+                              // A saved purok that isn't in the puroks table stays selectable (it saves without a purok_id)
+                              final keepExisting = existingPurok.isNotEmpty &&
+                                  selectedLgu == norm(existing?.lgu) &&
+                                  selectedBarangay == norm(existing?.barangay) &&
+                                  !names.contains(existingPurok);
+                              final String hint;
+                              if (selectedBarangay == null) {
+                                hint = 'Select barangay first';
+                              } else if (puroksAsync?.isLoading ?? false) {
+                                hint = 'Loading puroks…';
+                              } else if (puroks.isEmpty) {
+                                hint = 'No puroks listed';
+                              } else {
+                                hint = 'Select purok';
+                              }
+                              return FormBuilderDropdown<String>(
+                                style: TropaStyles.fieldText(context),
+                                name: 'purok',
+                                isExpanded: true,
+                                decoration: TropaStyles.formField(context, hint: hint),
+                                items: [
+                                  if (keepExisting)
+                                    DropdownMenuItem(
+                                      value: existingPurok,
+                                      child: Text('$existingPurok (not in purok list)', overflow: TextOverflow.ellipsis),
+                                    ),
+                                  for (final n in names) DropdownMenuItem(value: n, child: Text(n, overflow: TextOverflow.ellipsis)),
+                                ],
+                                // Only required when this barangay actually has puroks listed
+                                validator: (v) => puroks.isNotEmpty && (v == null || v.isEmpty) ? 'Required' : null,
+                              );
+                            }),
                           ),
                         ),
                       ],
@@ -261,6 +342,14 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
                   // otherwise a random point near the barangay center.
                   final lgu = values['lgu'] as String;
                   final barangay = values['barangay'] as String;
+                  final purok = (values['purok'] as String?)?.trim() ?? '';
+                  // purok_id only when the purok comes from the puroks table
+                  final locId = locationId();
+                  final puroks = locId == null ? const <({String id, String name})>[] : await ref.read(puroksProvider(locId).future);
+                  String? purokId;
+                  for (final p in puroks) {
+                    if (p.name == purok) purokId = p.id;
+                  }
                   final sameArea = existing != null &&
                       existing.lgu.trim().toUpperCase() == lgu.trim().toUpperCase() &&
                       existing.barangay.trim().toUpperCase() == barangay.trim().toUpperCase();
@@ -277,25 +366,34 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
                     householdName: values['household_name'] as String,
                     lgu: lgu,
                     barangay: barangay,
-                    purok: values['purok'] as String,
+                    purok: purok,
+                    purokId: purokId,
+                    householdLeaderId: existing?.householdLeaderId,
                     latitude: point?.latitude,
                     longitude: point?.longitude,
                     totalMembers: int.tryParse(values['total_members'].toString()) ?? 1,
                     activeMembers: int.tryParse(values['total_members'].toString()) ?? 1,
                     status: values['status'] as String,
                     housePictureUrl: uploadedUrl,
+                    housePicturePath: existing?.housePicturePath,
+                    isArchived: existing?.isArchived ?? false,
                     createdDate: existing?.createdDate ?? phNow(),
                     updatedDate: phNow(),
-                    createdBy: existing?.createdBy ?? 'Admin',
+                    createdBy: existing?.createdBy ?? service.currentAuthUser?.email ?? '',
                   );
 
-                  if (existing == null) {
-                    await ref.read(householdListNotifierProvider.notifier).addHousehold(item);
-                  } else {
-                    await ref.read(householdListNotifierProvider.notifier).updateHousehold(item);
+                  final notifier = ref.read(householdListNotifierProvider.notifier);
+                  final ok = existing == null
+                      ? await notifier.addHousehold(item) != null
+                      : await notifier.updateHousehold(item);
+                  if (!dialogCtx.mounted) return;
+                  if (!ok) {
+                    ScaffoldMessenger.of(dialogCtx).showSnackBar(
+                      const SnackBar(content: Text('Could not save the household. Please try again.')),
+                    );
+                    return;
                   }
-
-                  if (dialogCtx.mounted) Navigator.of(dialogCtx).pop();
+                  Navigator.of(dialogCtx).pop();
                 }
               },
               child: Text(existing == null ? 'Save Household' : 'Update Record'),

@@ -89,7 +89,8 @@ class Household {
         'lgu': lgu,
         'barangay': barangay,
         'purok': purok,
-        if (purokId != null) 'purok_id': purokId,
+        // Always sent so a purok that isn't in the puroks table clears a stale link
+        'purok_id': purokId,
         if (householdLeaderId != null) 'household_leader_id': householdLeaderId,
         'total_members': totalMembers,
         'active_members': activeMembers,

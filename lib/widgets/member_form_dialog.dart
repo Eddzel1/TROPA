@@ -97,16 +97,21 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   final _searchLastNameCtrl = TextEditingController();
   final _searchFirstNameCtrl = TextEditingController();
   final _searchMiddleNameCtrl = TextEditingController();
-  String _searchLgu = 'VALENCIA CITY';
+  String _searchLgu = 'All LGUs';
   String _searchBarangay = 'All Barangays';
   Timer? _searchDebounce;
 
   List<VoterSearchResult> _searchResults = [];
+  // Result picked with the arrow keys while typing in the search fields; Enter selects it.
+  int? _highlightedResult;
+  final _highlightedResultKey = GlobalKey();
   bool _isSearching = false;
   bool _searchPerformed = false;
   VoterSearchResult? _selectedVoter;
   // When set, a voter picked in Step 1 fills this household-member row instead of the primary member
   int? _voterSearchDependentIndex;
+  // The voter search was opened from the filled-in form, so closing it returns there instead of closing the dialog
+  bool _searchFromForm = false;
 
   // Manual entry: voter records that match the typed name, offered for review
   Timer? _matchDebounce;
@@ -151,6 +156,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   String _lgu = '';
   String _barangay = '';
   String _purok = '';
+  // A pre-filled purok (e.g. from the voter record) that was cleared because this barangay's purok list lacks it
+  String? _unlistedPurok;
   String? _purokId;
 
   // Status & Qualifications
@@ -300,7 +307,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       _firstNameCtrl.text = e.firstname;
       _middleNameCtrl.text = e.middlename ?? '';
       _contactCtrl.text = _displayContact(e.contactNumber);
-      _phicNoCtrl.text = e.phicNo ?? '';
+      _phicNoCtrl.text = _formatPhic(e.phicNo ?? '');
       _birthDate = e.birthDate;
       _membershipDate = e.membershipDate ?? phToday();
       _selectedSectors
@@ -392,6 +399,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       _searchResults = _possibleMatches;
       _searchPerformed = true;
       _isSearching = false;
+      _searchFromForm = true;
       _currentStep = MemberFormStep.voterSearch;
     });
   }
@@ -441,6 +449,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   }
 
   void _onSearchFieldChanged() {
+    _highlightedResult = null;
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 300), () {
       _executeVoterSearch();
@@ -479,6 +488,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       if (mounted) {
         setState(() {
           _searchResults = results;
+          _highlightedResult = null;
           _isSearching = false;
         });
       }
@@ -490,6 +500,45 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
         });
       }
     }
+  }
+
+  /// Arrow Down/Up move the highlight through the voter results without leaving the search fields.
+  KeyEventResult _onSearchFieldKey(FocusNode _, KeyEvent event) {
+    if (event is KeyUpEvent || _searchResults.isEmpty) return KeyEventResult.ignored;
+    final current = _highlightedResult != null && _highlightedResult! < _searchResults.length ? _highlightedResult : null;
+    final down = event.logicalKey == LogicalKeyboardKey.arrowDown;
+    if (!down && event.logicalKey != LogicalKeyboardKey.arrowUp) return KeyEventResult.ignored;
+    if (!down && current == null) return KeyEventResult.ignored;
+    setState(() => _highlightedResult = down
+        ? (current == null ? 0 : (current + 1).clamp(0, _searchResults.length - 1))
+        : (current! == 0 ? null : current - 1));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final row = _highlightedResultKey.currentContext;
+      if (row == null) return;
+      Scrollable.ensureVisible(
+        row,
+        duration: const Duration(milliseconds: 120),
+        alignmentPolicy: down ? ScrollPositionAlignmentPolicy.keepVisibleAtEnd : ScrollPositionAlignmentPolicy.keepVisibleAtStart,
+      );
+    });
+    return KeyEventResult.handled;
+  }
+
+  void _selectHighlightedResult() {
+    final i = _highlightedResult;
+    if (i != null && i < _searchResults.length) _selectVoterAndProceed(_searchResults[i]);
+  }
+
+  Widget _searchResultRow(int idx, Color primaryCol, Widget child) {
+    final highlighted = idx == _highlightedResult;
+    return Container(
+      key: highlighted ? _highlightedResultKey : null,
+      decoration: BoxDecoration(
+        color: highlighted ? primaryCol.withValues(alpha: 0.10) : null,
+        border: Border(left: BorderSide(color: highlighted ? primaryCol : Colors.transparent, width: 3)),
+      ),
+      child: child,
+    );
   }
 
   void _selectVoterAndProceed(VoterSearchResult voter) {
@@ -504,7 +553,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
         dep.firstNameCtrl.text = voter.firstName;
         dep.middleNameCtrl.text = voter.middleName ?? '';
         dep.contactCtrl.text = _displayContact(voter.contactNumber);
-        dep.phicNoCtrl.text = voter.phicNo ?? '';
+        dep.phicNoCtrl.text = _formatPhic(voter.phicNo ?? '');
         if (voter.birthDate != null) dep.birthDate = DateTime.tryParse(voter.birthDate!);
         if (voter.sector != null && voter.sector!.isNotEmpty) {
           dep.sectors
@@ -529,7 +578,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       _firstNameCtrl.text = voter.firstName;
       _middleNameCtrl.text = voter.middleName ?? '';
       _contactCtrl.text = _displayContact(voter.contactNumber);
-      _phicNoCtrl.text = voter.phicNo ?? '';
+      _phicNoCtrl.text = _formatPhic(voter.phicNo ?? '');
 
       if (voter.birthDate != null) {
         _birthDate = DateTime.tryParse(voter.birthDate!);
@@ -591,6 +640,18 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     _scheduleMatchCheck();
   }
 
+  /// Leaves a voter search opened from the form without picking anyone, keeping everything already entered.
+  void _closeSearchToForm() {
+    final depIndex = _voterSearchDependentIndex;
+    if (depIndex != null && depIndex < _dependentMembers.length) _revealDependent(_dependentMembers[depIndex]);
+    _searchDebounce?.cancel();
+    setState(() {
+      _voterSearchDependentIndex = null;
+      _searchFromForm = false;
+      _currentStep = MemberFormStep.memberForm;
+    });
+  }
+
   /// After returning from a household-member voter search, bring that member's card into view.
   void _revealDependent(DependentMemberData dep) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -611,6 +672,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       _searchMiddleNameCtrl.text = dep.middleNameCtrl.text.trim();
       _searchResults = [];
       _searchPerformed = false;
+      _searchFromForm = true;
       _currentStep = MemberFormStep.voterSearch;
     });
     _executeVoterSearch();
@@ -618,12 +680,18 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
 
   void _backToSearch() {
     setState(() {
+      _searchFromForm = true;
       _currentStep = MemberFormStep.voterSearch;
     });
   }
 
   void _addDependentRow() {
     final dep = DependentMemberData();
+    // Household members usually share the family name: start from the leader's, else the last member added
+    final lastName = _lastNameCtrl.text.trim().isNotEmpty
+        ? _lastNameCtrl.text.trim()
+        : (_dependentMembers.isNotEmpty ? _dependentMembers.last.lastNameCtrl.text.trim() : '');
+    dep.lastNameCtrl.text = lastName.toUpperCase();
     for (final c in [dep.lastNameCtrl, dep.firstNameCtrl, dep.middleNameCtrl]) {
       c.addListener(() {
         _scheduleDependentMatchCheck(dep);
@@ -684,6 +752,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       _searchResults = dep.possibleMatches;
       _searchPerformed = true;
       _isSearching = false;
+      _searchFromForm = true;
       _currentStep = MemberFormStep.voterSearch;
     });
   }
@@ -752,6 +821,17 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   }
 
   static bool _isValidPhMobile(String text) => RegExp(r'^09\d{9}$').hasMatch(_phMobileDigits(text));
+
+  /// PhilHealth number as 15-0257212857-3 (2-10-1 digits); partial input is grouped as far as it goes.
+  static String _formatPhic(String raw) {
+    var digits = raw.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return raw.trim();
+    if (digits.length > 13) digits = digits.substring(0, 13);
+    final b = StringBuffer(digits.substring(0, digits.length.clamp(0, 2)));
+    if (digits.length > 2) b.write('-${digits.substring(2, digits.length.clamp(2, 12))}');
+    if (digits.length > 12) b.write('-${digits.substring(12)}');
+    return b.toString();
+  }
 
   static String _formatPhMobile(String digits) {
     final b = StringBuffer();
@@ -833,6 +913,21 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
         return false;
       }
     }
+    // The purok must come from the barangay's purok list (checked here too in case the list was still loading)
+    final locationId = _locationId;
+    if (!_joiningHousehold && _purok.isNotEmpty && locationId != null) {
+      final puroks = await ref.read(puroksProvider(locationId).future);
+      if (!mounted) return false;
+      if (puroks.isNotEmpty && !puroks.any((p) => p.name == _purok)) {
+        setState(() {
+          _unlistedPurok = _purok;
+          _purok = '';
+          _purokId = null;
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) => _formKey.currentState?.validate());
+        return false;
+      }
+    }
     if (_formKey.currentState?.validate() != true) {
       setState(() {}); // refresh field decorations (e.g. red calendar icon) after the check
       return false;
@@ -872,7 +967,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
           status: 'active',
           createdDate: phNow(),
           updatedDate: phNow(),
-          createdBy: 'Admin',
+          createdBy: ref.read(supabaseServiceProvider).currentAuthUser?.email ?? '',
         ));
       }
 
@@ -911,7 +1006,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
         profilePictureUrl: avatarUrl,
         createdDate: widget.existing?.createdDate ?? phNow(),
         updatedDate: phNow(),
-        createdBy: widget.existing?.createdBy ?? 'Admin',
+        createdBy: widget.existing?.createdBy ?? ref.read(supabaseServiceProvider).currentAuthUser?.email,
       );
 
       // The notifier swallows errors (null / false), so surface them as a failed save
@@ -958,7 +1053,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             phicNo: d.phicMember && d.phicNoCtrl.text.trim().isNotEmpty ? d.phicNoCtrl.text.trim() : null,
             createdDate: phNow(),
             updatedDate: phNow(),
-            createdBy: 'Admin',
+            createdBy: ref.read(supabaseServiceProvider).currentAuthUser?.email ?? '',
           ));
         }
       }
@@ -987,6 +1082,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
 
   void _resetFormForAnother() {
     setState(() {
+      _searchFromForm = false;
       _currentStep = MemberFormStep.voterSearch;
       _selectedVoter = null;
       _searchResults = [];
@@ -1061,7 +1157,13 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             : (screenWidth * 0.94).clamp(740.0, 1380.0);
     _sidebarVisible = _currentStep == MemberFormStep.memberForm && dialogWidth >= 1080;
 
-    return Dialog(
+    // Esc and the barrier also step back out of the search rather than discarding the form
+    return PopScope(
+      canPop: !_closesSearchOnly,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _closeSearchToForm();
+      },
+      child: Dialog(
       backgroundColor: dlgBg,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(compact ? 0 : 16)),
       insetPadding: compact ? EdgeInsets.zero : const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
@@ -1126,8 +1228,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                   ),
                   IconButton(
                     icon: Icon(Icons.close, color: subtextCol, size: 22),
-                    tooltip: 'Close',
-                    onPressed: () => Navigator.of(context).pop(_savedMember),
+                    tooltip: _closesSearchOnly ? 'Back to the form' : 'Close',
+                    onPressed: () => _closesSearchOnly ? _closeSearchToForm() : Navigator.of(context).pop(_savedMember),
                   ),
                 ],
               ),
@@ -1149,8 +1251,11 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
         ),
         ),
       ),
+      ),
     );
   }
+
+  bool get _closesSearchOnly => _currentStep == MemberFormStep.voterSearch && _searchFromForm;
 
   // =========================================================================
   // STEP 1: Find Voter Record Screen (Screenshot 2)
@@ -1265,7 +1370,11 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
           const SizedBox(height: 14),
 
           // Row 2: Last Name, First Name, Middle Name
-          ResponsiveFieldRow(
+          Focus(
+            canRequestFocus: false,
+            skipTraversal: true,
+            onKeyEvent: _onSearchFieldKey,
+            child: ResponsiveFieldRow(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
@@ -1282,6 +1391,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                         'Search last name...', borderCol, fieldFill, primaryCol, subtextCol,
                         withIcon: true),
                     onChanged: (_) => _onSearchFieldChanged(),
+                    // Enter picks the highlighted result; replacing the default also keeps focus here.
+                    onEditingComplete: _selectHighlightedResult,
                   ),
                 ),
               ),
@@ -1299,6 +1410,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                         'Search first name...', borderCol, fieldFill, primaryCol, subtextCol,
                         withIcon: true),
                     onChanged: (_) => _onSearchFieldChanged(),
+                    // Enter picks the highlighted result; replacing the default also keeps focus here.
+                    onEditingComplete: _selectHighlightedResult,
                   ),
                 ),
               ),
@@ -1316,10 +1429,13 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                         'Search middle name...', borderCol, fieldFill, primaryCol, subtextCol,
                         withIcon: true),
                     onChanged: (_) => _onSearchFieldChanged(),
+                    // Enter picks the highlighted result; replacing the default also keeps focus here.
+                    onEditingComplete: _selectHighlightedResult,
                   ),
                 ),
               ),
             ],
+          ),
           ),
 
           if (_isSearching) ...[
@@ -1373,7 +1489,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                           final cell = GoogleFonts.inter(fontSize: 12, color: textCol);
                           final mutedCell = GoogleFonts.inter(fontSize: 12, color: subtextCol);
                           if (context.isCompactScreen) {
-                            return Padding(
+                            return _searchResultRow(idx, primaryCol, Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                               child: Row(
                                 children: [
@@ -1392,9 +1508,9 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                   _voterSelectButton(v, primaryCol),
                                 ],
                               ),
-                            );
+                            ));
                           }
-                          return Padding(
+                          return _searchResultRow(idx, primaryCol, Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             child: Row(
                               children: [
@@ -1434,7 +1550,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                 ),
                               ],
                             ),
-                          );
+                          ));
                         },
                       )
                     else
@@ -1799,7 +1915,9 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                               controller: _phicNoCtrl,
                                               label: 'PhilHealth (PHIC) No.',
                                               upperCase: false,
-                                              hint: '12-digit identification number',
+                                              hint: '00-0000000000-0',
+                                              keyboardType: TextInputType.number,
+                                              inputFormatters: [_PhicFormatter()],
                                               textCol: textCol,
                                               borderCol: borderCol,
                                               fillCol: inputFill,
@@ -1905,6 +2023,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                                 // Barangay list depends on the LGU
                                                 if (!_barangaysFor(v).contains(_barangay)) _barangay = '';
                                                 _purok = '';
+                                                _unlistedPurok = null;
                                                 _purokId = null;
                                               });
                                             }
@@ -1955,6 +2074,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                               setState(() {
                                                 _barangay = v;
                                                 _purok = '';
+                                                _unlistedPurok = null;
                                                 _purokId = null;
                                               });
                                             }
@@ -2156,7 +2276,22 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     final locationId = _locationId;
     final puroksAsync = locationId == null ? null : ref.watch(puroksProvider(locationId));
     final puroks = puroksAsync?.valueOrNull ?? const <({String id, String name})>[];
-    final names = _withCurrent(puroks.map((p) => p.name).toList(), _purok);
+    final listed = puroks.map((p) => p.name).toList();
+    // Once the list has loaded, a purok it doesn't have is cleared so a listed one must be picked.
+    // A joined household's purok is locked, so it is kept as is.
+    final notListed = !_joiningHousehold && _purok.isNotEmpty && listed.isNotEmpty && !listed.contains(_purok);
+    if (notListed) {
+      final cleared = _purok;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _purok != cleared) return;
+        setState(() {
+          _unlistedPurok = cleared;
+          _purok = '';
+          _purokId = null;
+        });
+      });
+    }
+    final names = notListed ? listed : _withCurrent(listed, _purok);
 
     final String hint;
     if (_barangay.isEmpty) {
@@ -2171,8 +2306,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
 
     return DropdownButtonFormField<String>(
       // Rebuilt per location so a stale selection never leaks across barangays
-      key: ValueKey('purok-${locationId ?? _barangay}'),
-      value: _purok.isEmpty ? null : _purok,
+      key: ValueKey('purok-${locationId ?? _barangay}-${_unlistedPurok ?? ''}'),
+      value: _purok.isEmpty || notListed ? null : _purok,
       isExpanded: true,
       icon: Icon(Icons.keyboard_arrow_down, size: 20, color: textCol),
       decoration: _searchBoxDecoration(null, borderCol, _fieldFill, primaryCol, subtextCol),
@@ -2197,6 +2332,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
               if (v == null) return;
               setState(() {
                 _purok = v;
+                _unlistedPurok = null;
                 _purokId = null;
                 for (final p in puroks) {
                   if (p.name == v) _purokId = p.id;
@@ -2412,6 +2548,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
               setState(() {
                 _selectedVoter = null;
                 if (widget.existing == null) _isVoter = false;
+                _searchFromForm = true;
                 _currentStep = MemberFormStep.voterSearch;
               });
             },
@@ -2579,6 +2716,14 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     );
   }
 
+  /// Folds a household-member card. Focus leaves first so a typed short birth year is committed.
+  void _finishDependent(DependentMemberData dep) {
+    FocusManager.instance.primaryFocus?.unfocus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _dependentMembers.contains(dep)) setState(() => dep.expanded = false);
+    });
+  }
+
   Widget _buildDependentMemberCard(
     int index,
     bool isDark,
@@ -2593,7 +2738,18 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     final hasMore = dep.trucareMember || dep.phicMember;
     final moreOpen = dep.showMore || hasMore;
 
-    return Container(
+    // Enter in any of this card's text fields acts like Done
+    return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      onKeyEvent: (_, event) {
+        final enter = event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.numpadEnter;
+        final inTextField = FocusManager.instance.primaryFocus?.context?.findAncestorWidgetOfExactType<EditableText>() != null;
+        if (event is! KeyDownEvent || !enter || !inTextField) return KeyEventResult.ignored;
+        _finishDependent(dep);
+        return KeyEventResult.handled;
+      },
+      child: Container(
       key: dep.cardKey,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -2625,7 +2781,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                   TextButton(
                     style: TextButton.styleFrom(
                         foregroundColor: primaryCol, padding: const EdgeInsets.symmetric(horizontal: 10)),
-                    onPressed: () => setState(() => dep.expanded = false),
+                    onPressed: () => _finishDependent(dep),
                     child: const Text('Done', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
                   ),
                   IconButton(
@@ -2759,41 +2915,24 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
           const SizedBox(height: 14),
 
           // Row 3 (only when needed): Year Level (students), PHIC No.
-          if (dep.sectors.contains('Student') || (moreOpen && dep.phicMember)) ...[
+          if (dep.sectors.contains('Student')) ...[
             const SizedBox(height: 14),
             ResponsiveFieldRow(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: dep.sectors.contains('Student')
-                      ? _buildYearLevelField(
-                          value: dep.yearLevel,
-                          onChanged: (v) => setState(() => dep.yearLevel = v),
-                          isDark: isDark,
-                          textCol: textCol,
-                          borderCol: borderCol,
-                          primaryCol: primaryCol,
-                          subtextCol: subtextCol,
-                        )
-                      : const SizedBox.shrink(),
+                  child: _buildYearLevelField(
+                    value: dep.yearLevel,
+                    onChanged: (v) => setState(() => dep.yearLevel = v),
+                    isDark: isDark,
+                    textCol: textCol,
+                    borderCol: borderCol,
+                    primaryCol: primaryCol,
+                    subtextCol: subtextCol,
+                  ),
                 ),
                 const SizedBox(width: 10),
-                Expanded(
-                  child: moreOpen && dep.phicMember
-                      ? _buildTextField(
-                          controller: dep.phicNoCtrl,
-                          label: 'PhilHealth (PHIC) No.',
-                          upperCase: false,
-                          hint: '12-digit number',
-                          textCol: textCol,
-                          borderCol: borderCol,
-                          fillCol: inputFill,
-                          primaryCol: primaryCol,
-                        )
-                      : const SizedBox.shrink(),
-                ),
-                const SizedBox(width: 10),
-                const Expanded(flex: 2, child: SizedBox.shrink()),
+                const Expanded(flex: 3, child: SizedBox.shrink()),
               ],
             ),
           ],
@@ -2821,6 +2960,30 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                 ),
               ],
             ),
+            if (dep.phicMember) ...[
+              const SizedBox(height: 12),
+              ResponsiveFieldRow(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _buildTextField(
+                      controller: dep.phicNoCtrl,
+                      label: 'PhilHealth (PHIC) No.',
+                      upperCase: false,
+                      hint: '00-0000000000-0',
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [_PhicFormatter()],
+                      textCol: textCol,
+                      borderCol: borderCol,
+                      fillCol: inputFill,
+                      primaryCol: primaryCol,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(flex: 3, child: SizedBox.shrink()),
+                ],
+              ),
+            ],
           ],
           const SizedBox(height: 8),
           _buildMoreDetailsLink(
@@ -2831,6 +2994,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             subtextCol: subtextCol,
           ),
         ],
+      ),
       ),
     );
   }
@@ -3026,7 +3190,10 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       (label: 'Membership date', done: _membershipDate != null),
       if (_selectedSectors.contains('Student')) (label: 'Year level', done: _yearLevel != null),
       (label: 'LGU and barangay', done: _lgu.isNotEmpty && _barangay.isNotEmpty),
-      (label: 'Purok', done: _purok.isNotEmpty),
+      if (_purok.isEmpty && _unlistedPurok != null)
+        (label: 'Purok: "$_unlistedPurok" isn\'t in $_barangay\'s list, pick a listed purok', done: false)
+      else
+        (label: 'Purok', done: _purok.isNotEmpty),
       if (_isHouseholdLeader)
         for (var i = 0; i < _dependentMembers.length; i++)
           if (_dependentProblems(_dependentMembers[i]).isNotEmpty)
@@ -3478,6 +3645,15 @@ class _DateSlashFormatter extends TextInputFormatter {
       buf.write(digits[i]);
     }
     final text = buf.toString();
+    return TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length));
+  }
+}
+
+/// PhilHealth number input: digits only, max 13, shown as 15-0257212857-3.
+class _PhicFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
+    final text = newValue.text.replaceAll(RegExp(r'\D'), '').isEmpty ? '' : _MemberFormDialogState._formatPhic(newValue.text);
     return TextEditingValue(text: text, selection: TextSelection.collapsed(offset: text.length));
   }
 }
