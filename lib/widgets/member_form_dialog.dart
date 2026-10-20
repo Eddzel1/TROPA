@@ -18,6 +18,7 @@ import '../core/ph_time.dart';
 import 'form_fields.dart';
 
 enum MemberFormStep {
+  encodingSet, // Step 0: LGU / barangay / purok shared by the batch being encoded
   voterSearch, // Step 1: Find Voter Record (Screenshot 2)
   memberForm, // Step 2: Complete Intake Form (Screenshot 3 & 4)
 }
@@ -45,6 +46,8 @@ class DependentMemberData {
   DateTime? birthDate;
   // Used to scroll this row back into view after a voter search
   final GlobalKey cardKey = GlobalKey();
+  // Rows added by the keyboard shortcut start with the cursor here (last name is prefilled)
+  final FocusNode firstNameFocus = FocusNode();
   final Set<String> sectors = {'General'};
   String? yearLevel;
   String? gender; // 'Male' / 'Female'
@@ -83,6 +86,7 @@ class DependentMemberData {
     middleNameCtrl.dispose();
     contactCtrl.dispose();
     phicNoCtrl.dispose();
+    firstNameFocus.dispose();
     matchDebounce?.cancel();
   }
 }
@@ -125,6 +129,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   final _phicNoCtrl = TextEditingController();
 
   DateTime? _birthDate;
+  // Focused after a voter is picked so the birthday can be typed straight away
+  final _birthDateFocus = FocusNode();
   // Starts at today, except when joining a household (left blank so staff enter it deliberately)
   DateTime? _membershipDate = phToday();
 
@@ -159,6 +165,10 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   // A pre-filled purok (e.g. from the voter record) that was cleared because this barangay's purok list lacks it
   String? _unlistedPurok;
   String? _purokId;
+  // The location above was confirmed in the encoding-set step and is shared by every member added here
+  bool _locationSet = false;
+  MemberFormStep? _returnStepAfterSet;
+  final _setFormKey = GlobalKey<FormState>();
 
   // Status & Qualifications
   String _listingStatus = 'TROPA MEMBER';
@@ -327,8 +337,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       _isHouseholdLeader = e.isHouseholdLeader;
       _isVoter = e.isVoter;
     } else {
-      // New Member Registration: Step 1 Search First!
-      _currentStep = MemberFormStep.voterSearch;
+      // New Member Registration: pick the encoding set first, then search (a household already fixes the location)
+      _currentStep = widget.presetHousehold == null ? MemberFormStep.encodingSet : MemberFormStep.voterSearch;
       if (widget.presetHousehold != null) {
         _membershipDate = null;
         _lgu = widget.presetHousehold!.lgu.trim().toUpperCase();
@@ -420,6 +430,9 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   /// so they can't be its leader and its location is fixed.
   bool get _joiningHousehold => widget.presetHousehold != null && widget.existing == null;
 
+  /// Location can't be changed in the intake form: it follows the household or the encoding set.
+  bool get _locationLocked => _joiningHousehold || _locationSet;
+
   bool get _createsNewHousehold => _isHouseholdLeader && widget.existing == null && widget.presetHousehold == null;
 
   @override
@@ -430,6 +443,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     _searchFirstNameCtrl.dispose();
     _searchMiddleNameCtrl.dispose();
     _lastNameCtrl.dispose();
+    _birthDateFocus.dispose();
     _firstNameCtrl.dispose();
     _middleNameCtrl.dispose();
     _contactCtrl.dispose();
@@ -601,7 +615,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       _phicMember = false;
 
       // Location (kept as the household's when joining one)
-      if (!_joiningHousehold) {
+      if (!_locationLocked) {
         if (voter.lgu.trim().isNotEmpty) {
           _lgu = voter.lgu.trim().toUpperCase();
         }
@@ -622,6 +636,10 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
 
       // Proceed to Step 2
       _currentStep = MemberFormStep.memberForm;
+    });
+    // Voter records rarely carry a birthday, so encoding continues there
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _birthDateFocus.requestFocus();
     });
   }
 
@@ -678,6 +696,26 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     _executeVoterSearch();
   }
 
+  /// Opens the encoding-set step; confirming it returns to the step it was opened from.
+  void _changeEncodingSet() {
+    _searchDebounce?.cancel();
+    setState(() {
+      _returnStepAfterSet = _currentStep;
+      _locationSet = false;
+      _searchFromForm = false;
+      _currentStep = MemberFormStep.encodingSet;
+    });
+  }
+
+  void _confirmEncodingSet() {
+    if (_setFormKey.currentState?.validate() != true) return;
+    setState(() {
+      _locationSet = true;
+      _currentStep = _returnStepAfterSet ?? MemberFormStep.voterSearch;
+      _returnStepAfterSet = null;
+    });
+  }
+
   void _backToSearch() {
     setState(() {
       _searchFromForm = true;
@@ -703,6 +741,17 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
         d.expanded = false;
       }
       _dependentMembers.add(dep);
+    });
+  }
+
+  /// Ctrl/Cmd+Shift+A: add a household member row, scroll to it and start typing its first name.
+  void _addDependentRowFromShortcut() {
+    if (_currentStep != MemberFormStep.memberForm || !_isHouseholdLeader) return;
+    _addDependentRow();
+    final dep = _dependentMembers.last;
+    _revealDependent(dep);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) dep.firstNameFocus.requestFocus();
     });
   }
 
@@ -822,14 +871,14 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
 
   static bool _isValidPhMobile(String text) => RegExp(r'^09\d{9}$').hasMatch(_phMobileDigits(text));
 
-  /// PhilHealth number as 15-0257212857-3 (2-10-1 digits); partial input is grouped as far as it goes.
+  /// PhilHealth number as 15-025721285-7 (2-9-1 digits); partial input is grouped as far as it goes.
   static String _formatPhic(String raw) {
     var digits = raw.replaceAll(RegExp(r'\D'), '');
     if (digits.isEmpty) return raw.trim();
-    if (digits.length > 13) digits = digits.substring(0, 13);
+    if (digits.length > 12) digits = digits.substring(0, 12);
     final b = StringBuffer(digits.substring(0, digits.length.clamp(0, 2)));
-    if (digits.length > 2) b.write('-${digits.substring(2, digits.length.clamp(2, 12))}');
-    if (digits.length > 12) b.write('-${digits.substring(12)}');
+    if (digits.length > 2) b.write('-${digits.substring(2, digits.length.clamp(2, 11))}');
+    if (digits.length > 11) b.write('-${digits.substring(11)}');
     return b.toString();
   }
 
@@ -915,7 +964,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     }
     // The purok must come from the barangay's purok list (checked here too in case the list was still loading)
     final locationId = _locationId;
-    if (!_joiningHousehold && _purok.isNotEmpty && locationId != null) {
+    if (!_locationLocked && _purok.isNotEmpty && locationId != null) {
       final puroks = await ref.read(puroksProvider(locationId).future);
       if (!mounted) return false;
       if (puroks.isNotEmpty && !puroks.any((p) => p.name == _purok)) {
@@ -1080,6 +1129,25 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     }
   }
 
+  /// "Save TROPA Member" / "Update Profile" button and Ctrl/Cmd+S.
+  Future<void> _saveAndClose() async {
+    if (_isSaving || _currentStep != MemberFormStep.memberForm) return;
+    final nav = Navigator.of(context);
+    final success = await _saveMemberRecord();
+    if (success && mounted) {
+      nav.pop(_savedMember);
+    }
+  }
+
+  /// "Save & Add Another" button and Ctrl/Cmd+Shift+S (new members only).
+  Future<void> _saveAndAddAnother() async {
+    if (_isSaving || widget.existing != null || _currentStep != MemberFormStep.memberForm) return;
+    final success = await _saveMemberRecord();
+    if (success && mounted) {
+      _resetFormForAnother();
+    }
+  }
+
   void _resetFormForAnother() {
     setState(() {
       _searchFromForm = false;
@@ -1152,7 +1220,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     final compact = TropaBreakpoints.isCompact(screenWidth);
     final dialogWidth = compact
         ? screenWidth
-        : _currentStep == MemberFormStep.voterSearch
+        : _currentStep != MemberFormStep.memberForm
             ? (screenWidth * 0.92).clamp(740.0, 900.0)
             : (screenWidth * 0.94).clamp(740.0, 1380.0);
     _sidebarVisible = _currentStep == MemberFormStep.memberForm && dialogWidth >= 1080;
@@ -1182,7 +1250,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
           children: [
             // Modal Top Header
             Container(
-              padding: _currentStep == MemberFormStep.voterSearch
+              padding: _currentStep != MemberFormStep.memberForm
                   ? const EdgeInsets.fromLTRB(20, 18, 12, 18)
                   : const EdgeInsets.fromLTRB(28, 20, 20, 16),
               decoration: BoxDecoration(
@@ -1237,15 +1305,31 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
 
             // Content changes based on Step
             // Search step hugs its content; intake form fills the available height
-            if (_currentStep == MemberFormStep.voterSearch)
+            if (_currentStep == MemberFormStep.encodingSet)
+              Flexible(
+                child: _buildStep0EncodingSet(borderCol, textCol, subtextCol, primaryCol, onPrimaryCol),
+              )
+            else if (_currentStep == MemberFormStep.voterSearch)
               Flexible(
                 child: _buildStep1VoterSearch(
                     isDark, cardBg, borderCol, textCol, subtextCol, inputFill, primaryCol, onPrimaryCol),
               )
             else
               Expanded(
-                child: _buildStep2MemberForm(
-                    isDark, cardBg, borderCol, textCol, subtextCol, inputFill, primaryCol, onPrimaryCol),
+                child: CallbackShortcuts(
+                  bindings: {
+                    const SingleActivator(LogicalKeyboardKey.keyA, control: true, shift: true):
+                        _addDependentRowFromShortcut,
+                    const SingleActivator(LogicalKeyboardKey.keyA, meta: true, shift: true):
+                        _addDependentRowFromShortcut,
+                    const SingleActivator(LogicalKeyboardKey.keyS, control: true): _saveAndClose,
+                    const SingleActivator(LogicalKeyboardKey.keyS, meta: true): _saveAndClose,
+                    const SingleActivator(LogicalKeyboardKey.keyS, control: true, shift: true): _saveAndAddAnother,
+                    const SingleActivator(LogicalKeyboardKey.keyS, meta: true, shift: true): _saveAndAddAnother,
+                  },
+                  child: _buildStep2MemberForm(
+                      isDark, cardBg, borderCol, textCol, subtextCol, inputFill, primaryCol, onPrimaryCol),
+                ),
               ),
           ],
         ),
@@ -1302,6 +1386,10 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                 : 'Filter by location and search by name, or skip to fill the form manually.',
             style: GoogleFonts.inter(fontSize: 11.5, color: subtextCol),
           ),
+          if (_locationSet && _voterSearchDependentIndex == null) ...[
+            const SizedBox(height: 14),
+            _buildEncodingSetBanner(borderCol, textCol, subtextCol, primaryCol),
+          ],
           const SizedBox(height: 22),
 
           // Row 1: LGU and Barangay Filters
@@ -1604,6 +1692,183 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     );
   }
 
+  Widget _underlinedLink(String text, Color color, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Text(
+          text,
+          style: GoogleFonts.inter(
+            fontSize: 12,
+            decoration: TextDecoration.underline,
+            decorationColor: color,
+            color: color,
+          ),
+        ),
+      ),
+    );
+  }
+
+  // =========================================================================
+  // STEP 0: Encoding Set (LGU / barangay / purok shared by every member added in this dialog)
+  // =========================================================================
+  Widget _buildStep0EncodingSet(Color borderCol, Color textCol, Color subtextCol, Color primaryCol, Color onPrimaryCol) {
+    final fieldText = GoogleFonts.inter(fontSize: 13, color: textCol);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+      child: Form(
+        key: _setFormKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.place_outlined, color: primaryCol, size: 18),
+                const SizedBox(width: 10),
+                Text(
+                  'Encoding Set',
+                  style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: textCol),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              "Pick the purok you're encoding; every member added here is saved under it.",
+              style: GoogleFonts.inter(fontSize: 11.5, color: subtextCol),
+            ),
+            const SizedBox(height: 22),
+            ResponsiveFieldRow(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _labeledField(
+                    'LGU *',
+                    subtextCol,
+                    DropdownButtonFormField<String>(
+                      value: _lgu.isEmpty ? null : _lgu,
+                      isExpanded: true,
+                      icon: Icon(Icons.keyboard_arrow_down, size: 20, color: textCol),
+                      decoration: _searchBoxDecoration(null, borderCol, _fieldFill, primaryCol, subtextCol),
+                      dropdownColor: TropaColors.cardOf(context),
+                      style: fieldText,
+                      hint: Text('Select LGU', style: fieldText),
+                      items: _withCurrent(_lgus, _lgu)
+                          .map((l) => DropdownMenuItem(
+                              value: l, child: Text(l, style: fieldText, overflow: TextOverflow.ellipsis)))
+                          .toList(),
+                      validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+                      onChanged: (v) {
+                        if (v == null || v == _lgu) return;
+                        setState(() {
+                          _lgu = v;
+                          // Barangay list depends on the LGU
+                          if (!_barangaysFor(v).contains(_barangay)) _barangay = '';
+                          _purok = '';
+                          _unlistedPurok = null;
+                          _purokId = null;
+                        });
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _labeledField(
+                    'Barangay *',
+                    subtextCol,
+                    DropdownButtonFormField<String>(
+                      // Keyed by LGU so the field resets cleanly when the LGU changes
+                      key: ValueKey('set-barangay-$_lgu'),
+                      value: _barangay.isEmpty ? null : _barangay,
+                      isExpanded: true,
+                      icon: Icon(Icons.keyboard_arrow_down, size: 20, color: textCol),
+                      decoration: _searchBoxDecoration(null, borderCol, _fieldFill, primaryCol, subtextCol),
+                      dropdownColor: TropaColors.cardOf(context),
+                      style: fieldText,
+                      hint: Text(_lgu.isEmpty ? 'Select LGU First' : 'Select Barangay', style: fieldText),
+                      items: _lgu.isEmpty
+                          ? const []
+                          : _withCurrent(_barangaysFor(_lgu), _barangay)
+                              .map((b) => DropdownMenuItem(
+                                  value: b, child: Text(b, style: fieldText, overflow: TextOverflow.ellipsis)))
+                              .toList(),
+                      validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+                      onChanged: (v) {
+                        if (v == null || v == _barangay) return;
+                        setState(() {
+                          _barangay = v;
+                          _purok = '';
+                          _unlistedPurok = null;
+                          _purokId = null;
+                        });
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _labeledField(
+                      'Purok *',
+                      subtextCol,
+                      _buildPurokDropdown(Theme.of(context).brightness == Brightness.dark, borderCol, textCol,
+                          primaryCol, subtextCol)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Align(
+              alignment: Alignment.centerRight,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryCol,
+                  foregroundColor: onPrimaryCol,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+                icon: const Icon(Icons.arrow_forward, size: 18),
+                label: Text('Start Encoding', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700)),
+                onPressed: _confirmEncodingSet,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Encoding-set banner on the voter search: where the next member will be saved.
+  Widget _buildEncodingSetBanner(Color borderCol, Color textCol, Color subtextCol, Color primaryCol) {
+    final where = [if (_purok.isNotEmpty) _purok, _barangay, _lgu].join(' · ');
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: primaryCol.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: primaryCol.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.place_outlined, size: 16, color: primaryCol),
+          const SizedBox(width: 8),
+          Text('Encoding: ', style: GoogleFonts.inter(fontSize: 12, color: subtextCol)),
+          Expanded(
+            child: Text(where,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: textCol)),
+          ),
+          const SizedBox(width: 8),
+          _underlinedLink('Change', subtextCol, _changeEncodingSet),
+        ],
+      ),
+    );
+  }
+
   Widget _labeledField(String label, Color subtextCol, Widget field) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1786,6 +2051,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                           date: _birthDate,
                                           hint: 'mm/dd/yyyy',
                                           isBirthDate: true,
+                                          focusNode: _birthDateFocus,
                                           onDateSelected: (d) => setState(() {
                                             _birthDate = d;
                                             _applySeniorRule();
@@ -1915,7 +2181,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                               controller: _phicNoCtrl,
                                               label: 'PhilHealth (PHIC) No.',
                                               upperCase: false,
-                                              hint: '00-0000000000-0',
+                                              hint: '00-000000000-0',
                                               keyboardType: TextInputType.number,
                                               inputFormatters: [_PhicFormatter()],
                                               textCol: textCol,
@@ -2014,7 +2280,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                       );
                                     }).toList(),
                                     validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
-                                    onChanged: _joiningHousehold
+                                    onChanged: _locationLocked
                                         ? null
                                         : (v) {
                                             if (v != null) {
@@ -2055,7 +2321,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                       _lgu.isEmpty ? 'Select LGU First' : 'Select Barangay',
                                       style: GoogleFonts.inter(fontSize: 13, color: textCol),
                                     ),
-                                    disabledHint: _joiningHousehold ? _lockedValue(_barangay, textCol) : null,
+                                    disabledHint: _locationLocked ? _lockedValue(_barangay, textCol) : null,
                                     items: _lgu.isEmpty
                                         ? const []
                                         : _withCurrent(_barangaysFor(_lgu), _barangay).map((b) {
@@ -2067,7 +2333,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                             );
                                           }).toList(),
                                     validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
-                                    onChanged: _joiningHousehold
+                                    onChanged: _locationLocked
                                         ? null
                                         : (v) {
                                             if (v != null && v != _barangay) {
@@ -2088,14 +2354,21 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                             ),
                           ],
                         ),
-                        if (_joiningHousehold) ...[
+                        if (_locationLocked) ...[
                           const SizedBox(height: 8),
                           Row(
                             children: [
                               Icon(Icons.lock_outline, size: 14, color: subtextCol),
                               const SizedBox(width: 6),
-                              Text('Location follows the household.',
+                              Text(
+                                  _joiningHousehold
+                                      ? 'Location follows the household.'
+                                      : 'Location follows the encoding set.',
                                   style: GoogleFonts.inter(fontSize: 11.5, color: subtextCol)),
+                              if (!_joiningHousehold) ...[
+                                const SizedBox(width: 8),
+                                _underlinedLink('Change', subtextCol, _changeEncodingSet),
+                              ],
                             ],
                           ),
                         ],
@@ -2191,15 +2464,11 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   icon: const Icon(Icons.save_outlined, size: 18),
-                  label: const Text('Save & Add Another'),
-                  onPressed: _isSaving
-                      ? null
-                      : () async {
-                          final success = await _saveMemberRecord();
-                          if (success) {
-                            _resetFormForAnother();
-                          }
-                        },
+                  label: const Tooltip(
+                    message: 'Ctrl+Shift+S (⌘⇧S on Mac)',
+                    child: Text('Save & Add Another'),
+                  ),
+                  onPressed: _isSaving ? null : _saveAndAddAnother,
                 ),
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
@@ -2213,19 +2482,14 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                     ? SizedBox(
                         width: 16, height: 16, child: CircularProgressIndicator(color: onPrimaryCol, strokeWidth: 2))
                     : const Icon(Icons.save, size: 18),
-                label: Text(
-                  widget.existing == null ? 'Save TROPA Member' : 'Update Profile',
-                  style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                label: Tooltip(
+                  message: 'Ctrl+S (⌘S on Mac)',
+                  child: Text(
+                    widget.existing == null ? 'Save TROPA Member' : 'Update Profile',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                  ),
                 ),
-                onPressed: _isSaving
-                    ? null
-                    : () async {
-                        final nav = Navigator.of(context);
-                        final success = await _saveMemberRecord();
-                        if (success && mounted) {
-                          nav.pop(_savedMember);
-                        }
-                      },
+                onPressed: _isSaving ? null : _saveAndClose,
               ),
             ],
           ),
@@ -2279,7 +2543,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     final listed = puroks.map((p) => p.name).toList();
     // Once the list has loaded, a purok it doesn't have is cleared so a listed one must be picked.
     // A joined household's purok is locked, so it is kept as is.
-    final notListed = !_joiningHousehold && _purok.isNotEmpty && listed.isNotEmpty && !listed.contains(_purok);
+    final notListed = !_locationLocked && _purok.isNotEmpty && listed.isNotEmpty && !listed.contains(_purok);
     if (notListed) {
       final cleared = _purok;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -2314,7 +2578,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       dropdownColor: TropaColors.cardOf(context),
       menuMaxHeight: 360,
       hint: Text(hint, style: GoogleFonts.inter(fontSize: 13, color: textCol)),
-      disabledHint: _joiningHousehold ? _lockedValue(_purok, textCol) : null,
+      disabledHint: _locationLocked ? _lockedValue(_purok, textCol) : null,
       items: _barangay.isEmpty
           ? const []
           : names
@@ -2326,7 +2590,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
               .toList(),
       // Only required when this barangay actually has puroks listed
       validator: (v) => (puroks.isNotEmpty && (v == null || v.isEmpty)) ? 'Required' : null,
-      onChanged: _joiningHousehold
+      onChanged: _locationLocked
           ? null
           : (v) {
               if (v == null) return;
@@ -2617,7 +2881,10 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             icon: const Icon(Icons.add, size: 18),
-            label: const Text('Add Household Member', style: TextStyle(fontWeight: FontWeight.w600)),
+            label: Tooltip(
+              message: 'Ctrl+Shift+A (⌘⇧A on Mac)',
+              child: const Text('Add Household Member', style: TextStyle(fontWeight: FontWeight.w600)),
+            ),
             onPressed: _addDependentRow,
           ),
         ],
@@ -2823,6 +3090,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
               Expanded(
                 child: _buildTextField(
                   controller: dep.firstNameCtrl,
+                  focusNode: dep.firstNameFocus,
                   label: 'First Name *',
                   textCol: textCol,
                   borderCol: borderCol,
@@ -2970,7 +3238,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                       controller: dep.phicNoCtrl,
                       label: 'PhilHealth (PHIC) No.',
                       upperCase: false,
-                      hint: '00-0000000000-0',
+                      hint: '00-000000000-0',
                       keyboardType: TextInputType.number,
                       inputFormatters: [_PhicFormatter()],
                       textCol: textCol,
@@ -3304,6 +3572,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
 
   Widget _buildTextField({
     required TextEditingController controller,
+    FocusNode? focusNode,
     required String label,
     String? hint,
     String? Function(String?)? validator,
@@ -3321,6 +3590,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       subtextCol,
       TextFormField(
         controller: controller,
+        focusNode: focusNode,
         style: GoogleFonts.inter(fontSize: 13, color: textCol),
         decoration: _searchBoxDecoration(hint, borderCol, _fieldFill, primaryCol, subtextCol),
         validator: validator,
@@ -3339,6 +3609,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     VoidCallback? onCleared,
     bool isBirthDate = false,
     ValueChanged<bool>? onRangeError,
+    FocusNode? focusNode,
     required Color textCol,
     required Color borderCol,
     required Color fillCol,
@@ -3360,6 +3631,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
         onCleared: onCleared,
         isBirthDate: isBirthDate,
         onRangeError: onRangeError,
+        focusNode: focusNode,
       ),
     );
   }
@@ -3443,6 +3715,8 @@ class _TypeableDateField extends StatefulWidget {
   // Birthday mode: only dates before today and at most 100 years ago
   final bool isBirthDate;
   final ValueChanged<bool>? onRangeError;
+  // Owned by the caller when it needs to focus the box (e.g. birthday after a voter is picked)
+  final FocusNode? focusNode;
 
   const _TypeableDateField({
     required this.date,
@@ -3455,6 +3729,7 @@ class _TypeableDateField extends StatefulWidget {
     this.onCleared,
     this.isBirthDate = false,
     this.onRangeError,
+    this.focusNode,
   });
 
   @override
@@ -3468,7 +3743,7 @@ class _TypeableDateFieldState extends State<_TypeableDateField> {
 
   late final TextEditingController _ctrl = TextEditingController(text: _fmt(widget.date));
   final _fieldKey = GlobalKey<FormFieldState<String>>();
-  final _focus = FocusNode();
+  late final FocusNode _focus = widget.focusNode ?? FocusNode();
   bool _hasError = false;
 
   @override
@@ -3556,7 +3831,7 @@ class _TypeableDateFieldState extends State<_TypeableDateField> {
   @override
   void dispose() {
     _ctrl.dispose();
-    _focus.dispose();
+    if (widget.focusNode == null) _focus.dispose();
     super.dispose();
   }
 
@@ -3649,7 +3924,7 @@ class _DateSlashFormatter extends TextInputFormatter {
   }
 }
 
-/// PhilHealth number input: digits only, max 13, shown as 15-0257212857-3.
+/// PhilHealth number input: digits only, max 12, shown as 15-025721285-7.
 class _PhicFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
