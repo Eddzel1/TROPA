@@ -25,18 +25,23 @@ Widget page(double height) => MaterialApp(
       ),
     );
 
+
+/// Whether the helper's scroll view can scroll (it is always there, so the tree never changes shape).
+bool scrolls(WidgetTester tester) =>
+    tester.widget<SingleChildScrollView>(find.byType(SingleChildScrollView)).physics is! NeverScrollableScrollPhysics;
+
 void main() {
   testWidgets('scrolls instead of overflowing when the keyboard leaves little room', (tester) async {
     await tester.pumpWidget(page(380));
     expect(tester.takeException(), isNull);
-    expect(find.byType(SingleChildScrollView), findsOneWidget);
+    expect(scrolls(tester), isTrue);
     expect(find.text('row 0'), findsOneWidget);
   });
 
   testWidgets('keeps the normal layout when there is room', (tester) async {
     await tester.pumpWidget(page(700));
     expect(tester.takeException(), isNull);
-    expect(find.byType(SingleChildScrollView), findsNothing);
+    expect(scrolls(tester), isFalse);
   });
 
   testWidgets('without the helper the same page overflows (the reported bug)', (tester) async {
@@ -90,7 +95,45 @@ void main() {
         ),
       ));
       expect(tester.takeException(), isNull);
-      expect(find.byType(SingleChildScrollView), screenHeight < 600 ? findsOneWidget : findsNothing);
+      expect(scrolls(tester), screenHeight < 600);
     });
   }
+
+  testWidgets('a focused field keeps focus while the keyboard shrinks the room (keyboard stays up)', (tester) async {
+    final focus = FocusNode();
+    addTearDown(focus.dispose);
+    Widget at(double height) => MaterialApp(
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topCenter,
+              child: SizedBox(
+                height: height,
+                child: KeyboardSafeBody(
+                  minHeight: 500,
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 300),
+                      TextField(focusNode: focus),
+                      Expanded(child: ListView(children: const [Text('row 0')])),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+
+    await tester.pumpWidget(at(700));
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+    expect(focus.hasFocus, isTrue);
+    final field = tester.state(find.byType(EditableText));
+
+    // The keyboard opening takes the height below minHeight, then it closes again.
+    for (final h in [600.0, 450.0, 380.0, 700.0]) {
+      await tester.pumpWidget(at(h));
+      expect(focus.hasFocus, isTrue, reason: 'lost focus at $h px');
+      expect(tester.state(find.byType(EditableText)), same(field), reason: 'field rebuilt at $h px');
+    }
+  });
 }
