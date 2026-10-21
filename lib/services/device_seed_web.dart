@@ -62,14 +62,17 @@ bool _installing = false;
 Future<bool> installDeviceSeed({required bool force}) async {
   if (_installing) return false;
   _installing = true;
+  var outcome = 'skipped';
+  int? downloadBytes;
   try {
     final manifest = await seedManifestToInstall(force: force);
     if (manifest == null) return false;
+    downloadBytes = (manifest['bytes'] as num?)?.toInt();
 
     final gz = BytesBuilder(copy: false);
     await downloadSeedParts(manifest, gz.add);
 
-    deviceSeedProgress.value = 'Setting up this device: unpacking starter data…';
+    startSetupStep('unpack', 'Setting up this device: unpacking starter data…');
     final bytes = await _gunzip(gz.takeBytes());
 
     debugPrint('Starter database: unpacked ${seedMb(bytes.length)} MB.');
@@ -80,7 +83,7 @@ Future<bool> installDeviceSeed({required bool force}) async {
       return false;
     }
 
-    deviceSeedProgress.value = 'Setting up this device: installing starter data…';
+    startSetupStep('install', 'Setting up this device: installing starter data…');
     await localDb.disconnect();
     await localDb.close();
     var replaced = false;
@@ -110,13 +113,15 @@ Future<bool> installDeviceSeed({required bool force}) async {
     } finally {
       await reopenLocalDb(replaced: replaced);
     }
+    outcome = 'installed';
     return true;
   } catch (e) {
+    outcome = 'failed: $e';
     debugPrint('Starter database install failed: $e');
     if (force) rethrow;
     return false;
   } finally {
-    deviceSeedProgress.value = null;
+    await finishSetupTiming(outcome: outcome, bytes: downloadBytes);
     _installing = false;
   }
 }

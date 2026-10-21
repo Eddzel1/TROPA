@@ -10,6 +10,7 @@ import '../core/env.dart';
 import '../services/device_seed.dart';
 import '../services/fallback_sync.dart';
 import '../services/offline_auth.dart';
+import '../services/supabase_service.dart';
 import '../services/voter_snapshot.dart';
 import 'powersync_schema.dart';
 import 'supabase_connector.dart';
@@ -128,8 +129,18 @@ Future<void> useLocalDbFor(String userId) async {
   _connect();
   // Poll Supabase for other devices' changes whenever PowerSync is unreachable for a while.
   startFallbackSync();
-  // Install or update the offline voter list in the background (no-op when offline or current).
-  ensureVoterSnapshot(localDb, Supabase.instance.client).ignore();
+  // Install or update the offline voter list in the background (no-op when offline or current),
+  // only for users whose screens use it. A list already on this device is kept for other users.
+  _ensureVoterListFor().ignore();
+}
+
+Future<void> _ensureVoterListFor() async {
+  final user = await SupabaseService(localDb).getCurrentAppUser();
+  if (user == null || !user.needsVoterList) {
+    debugPrint('Offline voter list: skipped, ${user?.email ?? 'unknown user'} does not use it.');
+    return;
+  }
+  await ensureVoterSnapshot(localDb, Supabase.instance.client);
 }
 
 /// Number of local changes not yet uploaded to Supabase.

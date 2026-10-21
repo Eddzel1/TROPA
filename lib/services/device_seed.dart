@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -6,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../data/db.dart';
 import '../data/powersync_schema.dart';
+import 'supabase_service.dart';
 
 export 'device_seed_stub.dart'
     if (dart.library.io) 'device_seed_io.dart'
@@ -26,6 +28,72 @@ const deviceSeedManifestPath = 'manifest.json';
 
 /// Progress text shown while a starter database is downloaded or installed, null when idle.
 final deviceSeedProgress = ValueNotifier<String?>(null);
+
+/// Times the steps of a starter database install: the progress text shows the current step's
+/// running time, and [finishSetupTiming] records every step's duration in the activity log, so a
+/// slow install on a phone shows where the time went.
+Stopwatch? _setupTotal;
+Stopwatch? _stepWatch;
+String? _stepKey;
+String _stepLabel = '';
+Timer? _stepTicker;
+final _stepMs = <String, int>{};
+
+void _showStep() {
+  final s = _stepWatch?.elapsed.inSeconds ?? 0;
+  deviceSeedProgress.value = '$_stepLabel ${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}';
+}
+
+/// Starts timing step [key] (closing the previous one) and shows [label] with a running clock.
+void startSetupStep(String key, String label) {
+  _setupTotal ??= Stopwatch()..start();
+  _endStep();
+  _stepKey = key;
+  _stepLabel = label;
+  _stepWatch = Stopwatch()..start();
+  _stepTicker ??= Timer.periodic(const Duration(seconds: 1), (_) => _showStep());
+  _showStep();
+}
+
+/// Changes the current step's text (e.g. download progress) without restarting its clock.
+void updateSetupStep(String label) {
+  _stepLabel = label;
+  _showStep();
+}
+
+void _endStep() {
+  final key = _stepKey, watch = _stepWatch;
+  if (key != null && watch != null) _stepMs[key] = (_stepMs[key] ?? 0) + watch.elapsedMilliseconds;
+  _stepKey = null;
+  _stepWatch = null;
+}
+
+/// Stops the clock, clears the progress text and, when an install was attempted, writes one
+/// `DEVICE_SETUP` activity entry with each step's seconds. [outcome] is e.g. 'installed', or the
+/// error. Logging is best effort.
+Future<void> finishSetupTiming({required String outcome, int? bytes}) async {
+  _endStep();
+  _stepTicker?.cancel();
+  _stepTicker = null;
+  deviceSeedProgress.value = null;
+  final total = _setupTotal;
+  _setupTotal = null;
+  final steps = Map.of(_stepMs);
+  _stepMs.clear();
+  if (total == null || steps.isEmpty) return;
+  String secs(int ms) => (ms / 1000).toStringAsFixed(1);
+  final details = <String, dynamic>{
+    'outcome': outcome,
+    'platform': kIsWeb ? 'web' : defaultTargetPlatform.name,
+    if (bytes != null) 'download_mb': seedMb(bytes),
+    'total_s': secs(total.elapsedMilliseconds),
+    for (final e in steps.entries) '${e.key}_s': secs(e.value),
+  };
+  debugPrint('Starter database timing: $details');
+  try {
+    await SupabaseService(localDb).logActivity(action: 'DEVICE_SETUP', entityType: 'Device', details: details);
+  } catch (_) {}
+}
 
 /// The published manifest, or null if offline or nothing has been published yet.
 Future<Map<String, dynamic>?> fetchDeviceSeedManifest(SupabaseClient client) async {
@@ -109,7 +177,7 @@ Future<void> downloadSeedParts(Map<String, dynamic> manifest, void Function(List
   final client = Supabase.instance.client;
   final total = (manifest['bytes'] as num?)?.toInt() ?? 0;
   var received = 0;
-  deviceSeedProgress.value = 'Setting up this device: downloading starter data…';
+  startSetupStep('download', 'Setting up this device: downloading starter data…');
   final httpClient = http.Client();
   try {
     for (final part in (manifest['parts'] as List).cast<String>()) {
@@ -119,8 +187,7 @@ Future<void> downloadSeedParts(Map<String, dynamic> manifest, void Function(List
       await for (final chunk in res.stream) {
         onChunk(chunk);
         received += chunk.length;
-        deviceSeedProgress.value =
-            'Setting up this device: downloading starter data ${seedMb(received)} / ${seedMb(total)} MB';
+        updateSetupStep('Setting up this device: downloading starter data ${seedMb(received)} / ${seedMb(total)} MB');
       }
     }
   } finally {
@@ -132,6 +199,7 @@ Future<void> downloadSeedParts(Map<String, dynamic> manifest, void Function(List
 /// instance via [dbGeneration]. When the starter database went in ([replaced]), this device also
 /// gets its own PowerSync client id.
 Future<void> reopenLocalDb({required bool replaced}) async {
+  startSetupStep('reopen', 'Setting up this device: opening starter data…');
   localDb = PowerSyncDatabase(schema: schema, path: localDbPath);
   await localDb.initialize();
   if (replaced) {

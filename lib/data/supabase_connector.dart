@@ -39,18 +39,29 @@ class SupabaseConnector extends PowerSyncBackendConnector {
 
     CrudEntry? lastOp;
     try {
-      for (final op in tx.crud) {
-        lastOp = op;
+      // Runs of alike changes go up as one request (e.g. a barangay-wide membership month is
+      // thousands of identical PATCHes). Sent one by one, a single failure late in a large
+      // transaction restarted it from the top and held back everything queued behind it.
+      final ops = tx.crud;
+      for (var i = 0; i < ops.length;) {
+        final op = lastOp = ops[i];
+        var end = i + 1;
+        while (end < ops.length && end - i < _batchSize && _batchable(op, ops[end])) {
+          end++;
+        }
+        final batch = ops.sublist(i, end);
+        final ids = [for (final o in batch) o.id];
         final table = _client.from(op.table);
         switch (op.op) {
           case UpdateType.put:
-            await table.upsert({..._toRemote(op.table, op.opData ?? {}), 'id': op.id});
+            await table.upsert([for (final o in batch) {..._toRemote(o.table, o.opData ?? {}), 'id': o.id}]);
           case UpdateType.patch:
             // PATCH only carries the changed columns, so concurrent edits to different fields both survive.
-            await table.update(_toRemote(op.table, op.opData ?? {})).eq('id', op.id);
+            await table.update(_toRemote(op.table, op.opData ?? {})).inFilter('id', ids);
           case UpdateType.delete:
-            await table.delete().eq('id', op.id);
+            await table.delete().inFilter('id', ids);
         }
+        i = end;
       }
       await tx.complete();
     } on PostgrestException catch (e) {
@@ -62,6 +73,20 @@ class SupabaseConnector extends PowerSyncBackendConnector {
         rethrow;
       }
     }
+  }
+
+  /// Most rows per request; keeps `id=in.(…)` URLs short.
+  static const _batchSize = 100;
+
+  /// Whether [b] can go up in the same request as [a]: same table and operation, and for a PATCH
+  /// the same changes. A bulk PUT needs the same columns, or PostgREST would null the missing ones.
+  static bool _batchable(CrudEntry a, CrudEntry b) {
+    if (a.table != b.table || a.op != b.op) return false;
+    return switch (a.op) {
+      UpdateType.put => setEquals((a.opData ?? const {}).keys.toSet(), (b.opData ?? const {}).keys.toSet()),
+      UpdateType.patch => mapEquals(a.opData, b.opData),
+      UpdateType.delete => true,
+    };
   }
 
   /// Converts local SQLite values back to the shapes Postgres expects.

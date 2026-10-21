@@ -926,6 +926,45 @@ class SupabaseService {
     });
   }
 
+  /// Members registered in [lgu] / [barangay] (their own barangay, as for dues), and how many of
+  /// them would change if their membership date became the 1st of [monthIndex].
+  Future<({int total, int changing})> countBarangayMembers({
+    required String lgu,
+    required String barangay,
+    required int monthIndex,
+  }) async {
+    final row = await db.get(
+      'SELECT COUNT(*) AS total, COALESCE(SUM(CASE WHEN COALESCE(membership_date, \'\') != ? THEN 1 ELSE 0 END), 0) AS changing '
+      'FROM family_members WHERE ${_n('lgu')} = ? AND ${_n('barangay')} = ?',
+      ['${monthKey(monthIndex)}-01', lgu.trim().toUpperCase(), barangay.trim().toUpperCase()],
+    );
+    return (total: row['total'] as int, changing: row['changing'] as int);
+  }
+
+  /// Sets every member of [lgu] / [barangay] to the 1st of [monthIndex], replacing their current
+  /// membership date. One audit entry for the whole barangay. Returns how many members changed.
+  Future<int> setBarangayMembershipMonth({
+    required String lgu,
+    required String barangay,
+    required int monthIndex,
+  }) async {
+    final value = '${monthKey(monthIndex)}-01';
+    final match = [lgu.trim().toUpperCase(), barangay.trim().toUpperCase()];
+    return db.writeTransaction((tx) async {
+      final where = "${_n('lgu')} = ? AND ${_n('barangay')} = ? AND COALESCE(membership_date, '') != ?";
+      final count = (await tx.get('SELECT COUNT(*) AS n FROM family_members WHERE $where', [...match, value]))['n'] as int;
+      if (count == 0) return 0;
+      await tx.execute('UPDATE family_members SET membership_date = ?, updated_date = ? WHERE $where', [value, _now(), ...match, value]);
+      await _log(
+        tx,
+        action: 'UPDATE_MEMBERSHIP_DATE',
+        entityType: 'Barangay',
+        details: {'lgu': match[0], 'barangay': match[1], 'to': value, 'members': count},
+      );
+      return count;
+    });
+  }
+
   Stream<List<DuesRate>> watchDuesRates() => db
       .watch('SELECT * FROM dues_rates ORDER BY effective_month')
       .map((rows) => rows.map((r) => DuesRate.fromJson(Map<String, dynamic>.from(r))).toList());

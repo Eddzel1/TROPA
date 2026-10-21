@@ -627,6 +627,10 @@ class AppUser {
 
   bool hasPermission(String perm) => permissions.contains(AppPermissions.systemAdmin) || permissions.contains(perm);
 
+  /// Whether this device should install the offline voter list for this user: only screens behind
+  /// [AppPermissions.voterListPermissions] read it. Without it, voter searches go to Supabase.
+  bool get needsVoterList => AppPermissions.voterListPermissions.any(hasPermission);
+
   /// System Admins, and admins with Manage users and no barangays set, collect dues anywhere.
   /// Matches `can_collect_dues_for` in supabase/migrations/20261019000000_dues_ledger.sql.
   bool get duesCollectsEverywhere =>
@@ -670,6 +674,10 @@ class AppPermissions {
   static const manageLocations = 'manage_locations';
   static const publishOfflineData = 'publish_offline_data';
   static const viewAuditLogs = 'view_audit_logs';
+
+  /// Permissions whose screens search the offline voter list: Tropa Finder, the member form's
+  /// voter lookup, and the Voter Registry settings tab.
+  static const voterListPermissions = {'tropa_finder', 'manage_members', publishOfflineData};
 
   /// Permission keys and labels, grouped under the headings the user form shows.
   static const groups = <String, Map<String, String>>{

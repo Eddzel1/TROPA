@@ -6,6 +6,7 @@ import 'package:powersync/powersync.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/powersync_schema.dart';
 import '../core/ph_time.dart';
+import 'supabase_service.dart';
 
 /// Offline copy of the COMELEC voters registry for [snapshotVoterLgus].
 ///
@@ -146,8 +147,19 @@ Future<void> ensureVoterSnapshot(PowerSyncDatabase db, SupabaseClient client) as
 
     voterSnapshotStatus.value = VoterSnapshotStatus(VoterSnapshotPhase.downloading,
         count: installedStatus.count, version: installedStatus.version);
+    // Step durations go to the activity log (VOTER_LIST_INSTALL), to see where a slow install on
+    // a phone spends its time.
+    final watch = Stopwatch()..start();
+    final timing = <String, String>{};
+    void lap(String step) {
+      timing['${step}_s'] = (watch.elapsedMilliseconds / 1000).toStringAsFixed(1);
+      watch.reset();
+    }
+
     final bytes = await client.storage.from(voterSnapshotBucket).download(manifest['path'] as String);
+    lap('download');
     final rows = await compute(decodeVoterSnapshot, bytes);
+    lap('decode');
 
     final version = manifest['version'] as String;
     await db.writeTransaction((tx) async {
@@ -166,7 +178,18 @@ Future<void> ensureVoterSnapshot(PowerSyncDatabase db, SupabaseClient client) as
         [version, rows.length, toPhIso(phNow())],
       );
     });
+    lap('insert');
     voterSnapshotStatus.value = VoterSnapshotStatus(VoterSnapshotPhase.ready, count: rows.length, version: version);
+    final details = {
+      'platform': kIsWeb ? 'web' : defaultTargetPlatform.name,
+      'voters': rows.length,
+      'download_mb': (bytes.length / (1024 * 1024)).toStringAsFixed(1),
+      ...timing,
+    };
+    debugPrint('Voter snapshot timing: $details');
+    try {
+      await SupabaseService(db).logActivity(action: 'VOTER_LIST_INSTALL', entityType: 'Device', details: details);
+    } catch (_) {}
   } catch (e) {
     debugPrint('Voter snapshot install failed: $e');
     final previous = voterSnapshotStatus.value;

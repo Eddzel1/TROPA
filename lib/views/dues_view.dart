@@ -153,6 +153,17 @@ class _CollectTabState extends ConsumerState<_CollectTab> {
     );
   }
 
+  Future<void> _setBarangayMonth() async {
+    final scope = await ref.read(duesScopeProvider.future);
+    final barangays = [...scope.everywhere ? await ref.read(supabaseServiceProvider).getLocations() : scope.barangays]
+      ..sort((a, b) => '${a.barangay}|${a.lgu}'.compareTo('${b.barangay}|${b.lgu}'));
+    if (!mounted) return;
+    final changed = await showBarangayMembershipDialog(context, barangays: barangays);
+    if (changed != null && mounted) {
+      showSettingsMessage(context, 'Membership month updated for $changed member${changed == 1 ? '' : 's'}.');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final search = ref.watch(duesSearchProvider);
@@ -187,7 +198,15 @@ class _CollectTabState extends ConsumerState<_CollectTab> {
             ),
             onChanged: _search,
           ),
-          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              icon: const Icon(Icons.edit_calendar, size: 16),
+              label: const Text('Set month for barangay'),
+              onPressed: _setBarangayMonth,
+            ),
+          ),
+          const SizedBox(height: 4),
           Expanded(
             child: search.mode == DuesSearchMode.household
                 ? _HouseholdResults(
@@ -401,7 +420,7 @@ class _PaymentPanelState extends ConsumerState<_PaymentPanel> {
     if (date == null || !mounted) return;
     try {
       await ref.read(supabaseServiceProvider).setMembershipDate([for (final m in members) m.id], date);
-      if (mounted) showSettingsMessage(context, 'Membership date updated.');
+      if (mounted) showSettingsMessage(context, 'Membership month updated.');
     } catch (e) {
       if (mounted) showSettingsMessage(context, errorMessage(e), error: true);
     }
@@ -608,7 +627,6 @@ class _PaymentPanelState extends ConsumerState<_PaymentPanel> {
 }
 
 class _MemberPayRow extends StatelessWidget {
-  static final _dateFormat = DateFormat('MMM d, yyyy');
 
   final DuesMember member;
   final DuesBalance? balance;
@@ -651,7 +669,7 @@ class _MemberPayRow extends StatelessWidget {
                     children: [
                       Flexible(
                         child: Text(
-                          date == null ? 'Set membership date' : 'Member since ${_dateFormat.format(date)}',
+                          date == null ? 'Set membership month' : 'Member since ${membershipMonthLabel(date)}',
                           style: TropaText.caption(date == null ? TropaColors.errorOf(context) : subCol),
                           overflow: TextOverflow.ellipsis,
                         ),

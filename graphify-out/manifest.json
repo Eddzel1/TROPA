@@ -18,9 +18,9 @@
     "semantic_hash": ""
   },
   "lib/data/db.dart": {
-    "mtime": 1792154010.744633,
-    "seen": 1792154167.979119,
-    "ast_hash": "3e20620b41a5958afcd423936557177c",
+    "mtime": 1792554160.0529675,
+    "seen": 1792554173.784899,
+    "ast_hash": "37f6af5325332cfdd3232c3b2f1ef318",
     "semantic_hash": ""
   },
   "lib/data/powersync_schema.dart": {
@@ -30,10 +30,10 @@
     "semantic_hash": ""
   },
   "lib/data/supabase_connector.dart": {
-    "mtime": 1791895936.2928007,
-    "seen": 1791938458.011255,
-    "ast_hash": "97c08a44ece058bf671719646e06e2ed",
-    "semantic_hash": "97c08a44ece058bf671719646e06e2ed"
+    "mtime": 1792552038.1148028,
+    "seen": 1792552053.481162,
+    "ast_hash": "1ef46287a5527d63283efaed91e04aa0",
+    "semantic_hash": ""
   },
   "lib/main.dart": {
     "mtime": 1792324573.611829,
@@ -42,9 +42,9 @@
     "semantic_hash": ""
   },
   "lib/models/models.dart": {
-    "mtime": 1792393372.8877342,
-    "seen": 1792393398.141207,
-    "ast_hash": "9f2cc05b7c8b4d88572d622cf7eaba29",
+    "mtime": 1792554154.78957,
+    "seen": 1792554173.7849011,
+    "ast_hash": "12c754c77ca79ec1fd490fd45c440d17",
     "semantic_hash": ""
   },
   "lib/providers/activity_log_provider.dart": {
@@ -108,9 +108,9 @@
     "semantic_hash": ""
   },
   "lib/services/supabase_service.dart": {
-    "mtime": 1792395922.6131177,
-    "seen": 1792395926.15635,
-    "ast_hash": "5ad104a94fe0d78192bf84b24b442f94",
+    "mtime": 1792550791.288905,
+    "seen": 1792550869.280252,
+    "ast_hash": "e4151b7c912cfddb9a3c56dad841cfeb",
     "semantic_hash": ""
   },
   "lib/views/audit_logs_view.dart": {
@@ -126,9 +126,9 @@
     "semantic_hash": ""
   },
   "lib/views/dues_view.dart": {
-    "mtime": 1792363696.2373176,
-    "seen": 1792389918.848755,
-    "ast_hash": "203120831886f5b994d998df24c38afc",
+    "mtime": 1792550861.3696072,
+    "seen": 1792550869.280257,
+    "ast_hash": "18268e15b1eb1b675be9a2caa55dfe61",
     "semantic_hash": ""
   },
   "lib/views/form_tracking_view.dart": {
@@ -192,9 +192,9 @@
     "semantic_hash": ""
   },
   "lib/widgets/member_form_dialog.dart": {
-    "mtime": 1792477099.9762125,
-    "seen": 1792477104.126313,
-    "ast_hash": "87d860eaa7ee4deec67221fa2c763633",
+    "mtime": 1792479465.0651028,
+    "seen": 1792550869.280267,
+    "ast_hash": "04685d40871f9a2b04d8149e1312d861",
     "semantic_hash": ""
   },
   "lib/widgets/tropa_map_widget.dart": {
@@ -348,9 +348,9 @@
     "semantic_hash": ""
   },
   "lib/services/voter_snapshot.dart": {
-    "mtime": 1792111099.7477849,
-    "seen": 1792111142.295212,
-    "ast_hash": "3a29f08ade020c4dfaed0513414b5c56",
+    "mtime": 1792553975.1403575,
+    "seen": 1792554009.2303848,
+    "ast_hash": "92e4757cc4342ccc8817e5e09ac47fd2",
     "semantic_hash": ""
   },
   "lib/views/settings/voter_registry_tab.dart": {
@@ -384,15 +384,15 @@
     "semantic_hash": ""
   },
   "lib/services/device_seed.dart": {
-    "mtime": 1792156856.5782115,
-    "seen": 1792157099.097833,
-    "ast_hash": "82e5bfde5fb5de73630628d3ab5a518d",
+    "mtime": 1792553953.0254834,
+    "seen": 1792554009.230381,
+    "ast_hash": "487a716c962f4d6db961098750f07541",
     "semantic_hash": ""
   },
   "lib/services/device_seed_io.dart": {
-    "mtime": 1792154051.420498,
-    "seen": 1792154167.9791281,
-    "ast_hash": "62778d36272229a731a4b320fa93151c",
+    "mtime": 1792553962.9889188,
+    "seen": 1792554009.230381,
+    "ast_hash": "562f8b20cb63b08639cdbea1794f6b42",
     "semantic_hash": ""
   },
   "lib/services/device_seed_stub.dart": {
@@ -576,9 +576,9 @@
     "semantic_hash": ""
   },
   "lib/services/device_seed_web.dart": {
-    "mtime": 1792157057.5351324,
-    "seen": 1792157099.097835,
-    "ast_hash": "0471cbda17a89332d529a316e42b0b1a",
+    "mtime": 1792553990.208469,
+    "seen": 1792554009.2303832,
+    "ast_hash": "405581f59b3de5ab5f9ff5f6c21b7079",
     "semantic_hash": ""
   },
   "lib/widgets/startup_screen.dart": {
@@ -654,9 +654,9 @@
     "semantic_hash": ""
   },
   "lib/widgets/membership_date_dialog.dart": {
-    "mtime": 1792283057.9017096,
-    "seen": 1792283374.8396292,
-    "ast_hash": "a9e37c9d7999d5fda76a098c15b835d1",
+    "mtime": 1792550829.756676,
+    "seen": 1792550869.280268,
+    "ast_hash": "e9929ac1f80afd7e068b0b58bf0b4bbe",
     "semantic_hash": ""
   },
   "supabase/migrations/20261019000000_dues_ledger.sql": {
