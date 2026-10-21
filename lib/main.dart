@@ -7,6 +7,7 @@ import 'core/design_system.dart';
 import 'core/theme_provider.dart';
 import 'router/router.dart';
 import 'widgets/startup_screen.dart';
+import 'widgets/web_keyboard_inset.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -83,6 +84,8 @@ class TropaApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: TropaTheme.of(themeId),
       routerConfig: router,
+      // Web: size pages to what the phone keyboard really leaves visible (see WebKeyboardInset).
+      builder: (context, child) => WebKeyboardInset(child: child ?? const SizedBox.shrink()),
     );
   }
 }
