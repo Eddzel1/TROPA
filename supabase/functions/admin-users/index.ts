@@ -2,7 +2,7 @@
 // Creating Auth accounts needs the service-role key, which must never ship in the app.
 // Deploy: supabase functions deploy admin-users
 //
-// Body: { action: 'create', email, password, firstname, lastname, permissions, dues_barangays? }
+// Body: { action: 'create', email, password, firstname, lastname, permissions, dues_barangays?, sync_assigned_only? }
 //     | { action: 'set_password', user_id, password }
 //     | { action: 'set_status', user_id, status: 'active' | 'inactive' }
 //     | { action: 'delete', user_id }
@@ -118,6 +118,7 @@ Deno.serve(async (req: Request) => {
         status: "active",
         permissions,
         dues_barangays: permissionList(body.dues_barangays),
+        sync_assigned_only: body.sync_assigned_only === true,
         created_date: now,
         updated_date: now,
       };

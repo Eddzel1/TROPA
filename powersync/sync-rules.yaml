@@ -1,20 +1,40 @@
-# PowerSync sync rules: paste into the PowerSync dashboard (Sync Rules tab) and deploy.
+# PowerSync sync rules: paste into the PowerSync dashboard (Sync Rules tab), validate and deploy.
 # Table and column names must match lib/data/powersync_schema.dart.
 # Postgres booleans arrive on devices as 1/0 and arrays (users.permissions) as JSON text.
+#
+# Households, members and dues payments sync per user (see
+# supabase/migrations/20261022000000_barangay_sync.sql): users with "Sync only assigned barangays"
+# get only their barangays (by_barangay); everyone else gets all of them (all_records). Users are
+# matched by sign-in email because some profile ids differ from the Auth id.
+# Deploying a new bucket layout makes devices download these tables again once; republish the
+# starter database afterwards (Settings > Offline Data).
 
 bucket_definitions:
-  # Everything every signed-in user needs to work offline.
+  # Small reference tables every signed-in user needs.
   global:
     data:
-      - SELECT * FROM households
-      - SELECT * FROM family_members
-      - SELECT * FROM dues_payments
-      - SELECT * FROM dues_rates
       - SELECT * FROM form_tracking
       - SELECT * FROM locations
       - SELECT id, location_id, name FROM puroks
       - SELECT * FROM users
       - SELECT * FROM officers
       - SELECT * FROM voter_flags
+      - SELECT * FROM dues_rates
       # voters (the COMELEC registry) is not synced through PowerSync: devices install a compressed
       # snapshot of the target LGUs from Supabase Storage instead (lib/services/voter_snapshot.dart).
+
+  # Every barangay, for users not limited to their assigned barangays.
+  all_records:
+    parameters: SELECT FROM user_sync_scopes WHERE user_sync_scopes.email = request.jwt() ->> 'email' AND user_sync_scopes.full_access = true
+    data:
+      - SELECT * FROM households
+      - SELECT * FROM family_members
+      - SELECT * FROM dues_payments
+
+  # One bucket per assigned barangay, for users with "Sync only assigned barangays".
+  by_barangay:
+    parameters: SELECT barangay_key FROM user_sync_scopes WHERE user_sync_scopes.email = request.jwt() ->> 'email' AND user_sync_scopes.full_access = false
+    data:
+      - SELECT * FROM households WHERE households.sync_key = bucket.barangay_key
+      - SELECT * FROM family_members WHERE family_members.sync_key = bucket.barangay_key
+      - SELECT * FROM dues_payments WHERE dues_payments.sync_key = bucket.barangay_key

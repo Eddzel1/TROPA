@@ -14,6 +14,7 @@ import '../providers/member_provider.dart';
 import '../providers/voter_provider.dart';
 import '../widgets/member_form_dialog.dart';
 import '../widgets/transfer_member_dialog.dart';
+import '../widgets/keyboard_safe_body.dart';
 import 'member_id_view.dart';
 import '../core/ph_time.dart';
 
@@ -422,7 +423,9 @@ class _MembersViewState extends ConsumerState<MembersView> {
               ),
             );
 
-        return Padding(
+        // Typing on a phone shrinks the room below the fixed search rows; then the page scrolls.
+        return KeyboardSafeBody(
+        minHeight: 560,
         padding: EdgeInsets.all(compact ? 16 : 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

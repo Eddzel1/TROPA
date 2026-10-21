@@ -74,6 +74,8 @@ class _TransferMemberDialogState extends ConsumerState<TransferMemberDialog> {
       title: Text('Transfer to Household', style: TextStyle(color: textCol)),
       content: SizedBox(
         width: 440,
+        // Scrolls when a phone keyboard leaves less room than the search and list need.
+        child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -96,6 +98,7 @@ class _TransferMemberDialogState extends ConsumerState<TransferMemberDialog> {
               ),
             ],
           ],
+        ),
         ),
       ),
       actions: [

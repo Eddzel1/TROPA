@@ -14,6 +14,7 @@ import '../providers/household_provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/voter_provider.dart';
 import '../widgets/household_view_dialog.dart';
+import '../widgets/keyboard_safe_body.dart';
 import '../core/ph_time.dart';
 
 class HouseholdsView extends ConsumerStatefulWidget {
@@ -521,7 +522,9 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
   },
 );
 
-        return Padding(
+        // Typing on a phone shrinks the room below the fixed search rows; then the page scrolls.
+        return KeyboardSafeBody(
+        minHeight: 520,
         padding: EdgeInsets.all(compact ? 16 : 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

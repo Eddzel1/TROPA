@@ -117,10 +117,11 @@ Future<void> openLocalDatabase() async {
   });
 }
 
-/// Starts syncing the local database for [userId]. The sync rules give every user the same data,
-/// so the local copy is shared by everyone on this device and kept when users switch: wiping it
-/// would only force another full download. Edits still waiting to upload go out with the new
-/// session.
+/// Starts syncing the local database for [userId]. The local copy is shared by everyone on this
+/// device and kept when users switch: wiping it would only force another full download. Users with
+/// "Sync only assigned barangays" get fewer households/members/dues (powersync/sync-rules.yaml);
+/// PowerSync reconciles the buckets on reconnect, dropping or downloading what differs. Edits still
+/// waiting to upload go out with the new session.
 Future<void> useLocalDbFor(String userId) async {
   await OfflineAuth.setLocalDbOwner(userId);
   // A fresh device starts from the published starter database instead of a full PowerSync

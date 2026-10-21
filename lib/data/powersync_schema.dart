@@ -153,6 +153,8 @@ const schema = Schema([
     Column.text('permissions'),
     // locations.id values this user collects dues for (JSON text locally).
     Column.text('dues_barangays'),
+    // Only the dues barangays' households, members and dues sync to this user (0/1).
+    Column.integer('sync_assigned_only'),
     Column.text('last_login'),
     Column.text('created_date'),
     Column.text('updated_date'),
@@ -213,6 +215,7 @@ const snapshotVoterLgus = {'VALENCIA CITY', 'KALILANGAN', 'PANGANTUCAN'};
 
 /// Columns that are Postgres booleans; stored locally as 0/1 and converted back on upload.
 const booleanColumns = <String, Set<String>>{
+  'users': {'sync_assigned_only'},
   'households': {'is_archived'},
   'family_members': {
     'is_voter',

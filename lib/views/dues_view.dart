@@ -9,8 +9,15 @@ import '../models/models.dart';
 import '../providers/auth_provider.dart';
 import '../providers/dues_provider.dart';
 import '../widgets/form_fields.dart';
+import '../widgets/keyboard_safe_body.dart';
 import '../widgets/membership_date_dialog.dart';
 import 'settings/settings_common.dart';
+
+/// Below this page height (keyboard up, small phone) the page drops its description and badges.
+const _shortHeight = 520.0;
+
+/// Below this height a tab hides its extras (barangay link, ledger totals and pager).
+const _shortTabHeight = 400.0;
 
 final _peso = NumberFormat.currency(symbol: '₱', decimalDigits: 2);
 final _dateTimeFormat = DateFormat('MMM d, yyyy h:mm a');
@@ -30,13 +37,22 @@ class DuesCollectionView extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Padding(
-        padding: const EdgeInsets.all(24),
+      body: LayoutBuilder(builder: (context, constraints) {
+        // Phones: the app bar already shows the title. With the keyboard up, the description and
+        // badges give their room to the search box and results.
+        final narrow = TropaBreakpoints.isCompact(constraints.maxWidth);
+        final short = constraints.maxHeight < _shortHeight;
+        return KeyboardSafeBody(
+        minHeight: 360,
+        padding: EdgeInsets.all(narrow ? 16 : 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Dues & Ledger', style: TropaText.pageTitle(textCol)),
-            const SizedBox(height: 4),
+            if (!narrow) ...[
+              Text('Dues & Ledger', style: TropaText.pageTitle(textCol)),
+              const SizedBox(height: 4),
+            ],
+            if (!short) ...[
             Wrap(
               spacing: 8,
               runSpacing: 6,
@@ -60,7 +76,8 @@ class DuesCollectionView extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            SizedBox(height: narrow ? 12 : 16),
+            ],
             Expanded(
               child: scopeAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
@@ -78,7 +95,8 @@ class DuesCollectionView extends ConsumerWidget {
             ),
           ],
         ),
-      ),
+        );
+      }),
     );
   }
 }
@@ -88,24 +106,30 @@ class _DuesTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const DefaultTabController(
-      length: 2,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TabBar(
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
-            tabs: [
-              Tab(icon: Icon(Icons.add_card, size: 18), text: 'Collect'),
-              Tab(icon: Icon(Icons.receipt_long, size: 18), text: 'Ledger'),
-            ],
-          ),
-          SizedBox(height: 16),
-          Expanded(child: TabBarView(children: [_CollectTab(), _LedgerTab()])),
-        ],
-      ),
-    );
+    return LayoutBuilder(builder: (context, constraints) {
+      // Text-only tabs (~46 px instead of 72) when the keyboard leaves little room.
+      final short = constraints.maxHeight < _shortTabHeight + 80;
+      return DefaultTabController(
+        length: 2,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TabBar(
+              isScrollable: true,
+              tabAlignment: TabAlignment.start,
+              tabs: short
+                  ? const [Tab(text: 'Collect'), Tab(text: 'Ledger')]
+                  : const [
+                      Tab(icon: Icon(Icons.add_card, size: 18), text: 'Collect'),
+                      Tab(icon: Icon(Icons.receipt_long, size: 18), text: 'Ledger'),
+                    ],
+            ),
+            SizedBox(height: short ? 8 : 16),
+            const Expanded(child: TabBarView(children: [_CollectTab(), _LedgerTab()])),
+          ],
+        ),
+      );
+    });
   }
 }
 
@@ -160,7 +184,8 @@ class _CollectTabState extends ConsumerState<_CollectTab> {
     if (!mounted) return;
     final changed = await showBarangayMembershipDialog(context, barangays: barangays);
     if (changed != null && mounted) {
-      showSettingsMessage(context, 'Membership month updated for $changed member${changed == 1 ? '' : 's'}.');
+      showSettingsMessage(
+          context, 'Updated $changed member${changed == 1 ? '' : 's'}. The new months appear here as they sync.');
     }
   }
 
@@ -171,6 +196,7 @@ class _CollectTabState extends ConsumerState<_CollectTab> {
 
     return LayoutBuilder(builder: (context, constraints) {
       final wide = constraints.maxWidth >= 860;
+      final short = constraints.maxHeight < _shortTabHeight;
       final list = Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -185,7 +211,7 @@ class _CollectTabState extends ConsumerState<_CollectTab> {
             selected: {search.mode},
             onSelectionChanged: (s) => ref.read(duesSearchProvider.notifier).update((v) => v.copyWith(mode: s.first)),
           ),
-          const SizedBox(height: 12),
+          SizedBox(height: short ? 8 : 12),
           TextField(
             inputFormatters: const [UpperCaseFormatter()],
             textCapitalization: TextCapitalization.characters,
@@ -198,15 +224,19 @@ class _CollectTabState extends ConsumerState<_CollectTab> {
             ),
             onChanged: _search,
           ),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              icon: const Icon(Icons.edit_calendar, size: 16),
-              label: const Text('Set month for barangay'),
-              onPressed: _setBarangayMonth,
+          if (short)
+            const SizedBox(height: 8)
+          else ...[
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                icon: const Icon(Icons.edit_calendar, size: 16),
+                label: const Text('Set month for barangay'),
+                onPressed: _setBarangayMonth,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
+            const SizedBox(height: 4),
+          ],
           Expanded(
             child: search.mode == DuesSearchMode.household
                 ? _HouseholdResults(
@@ -480,7 +510,11 @@ class _PaymentPanelState extends ConsumerState<_PaymentPanel> {
             }
             final canRecord = !_saving && totalMonths > 0 && rates.isNotEmpty;
 
-            return Column(
+            // On a phone the keyboard (receipt #, notes) would squeeze this below its fixed parts;
+            // then the panel scrolls so the focused field and Record button stay reachable.
+            return KeyboardSafeBody(
+              minHeight: 620,
+              child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Row(
@@ -620,6 +654,7 @@ class _PaymentPanelState extends ConsumerState<_PaymentPanel> {
                   ),
                 ),
               ],
+              ),
             );
           },
         );
@@ -807,6 +842,9 @@ class _LedgerTabState extends ConsumerState<_LedgerTab> {
     final totals = ref.watch(duesLedgerTotalsProvider).value;
     final hasQuery = ref.watch(duesLedgerQueryProvider).isNotEmpty;
 
+    return LayoutBuilder(builder: (context, constraints) {
+    // With the keyboard up, the totals and pager give their room to the search box and receipts.
+    final short = constraints.maxHeight < _shortTabHeight;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -819,8 +857,8 @@ class _LedgerTabState extends ConsumerState<_LedgerTab> {
               hint: 'Search by name, household, reference or month (YYYY-MM)…', search: true),
           onChanged: _search,
         ),
-        const SizedBox(height: 12),
-        if (totals != null) ...[
+        SizedBox(height: short ? 8 : 12),
+        if (totals != null && !short) ...[
           Wrap(
             spacing: 12,
             runSpacing: 12,
@@ -854,6 +892,7 @@ class _LedgerTabState extends ConsumerState<_LedgerTab> {
                   ),
           ),
         ),
+        if (!short) ...[
         const SizedBox(height: 8),
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
@@ -873,8 +912,10 @@ class _LedgerTabState extends ConsumerState<_LedgerTab> {
             ),
           ],
         ),
+        ],
       ],
     );
+    });
   }
 }
 

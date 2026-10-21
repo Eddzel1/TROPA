@@ -149,6 +149,14 @@ Future<Map<String, dynamic>?> seedManifestToInstall({required bool force}) async
     if (force) throw StateError('This device has changes that have not uploaded yet. Wait until they sync.');
     return null;
   }
+  // The starter database holds every barangay; a user who syncs only their own barangays would
+  // download all of it just for PowerSync to delete most of it. Their normal sync is small.
+  final user = await SupabaseService(localDb).getCurrentAppUser();
+  if (user != null && user.syncAssignedOnly) {
+    debugPrint('Starter database: skipped, ${user.email} syncs only assigned barangays.');
+    if (force) throw StateError('This account syncs only its assigned barangays, so it does not use the starter database.');
+    return null;
+  }
   if (!force && !await isFreshLocalDb()) {
     debugPrint('Starter database: skipped, this device already has synced data.');
     return null;

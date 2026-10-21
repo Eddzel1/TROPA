@@ -942,27 +942,27 @@ class SupabaseService {
   }
 
   /// Sets every member of [lgu] / [barangay] to the 1st of [monthIndex], replacing their current
-  /// membership date. One audit entry for the whole barangay. Returns how many members changed.
+  /// membership date. Runs on Supabase (`set_barangay_membership_month`) as one request, so
+  /// thousands of member edits never sit in this device's upload queue; the changed rows come back
+  /// through sync. Online only. Returns how many members changed.
   Future<int> setBarangayMembershipMonth({
     required String lgu,
     required String barangay,
     required int monthIndex,
   }) async {
-    final value = '${monthKey(monthIndex)}-01';
-    final match = [lgu.trim().toUpperCase(), barangay.trim().toUpperCase()];
-    return db.writeTransaction((tx) async {
-      final where = "${_n('lgu')} = ? AND ${_n('barangay')} = ? AND COALESCE(membership_date, '') != ?";
-      final count = (await tx.get('SELECT COUNT(*) AS n FROM family_members WHERE $where', [...match, value]))['n'] as int;
-      if (count == 0) return 0;
-      await tx.execute('UPDATE family_members SET membership_date = ?, updated_date = ? WHERE $where', [value, _now(), ...match, value]);
-      await _log(
-        tx,
-        action: 'UPDATE_MEMBERSHIP_DATE',
-        entityType: 'Barangay',
-        details: {'lgu': match[0], 'barangay': match[1], 'to': value, 'members': count},
-      );
-      return count;
-    });
+    try {
+      final changed = await client.rpc('set_barangay_membership_month', params: {
+        'p_lgu': lgu,
+        'p_barangay': barangay,
+        'p_month': monthKey(monthIndex),
+      });
+      return (changed as num?)?.toInt() ?? 0;
+    } on PostgrestException catch (e) {
+      throw Exception(e.code == '42501' ? 'You are not allowed to set membership months in $barangay.' : e.message);
+    } catch (e) {
+      debugPrint('set_barangay_membership_month failed: $e');
+      throw Exception('Setting a barangay\'s month needs an internet connection. Try again when online.');
+    }
   }
 
   Stream<List<DuesRate>> watchDuesRates() => db
@@ -1412,7 +1412,11 @@ class SupabaseService {
         action: 'UPDATE_USER',
         entityType: 'User',
         entityId: user.id,
-        details: {'permissions': user.permissions, 'dues_barangays': user.duesBarangays},
+        details: {
+          'permissions': user.permissions,
+          'dues_barangays': user.duesBarangays,
+          'sync_assigned_only': user.syncAssignedOnly,
+        },
       );
     });
     return AppUser.fromJson((await _getRow('users', user.id))!);
@@ -1434,6 +1438,7 @@ class SupabaseService {
     required String lastname,
     required List<String> permissions,
     List<String> duesBarangays = const [],
+    bool syncAssignedOnly = false,
   }) async {
     final data = await _adminUsers({
       'action': 'create',
@@ -1443,6 +1448,7 @@ class SupabaseService {
       'lastname': lastname,
       'permissions': permissions,
       'dues_barangays': duesBarangays,
+      'sync_assigned_only': syncAssignedOnly,
     });
     final user = AppUser.fromJson(Map<String, dynamic>.from(data['user'] as Map));
     await logActivity(

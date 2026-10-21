@@ -8,6 +8,7 @@ import '../services/supabase_service.dart';
 import '../views/settings/settings_common.dart';
 import '../core/ph_time.dart';
 import 'form_fields.dart';
+import 'keyboard_safe_body.dart';
 
 /// Assigns a member to an officer position of a barangay federation or of one purok,
 /// or changes the holder/position of an existing [officer].
@@ -145,7 +146,11 @@ class _OfficerFormDialogState extends ConsumerState<OfficerFormDialog> {
       ),
       content: SizedBox(
         width: 480,
-        height: 460,
+        // Keeps its 460 px on desktop; scrolls when a phone keyboard leaves less room.
+        child: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 460),
+        child: KeyboardSafeBody(
+        minHeight: 460,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -228,6 +233,7 @@ class _OfficerFormDialogState extends ConsumerState<OfficerFormDialog> {
                         ),
             ),
           ],
+        )),
         ),
       ),
       actions: [

@@ -29,6 +29,7 @@ class _UserFormDialogState extends ConsumerState<UserFormDialog> {
   late final _lastname = TextEditingController(text: widget.user?.lastname ?? '');
   late Set<String> _permissions = {...(widget.user?.permissions ?? AppPermissions.presets['Field Encoder']!)};
   late final Set<String> _duesBarangays = {...?widget.user?.duesBarangays};
+  late bool _syncAssignedOnly = widget.user?.syncAssignedOnly ?? false;
   List<LocationOption> _locations = const [];
   bool _saving = false;
   bool _showPassword = false;
@@ -73,7 +74,11 @@ class _UserFormDialogState extends ConsumerState<UserFormDialog> {
   void _applyPreset(String? name) {
     final preset = AppPermissions.presets[name];
     if (preset == null) return;
-    setState(() => _permissions = {...preset});
+    setState(() {
+      _permissions = {...preset};
+      // Collectors only need their barangays' records on their phones.
+      _syncAssignedOnly = name == 'Dues Collector';
+    });
   }
 
   Future<void> _save() async {
@@ -96,6 +101,7 @@ class _UserFormDialogState extends ConsumerState<UserFormDialog> {
     final service = ref.read(supabaseServiceProvider);
     final permissions = _isSystemAdmin ? [AppPermissions.systemAdmin] : _permissions.toList();
     final duesBarangays = _picksDuesBarangays ? _duesBarangays.toList() : <String>[];
+    final syncAssignedOnly = _picksDuesBarangays && duesBarangays.isNotEmpty && _syncAssignedOnly;
     try {
       if (_isNew) {
         await service.createUserAccount(
@@ -105,6 +111,7 @@ class _UserFormDialogState extends ConsumerState<UserFormDialog> {
           lastname: _lastname.text.trim(),
           permissions: permissions,
           duesBarangays: duesBarangays,
+          syncAssignedOnly: syncAssignedOnly,
         );
       } else {
         final u = widget.user!;
@@ -116,6 +123,7 @@ class _UserFormDialogState extends ConsumerState<UserFormDialog> {
           status: u.status,
           permissions: permissions,
           duesBarangays: duesBarangays,
+          syncAssignedOnly: syncAssignedOnly,
           lastLogin: u.lastLogin,
           createdDate: u.createdDate,
           updatedDate: phNow(),
@@ -292,6 +300,18 @@ class _UserFormDialogState extends ConsumerState<UserFormDialog> {
                         onPressed: _locations.isEmpty ? null : _pickDuesBarangays,
                       ),
                     ],
+                  ),
+                  CheckboxListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    value: _syncAssignedOnly && _duesBarangays.isNotEmpty,
+                    title: Text('Sync only assigned barangays', style: p.body),
+                    subtitle: Text(
+                      'Their devices download only these barangays\' households, members and dues. '
+                      'Members, Households and Reports then show only these barangays.',
+                      style: p.caption,
+                    ),
+                    onChanged: _duesBarangays.isEmpty ? null : (v) => setState(() => _syncAssignedOnly = v == true),
                   ),
                 ],
               ],

@@ -606,6 +606,10 @@ class AppUser {
 
   /// `locations.id`s this user collects dues for (see [duesCollectsEverywhere]).
   final List<String> duesBarangays;
+
+  /// Sync only the [duesBarangays]' households, members and dues to this user's devices
+  /// (bucket `by_barangay` in powersync/sync-rules.yaml) instead of every barangay.
+  final bool syncAssignedOnly;
   final DateTime? lastLogin;
   final DateTime createdDate;
   final DateTime updatedDate;
@@ -618,6 +622,7 @@ class AppUser {
     required this.status,
     required this.permissions,
     this.duesBarangays = const [],
+    this.syncAssignedOnly = false,
     this.lastLogin,
     required this.createdDate,
     required this.updatedDate,
@@ -645,6 +650,7 @@ class AppUser {
         status: json['status']?.toString() ?? 'active',
         permissions: asStringList(json['permissions']) ?? const [],
         duesBarangays: asStringList(json['dues_barangays']) ?? const [],
+    syncAssignedOnly: asBool(json['sync_assigned_only']),
         lastLogin: json['last_login'] != null ? parsePh(json['last_login'].toString()) : null,
         createdDate: json['created_date'] != null ? parsePh(json['created_date'].toString()) ?? phNow() : phNow(),
         updatedDate: json['updated_date'] != null ? parsePh(json['updated_date'].toString()) ?? phNow() : phNow(),
@@ -658,6 +664,7 @@ class AppUser {
         'status': status,
         'permissions': permissions,
         'dues_barangays': duesBarangays,
+    'sync_assigned_only': syncAssignedOnly,
         if (lastLogin != null) 'last_login': toPhIso(lastLogin!),
         'created_date': toPhIso(createdDate),
         'updated_date': toPhIso(updatedDate),

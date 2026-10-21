@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/db.dart';
 import '../data/powersync_schema.dart';
+import 'supabase_service.dart';
 
 /// Backup sync: while PowerSync is unreachable but Supabase works, poll Supabase every few minutes
 /// for rows that other devices changed or deleted, and write them into the local database.
@@ -123,11 +124,12 @@ Future<void> _pull(DateTime lastSyncedAt) async {
   final client = Supabase.instance.client;
   try {
     final fullPull = _lastFullPull == null || DateTime.now().difference(_lastFullPull!) >= _fullPullEvery;
+    final areaKeys = await _syncedAreaKeys();
     for (final t in fallbackTables) {
       if (t.cursorColumn == null) {
         if (fullPull) await _pullAll(client, t);
       } else {
-        await _pullChanged(client, t, lastSyncedAt);
+        await _pullChanged(client, t, lastSyncedAt, areaKeys: areaKeys);
       }
     }
     _cursorsCleared = false;
@@ -176,14 +178,29 @@ Future<void> _writeRows(String table, List<Map<String, dynamic>> rows) async {
   });
 }
 
-Future<void> _pullChanged(SupabaseClient client, FallbackTable t, DateTime lastSyncedAt) async {
+/// Tables that sync per barangay (`sync_key`, see powersync/sync-rules.yaml).
+const _areaTables = {'households', 'family_members', 'dues_payments'};
+
+/// `LGU|BARANGAY` keys this user syncs, or null when they sync every barangay. Mirrors the
+/// `by_barangay` bucket, so backup sync doesn't bring back barangays PowerSync leaves out.
+Future<List<String>?> _syncedAreaKeys() async {
+  final service = SupabaseService(localDb);
+  final user = await service.getCurrentAppUser();
+  if (user == null || !user.syncAssignedOnly) return null;
+  final scope = await service.getDuesScope(user);
+  return scope.everywhere ? null : scope.keys;
+}
+
+Future<void> _pullChanged(SupabaseClient client, FallbackTable t, DateTime lastSyncedAt, {List<String>? areaKeys}) async {
   final column = t.cursorColumn!;
+  final scoped = areaKeys != null && _areaTables.contains(t.table);
+  if (scoped && areaKeys.isEmpty) return;
   // Offsets page through this query's results; the advanced cursor is used on the next pull.
   final cursor = await _cursor(t.table, lastSyncedAt);
   for (var offset = 0;; offset += _pageSize) {
-    final page = List<Map<String, dynamic>>.from(await client
-        .from(t.table)
-        .select(t.select)
+    var query = client.from(t.table).select(t.select);
+    if (scoped) query = query.inFilter('sync_key', areaKeys);
+    final page = List<Map<String, dynamic>>.from(await query
         .gte(column, cursor)
         .order(column, ascending: true)
         .order('id', ascending: true)

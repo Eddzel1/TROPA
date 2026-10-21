@@ -7,6 +7,7 @@ import '../providers/auth_provider.dart';
 import '../providers/member_provider.dart';
 import '../core/ph_time.dart';
 import 'form_fields.dart';
+import 'keyboard_safe_body.dart';
 
 class BulkMemberRowData {
   String id;
@@ -255,7 +256,11 @@ class _BulkAddMemberDialogState extends ConsumerState<BulkAddMemberDialog> {
       ),
       content: SizedBox(
         width: 1080,
-        height: 540,
+        // Keeps its 540 px on desktop; scrolls when a phone keyboard leaves less room.
+        child: ConstrainedBox(
+        constraints: const BoxConstraints(maxHeight: 540),
+        child: KeyboardSafeBody(
+        minHeight: 540,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -515,6 +520,7 @@ class _BulkAddMemberDialogState extends ConsumerState<BulkAddMemberDialog> {
               ),
             ),
           ],
+        )),
         ),
       ),
       actions: [

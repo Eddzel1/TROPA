@@ -454,7 +454,8 @@ class _UserRow extends StatelessWidget {
                         Text(user.email, style: p.meta, overflow: TextOverflow.ellipsis),
                         if (user.permissions.contains(AppPermissions.duesCollection) && user.duesBarangays.isNotEmpty)
                           Text(
-                            'Dues: ${user.duesBarangays.map((id) => barangayNames[id] ?? '?').join(', ')}',
+                            'Dues: ${user.duesBarangays.map((id) => barangayNames[id] ?? '?').join(', ')}'
+                            '${user.syncAssignedOnly ? ' · syncs only these' : ''}',
                             style: p.caption,
                             overflow: TextOverflow.ellipsis,
                           ),
