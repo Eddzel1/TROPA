@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/design_system.dart';
+import '../../core/dues_math.dart';
 import '../../models/models.dart';
 import '../../providers/admin_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/voter_provider.dart';
 import '../../widgets/form_fields.dart';
+import '../../widgets/membership_date_dialog.dart';
 import 'settings_common.dart';
 
 /// Location Management: barangays (the `locations` table) and their puroks.
@@ -155,6 +157,27 @@ class _LocationDetail extends ConsumerWidget {
 
   const _LocationDetail({required this.location, required this.onEdit, required this.onDelete});
 
+  Future<void> _setStartMonth(BuildContext context) async {
+    final message = await showBarangayStartMonthDialog(context, location: location);
+    if (message != null && context.mounted) showSettingsMessage(context, message);
+  }
+
+  Future<void> _clearStartMonth(BuildContext context, WidgetRef ref) async {
+    final ok = await confirmAction(
+      context,
+      title: 'Clear the dues starting month?',
+      message: 'New members in ${location.barangay} will start the month they are encoded. '
+          'Members already encoded keep their months.',
+      confirmLabel: 'Clear',
+    );
+    if (!ok) return;
+    try {
+      await ref.read(supabaseServiceProvider).setLocationStartMonth(location, null);
+    } catch (e) {
+      if (context.mounted) showSettingsMessage(context, errorMessage(e), error: true);
+    }
+  }
+
   Future<void> _addPurok(BuildContext context, WidgetRef ref) async {
     final name = await promptText(context,
         title: 'Add purok to ${location.barangay}', label: 'Purok name', confirmLabel: 'Add', upperCase: true);
@@ -223,6 +246,33 @@ class _LocationDetail extends ConsumerWidget {
               SettingsChip('${location.householdCount} households'),
               SettingsChip('${location.memberCount} members'),
               SettingsChip('${location.purokCount} puroks'),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // New members encoded in this barangay adopt its dues starting month.
+          Row(
+            children: [
+              Icon(Icons.event_available_outlined, size: 18, color: p.subtext),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text.rich(
+                  TextSpan(children: [
+                    TextSpan(text: 'Dues starting month: ', style: p.body),
+                    TextSpan(
+                      text: location.duesStartMonth == null
+                          ? 'Not set (new members start the month they are encoded)'
+                          : monthLabel(parseMonthKey(location.duesStartMonth) ?? 0),
+                      style: p.bodyStrong,
+                    ),
+                  ]),
+                ),
+              ),
+              TextButton(
+                onPressed: () => _setStartMonth(context),
+                child: Text(location.duesStartMonth == null ? 'Set month' : 'Change'),
+              ),
+              if (location.duesStartMonth != null)
+                TextButton(onPressed: () => _clearStartMonth(context, ref), child: const Text('Clear')),
             ],
           ),
           const SizedBox(height: 20),

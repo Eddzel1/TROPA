@@ -457,9 +457,47 @@ class SupabaseService {
     }
   }
 
+  /// A new member in a barangay with a dues starting month gets it as their membership date (the
+  /// 1st of that month). Supabase does the same on upload (`apply_barangay_start_month`); doing it
+  /// here too shows the right month at once, offline included.
+  Future<Map<String, dynamic>> _withBarangayStartMonth(SqliteWriteContext tx, Map<String, dynamic> row) async {
+    final loc = await tx.getOptional(
+      "SELECT dues_start_month FROM locations WHERE ${_n('lgu')} = ? AND ${_n('barangay')} = ? "
+      "AND COALESCE(dues_start_month, '') != '' LIMIT 1",
+      [row['lgu']?.toString().trim().toUpperCase() ?? '', row['barangay']?.toString().trim().toUpperCase() ?? ''],
+    );
+    final month = loc?['dues_start_month'] as String?;
+    if (month == null || parseMonthKey(month) == null) return row;
+    return {...row, 'membership_date': '$month-01'};
+  }
+
+  /// The dues starting month (`YYYY-MM`) of every barangay that has one, by `LGU|BARANGAY`.
+  Future<Map<String, String>> getBarangayStartMonths() async {
+    final rows = await _rows(
+      "SELECT ${_n('lgu')} AS lgu, ${_n('barangay')} AS barangay, dues_start_month FROM locations "
+      "WHERE COALESCE(dues_start_month, '') != ''",
+    );
+    return {for (final r in rows) '${r['lgu']}|${r['barangay']}': r['dues_start_month'] as String};
+  }
+
+  /// Sets (or clears, with null) a barangay's dues starting month. New members encoded there adopt it.
+  Future<void> setLocationStartMonth(Location location, String? month) async {
+    await db.writeTransaction((tx) async {
+      await _update(tx, 'locations', location.id, {'dues_start_month': month});
+      await _log(
+        tx,
+        action: 'SET_DUES_START_MONTH',
+        entityType: 'Location',
+        entityId: location.id,
+        details: {'lgu': location.lgu, 'barangay': location.barangay, 'from': location.duesStartMonth, 'to': month},
+      );
+    });
+  }
+
   Future<FamilyMember> createMember(FamilyMember member) async {
     await db.writeTransaction((tx) async {
-      await _insert(tx, 'family_members', _stampCreator(_upperNames(member.toJson(), _memberNameKeys)));
+      await _insert(tx, 'family_members',
+          await _withBarangayStartMonth(tx, _stampCreator(_upperNames(member.toJson(), _memberNameKeys))));
       await _log(
         tx,
         action: 'CREATE',
@@ -475,7 +513,8 @@ class SupabaseService {
     if (members.isEmpty) return [];
     await db.writeTransaction((tx) async {
       for (final m in members) {
-        await _insert(tx, 'family_members', _stampCreator(_upperNames(m.toJson(), _memberNameKeys)));
+        await _insert(tx, 'family_members',
+            await _withBarangayStartMonth(tx, _stampCreator(_upperNames(m.toJson(), _memberNameKeys))));
       }
       await _log(
         tx,
@@ -1510,7 +1549,7 @@ class SupabaseService {
   /// reference a barangay by its LGU + barangay text, matched case- and space-insensitively.
   Future<List<Location>> getLocationsAdmin() async {
     final rows = await _rows('''
-      SELECT l.id, l.lgu, l.barangay, l.latitude, l.longitude,
+      SELECT l.id, l.lgu, l.barangay, l.latitude, l.longitude, l.dues_start_month,
         COALESCE(h.n, 0) AS household_count,
         COALESCE(m.n, 0) AS member_count,
         (SELECT COUNT(*) FROM puroks p WHERE p.location_id = l.id) AS purok_count

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/design_system.dart';
 import '../core/dues_math.dart';
-import '../core/geo.dart';
 import '../models/models.dart';
 import '../providers/auth_provider.dart';
 import '../views/settings/settings_common.dart';
@@ -130,74 +129,84 @@ class _MembershipDateDialogState extends State<_MembershipDateDialog> {
   }
 }
 
-/// Sets the membership month of every member of one barangay. [barangays] are the ones the user
-/// may choose from. Returns how many members changed, or null when cancelled.
-Future<int?> showBarangayMembershipDialog(BuildContext context, {required List<LocationOption> barangays}) {
-  return showDialog<int>(context: context, builder: (_) => _BarangayMembershipDialog(barangays: barangays));
+/// Sets a barangay's dues starting month (Settings › Locations & Barangays). New members encoded
+/// there adopt it; the dialog also offers to apply it to the members already there. Returns a
+/// message to show when something was saved, or null when cancelled.
+Future<String?> showBarangayStartMonthDialog(BuildContext context, {required Location location}) {
+  return showDialog<String>(context: context, builder: (_) => _BarangayStartMonthDialog(location: location));
 }
 
-class _BarangayMembershipDialog extends ConsumerStatefulWidget {
-  final List<LocationOption> barangays;
+class _BarangayStartMonthDialog extends ConsumerStatefulWidget {
+  final Location location;
 
-  const _BarangayMembershipDialog({required this.barangays});
+  const _BarangayStartMonthDialog({required this.location});
 
   @override
-  ConsumerState<_BarangayMembershipDialog> createState() => _BarangayMembershipDialogState();
+  ConsumerState<_BarangayStartMonthDialog> createState() => _BarangayStartMonthDialogState();
 }
 
-class _BarangayMembershipDialogState extends ConsumerState<_BarangayMembershipDialog> {
-  late LocationOption? _barangay = widget.barangays.length == 1 ? widget.barangays.first : null;
-  int? _month;
+class _BarangayStartMonthDialogState extends ConsumerState<_BarangayStartMonthDialog> {
+  late int? _month = parseMonthKey(widget.location.duesStartMonth);
   ({int total, int changing})? _count;
   bool _saving = false;
 
-  /// Bumped on each change so a slow count for an earlier choice doesn't overwrite a newer one.
+  /// Bumped on each change so a slow count for an earlier month doesn't overwrite a newer one.
   int _countRequest = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    _refreshCount();
+  }
+
   Future<void> _refreshCount() async {
-    final b = _barangay, m = _month;
+    final m = _month;
     final request = ++_countRequest;
     setState(() => _count = null);
-    if (b == null || m == null) return;
+    if (m == null) return;
     final count = await ref
         .read(supabaseServiceProvider)
-        .countBarangayMembers(lgu: b.lgu, barangay: b.barangay, monthIndex: m);
+        .countBarangayMembers(lgu: widget.location.lgu, barangay: widget.location.barangay, monthIndex: m);
     if (mounted && request == _countRequest) setState(() => _count = count);
   }
 
-  Future<void> _save() async {
-    final b = _barangay!, m = _month!, count = _count!;
-    final ok = await confirmAction(
-      context,
-      title: 'Set ${monthLabel(m)} for ${count.total} members?',
-      message: 'Every member registered in ${b.barangay} gets ${monthLabel(m)} as their membership month, '
-          'replacing the month they have now. ${count.changing} of them change. Their unpaid months are '
-          'recalculated from ${monthLabel(m)}.',
-      confirmLabel: 'Set ${monthLabel(m)}',
-      destructive: true,
-    );
-    if (!ok || !mounted) return;
+  Future<void> _save({required bool applyToExisting}) async {
+    final m = _month!;
+    final l = widget.location;
+    final service = ref.read(supabaseServiceProvider);
     setState(() => _saving = true);
     try {
-      final changed = await ref
-          .read(supabaseServiceProvider)
-          .setBarangayMembershipMonth(lgu: b.lgu, barangay: b.barangay, monthIndex: m);
-      if (mounted) Navigator.pop(context, changed);
+      await service.setLocationStartMonth(l, monthKey(m));
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);
       showSettingsMessage(context, errorMessage(e), error: true);
+      return;
     }
+    var message = 'New members in ${l.barangay} will start in ${monthLabel(m)}.';
+    if (applyToExisting) {
+      try {
+        final changed = await service.setBarangayMembershipMonth(lgu: l.lgu, barangay: l.barangay, monthIndex: m);
+        message = '${l.barangay} starts in ${monthLabel(m)}; updated $changed existing member${changed == 1 ? '' : 's'}. '
+            'The new months appear as they sync.';
+      } catch (e) {
+        message = '${l.barangay} starts in ${monthLabel(m)} for new members, but existing members were not '
+            'updated: ${errorMessage(e)}';
+      }
+    }
+    if (mounted) Navigator.pop(context, message);
   }
 
   @override
   Widget build(BuildContext context) {
     final subCol = TropaColors.textMedium(context);
+    final textCol = TropaColors.textHigh(context);
+    final l = widget.location;
     final count = _count;
-    final canSave = !_saving && _barangay != null && _month != null && count != null && count.changing > 0;
+    final m = _month;
 
     return AlertDialog(
-      title: const Text('Set membership month for a barangay'),
+      title: Text('Dues starting month · ${l.barangay}'),
       content: SizedBox(
         width: 460,
         child: SingleChildScrollView(
@@ -206,44 +215,28 @@ class _BarangayMembershipDialogState extends ConsumerState<_BarangayMembershipDi
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Every member registered in the barangay gets this month, replacing the month they have now. '
-                'Use it when a whole barangay joined together.',
+                'Every new member encoded in ${l.barangay} gets this month as their membership date, so '
+                'their dues count from it.',
                 style: TropaText.meta(subCol),
               ),
               const SizedBox(height: 12),
-              DropdownButtonFormField<LocationOption>(
-                initialValue: _barangay,
-                isExpanded: true,
-                hint: const Text('Choose barangay'),
-                style: TropaStyles.fieldText(context),
-                decoration: TropaStyles.formField(context),
-                items: [
-                  for (final b in widget.barangays)
-                    DropdownMenuItem(value: b, child: Text('${b.barangay}, ${b.lgu}', overflow: TextOverflow.ellipsis)),
-                ],
-                onChanged: (b) {
-                  _barangay = b;
-                  _refreshCount();
-                },
-              ),
-              const SizedBox(height: 12),
               MonthPicker(
-                selected: _month,
-                onChanged: (m) {
-                  _month = m;
+                selected: m,
+                onChanged: (v) {
+                  _month = v;
                   _refreshCount();
                 },
               ),
               const SizedBox(height: 12),
-              if (_barangay != null && _month != null)
+              if (m != null)
                 Text(
                   count == null
-                      ? 'Counting members…'
-                      : count.total == 0
-                          ? 'No members are registered in ${_barangay!.barangay}.'
-                          : '${count.total} member${count.total == 1 ? '' : 's'} in ${_barangay!.barangay} · '
-                              '${count.changing} will change',
-                  style: TropaText.bodyStrong(TropaColors.textHigh(context)),
+                      ? 'Counting members already in ${l.barangay}…'
+                      : count.changing == 0
+                          ? 'All ${count.total} member${count.total == 1 ? '' : 's'} already in ${l.barangay} start in ${monthLabel(m)}.'
+                          : '${count.changing} of the ${count.total} members already in ${l.barangay} have a different '
+                              'month. You can update them too (needs internet).',
+                  style: TropaText.body(textCol),
                 ),
             ],
           ),
@@ -251,13 +244,15 @@ class _BarangayMembershipDialogState extends ConsumerState<_BarangayMembershipDi
       ),
       actions: [
         TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('Cancel')),
-        FilledButton.icon(
-          onPressed: canSave ? _save : null,
-          icon: _saving
-              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-              : const Icon(Icons.edit_calendar, size: 16),
-          label: const Text('Set month'),
+        OutlinedButton(
+          onPressed: _saving || m == null ? null : () => _save(applyToExisting: false),
+          child: const Text('Save for new members only'),
         ),
+        if (count != null && count.changing > 0)
+          FilledButton(
+            onPressed: _saving ? null : () => _save(applyToExisting: true),
+            child: Text('Save and update ${count.changing} existing'),
+          ),
       ],
     );
   }

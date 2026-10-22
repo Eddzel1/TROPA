@@ -766,6 +766,9 @@ class Location {
   final int memberCount;
   final int purokCount;
 
+  /// Dues starting month (`YYYY-MM`) that new members of this barangay adopt, or null.
+  final String? duesStartMonth;
+
   Location({
     required this.id,
     required this.lgu,
@@ -775,6 +778,7 @@ class Location {
     this.householdCount = 0,
     this.memberCount = 0,
     this.purokCount = 0,
+    this.duesStartMonth,
   });
 
   bool get inUse => householdCount > 0 || memberCount > 0;
@@ -788,6 +792,7 @@ class Location {
         householdCount: (json['household_count'] as num?)?.toInt() ?? 0,
         memberCount: (json['member_count'] as num?)?.toInt() ?? 0,
         purokCount: (json['purok_count'] as num?)?.toInt() ?? 0,
+        duesStartMonth: (json['dues_start_month']?.toString() ?? '').isEmpty ? null : json['dues_start_month'].toString(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -796,6 +801,7 @@ class Location {
         'barangay': barangay,
         'latitude': latitude,
         'longitude': longitude,
+        'dues_start_month': duesStartMonth,
       };
 }
 

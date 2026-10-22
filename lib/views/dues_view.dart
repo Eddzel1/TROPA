@@ -177,18 +177,6 @@ class _CollectTabState extends ConsumerState<_CollectTab> {
     );
   }
 
-  Future<void> _setBarangayMonth() async {
-    final scope = await ref.read(duesScopeProvider.future);
-    final barangays = [...scope.everywhere ? await ref.read(supabaseServiceProvider).getLocations() : scope.barangays]
-      ..sort((a, b) => '${a.barangay}|${a.lgu}'.compareTo('${b.barangay}|${b.lgu}'));
-    if (!mounted) return;
-    final changed = await showBarangayMembershipDialog(context, barangays: barangays);
-    if (changed != null && mounted) {
-      showSettingsMessage(
-          context, 'Updated $changed member${changed == 1 ? '' : 's'}. The new months appear here as they sync.');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final search = ref.watch(duesSearchProvider);
@@ -224,19 +212,7 @@ class _CollectTabState extends ConsumerState<_CollectTab> {
             ),
             onChanged: _search,
           ),
-          if (short)
-            const SizedBox(height: 8)
-          else ...[
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                icon: const Icon(Icons.edit_calendar, size: 16),
-                label: const Text('Set month for barangay'),
-                onPressed: _setBarangayMonth,
-              ),
-            ),
-            const SizedBox(height: 4),
-          ],
+          SizedBox(height: short ? 8 : 12),
           Expanded(
             child: search.mode == DuesSearchMode.household
                 ? _HouseholdResults(
@@ -532,13 +508,6 @@ class _PaymentPanelState extends ConsumerState<_PaymentPanel> {
                         ],
                       ),
                     ),
-                    if (isHousehold && data.members.length > 1)
-                      OutlinedButton.icon(
-                        style: TropaStyles.secondaryAction(context),
-                        icon: const Icon(Icons.edit_calendar, size: 16),
-                        label: const Text('Set date for all'),
-                        onPressed: () => _editDate(data.members, rates),
-                      ),
                   ],
                 ),
                 if (data.membersElsewhere > 0) ...[

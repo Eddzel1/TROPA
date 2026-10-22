@@ -124,6 +124,8 @@ const schema = Schema([
     Column.real('longitude'),
     Column.integer('household_count'),
     Column.integer('member_count'),
+    // Dues starting month (YYYY-MM) new members of this barangay adopt.
+    Column.text('dues_start_month'),
   ]),
   // Puroks belong to a location (puroks.location_id → locations.id).
   // Needs a matching entry in the PowerSync sync rules to be available offline.

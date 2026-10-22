@@ -8,10 +8,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../core/design_system.dart';
+import '../core/dues_math.dart';
 import '../core/geo.dart';
 import '../core/image_compress.dart';
 import '../models/models.dart';
 import '../providers/auth_provider.dart';
+import '../providers/dues_provider.dart';
 import '../providers/member_provider.dart';
 import '../providers/voter_provider.dart';
 import '../core/ph_time.dart';
@@ -48,6 +50,7 @@ class DependentMemberData {
   final GlobalKey cardKey = GlobalKey();
   // Rows added by the keyboard shortcut start with the cursor here (last name is prefilled)
   final FocusNode firstNameFocus = FocusNode();
+  final FocusNode birthDateFocus = FocusNode();
   final Set<String> sectors = {'General'};
   String? yearLevel;
   String? gender; // 'Male' / 'Female'
@@ -87,6 +90,7 @@ class DependentMemberData {
     contactCtrl.dispose();
     phicNoCtrl.dispose();
     firstNameFocus.dispose();
+    birthDateFocus.dispose();
     matchDebounce?.cancel();
   }
 }
@@ -575,10 +579,15 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             ..addAll(_splitSectors(voter.sector));
         }
         _applyDependentSeniorRule(dep);
+        dep.expanded = true; // so its Birthday field is there to focus
         _voterSearchDependentIndex = null;
         _currentStep = MemberFormStep.memberForm;
       });
       _revealDependent(dep);
+      // Voter records rarely carry a birthday, so encoding continues there
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _dependentMembers.contains(dep)) dep.birthDateFocus.requestFocus();
+      });
       return;
     }
 
@@ -1043,7 +1052,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
         yearLevel: _selectedSectors.contains('Student') ? _yearLevel : null,
         gender: _gender,
         birthDate: _birthDate,
-        membershipDate: _membershipDate,
+        membershipDate: _effectiveMembershipDate,
         age: age,
         isHouseholdLeader: _isHouseholdLeader,
         isCooperativeMember: true,
@@ -1091,7 +1100,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             yearLevel: d.sectors.contains('Student') ? d.yearLevel : null,
             gender: d.gender,
             birthDate: d.birthDate,
-            membershipDate: _membershipDate, // household members share the leader's membership date
+            membershipDate: _effectiveMembershipDate, // household members share the leader's membership date
             age: depAge,
             isHouseholdLeader: false,
             isCooperativeMember: true,
@@ -1204,6 +1213,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   @override
   Widget build(BuildContext context) {
     ref.watch(locationsProvider);
+    ref.watch(barangayStartMonthsProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final dlgBg = TropaColors.cardOf(context);
     final textCol = TropaColors.textHigh(context);
@@ -1326,6 +1336,10 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                     const SingleActivator(LogicalKeyboardKey.keyS, meta: true): _saveAndClose,
                     const SingleActivator(LogicalKeyboardKey.keyS, control: true, shift: true): _saveAndAddAnother,
                     const SingleActivator(LogicalKeyboardKey.keyS, meta: true, shift: true): _saveAndAddAnother,
+                    const SingleActivator(LogicalKeyboardKey.keyM, control: true, shift: true):
+                        _reviewMatchesFromShortcut,
+                    const SingleActivator(LogicalKeyboardKey.keyM, meta: true, shift: true):
+                        _reviewMatchesFromShortcut,
                   },
                   child: _buildStep2MemberForm(
                       isDark, cardBg, borderCol, textCol, subtextCol, inputFill, primaryCol, onPrimaryCol),
@@ -2065,7 +2079,26 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                       ),
                                       const SizedBox(width: 14),
                                       Expanded(
-                                        child: _buildDatePickerField(
+                                        child: _barangayStartMonth != null
+                                            ? _labeledField(
+                                                'Membership Date *',
+                                                TropaColors.textMedium(context),
+                                                InputDecorator(
+                                                  decoration: _searchBoxDecoration(null, borderCol, _fieldFill, primaryCol,
+                                                          TropaColors.textMedium(context))
+                                                      .copyWith(
+                                                    suffixIcon: Tooltip(
+                                                      message: 'Set in Settings › Locations & Barangays',
+                                                      child: Icon(Icons.lock_outline, size: 16, color: TropaColors.textMedium(context)),
+                                                    ),
+                                                  ),
+                                                  child: Text(
+                                                    '${monthLabel(parseMonthKey(_barangayStartMonth)!)} · set by barangay',
+                                                    style: GoogleFonts.inter(fontSize: 13, color: textCol),
+                                                  ),
+                                                ),
+                                              )
+                                            : _buildDatePickerField(
                                           label: 'Membership Date *',
                                           date: _membershipDate,
                                           hint: 'mm/dd/yyyy',
@@ -2747,16 +2780,19 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             ),
           ),
           const SizedBox(width: 12),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: amber,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+          Tooltip(
+            message: 'Ctrl+Shift+M (⌘⇧M on Mac)',
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: amber,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+              ),
+              onPressed: onReview,
+              child: Text('Review Matches', style: GoogleFonts.inter(fontSize: 12.5, fontWeight: FontWeight.w700)),
             ),
-            onPressed: onReview,
-            child: Text('Review Matches', style: GoogleFonts.inter(fontSize: 12.5, fontWeight: FontWeight.w700)),
           ),
           const SizedBox(width: 4),
           IconButton(
@@ -2983,6 +3019,27 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     );
   }
 
+  /// Ctrl+Shift+M (⌘⇧M on Mac) opens "Review Matches": the household-member card being edited if it has
+  /// matches, else the main member's, else the first household member that has some.
+  void _reviewMatchesFromShortcut() {
+    bool inCard(DependentMemberData dep) {
+      var found = false;
+      FocusManager.instance.primaryFocus?.context?.visitAncestorElements((e) {
+        found = e.widget.key == dep.cardKey;
+        return !found;
+      });
+      return found;
+    }
+
+    for (final dep in _dependentMembers) {
+      if (dep.possibleMatches.isNotEmpty && inCard(dep)) return _reviewDependentMatches(dep);
+    }
+    if (_selectedVoter == null && _possibleMatches.isNotEmpty) return _reviewPossibleMatches();
+    for (final dep in _dependentMembers) {
+      if (dep.possibleMatches.isNotEmpty) return _reviewDependentMatches(dep);
+    }
+  }
+
   /// Folds a household-member card. Focus leaves first so a typed short birth year is committed.
   void _finishDependent(DependentMemberData dep) {
     FocusManager.instance.primaryFocus?.unfocus();
@@ -3114,6 +3171,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                 child: _buildDatePickerField(
                   label: 'Birthday *',
                   date: dep.birthDate,
+                  focusNode: dep.birthDateFocus,
                   hint: 'mm/dd/yyyy',
                   isBirthDate: true,
                   onRangeError: (bad) => setState(() => dep.birthdayInvalid = bad),
@@ -3448,6 +3506,18 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     );
   }
 
+  /// The chosen barangay's dues starting month (`YYYY-MM`) for a new member, or null. New members
+  /// always get it (Settings › Locations & Barangays); editing a member keeps their own date.
+  String? get _barangayStartMonth => widget.existing != null
+      ? null
+      : startMonthFor(ref.read(barangayStartMonthsProvider).value ?? const {}, _lgu, _barangay);
+
+  /// The membership date to save: the barangay's starting month when it has one.
+  DateTime? get _effectiveMembershipDate {
+    final month = parseMonthKey(_barangayStartMonth);
+    return month == null ? _membershipDate : DateTime(month ~/ 12, month % 12 + 1, 1);
+  }
+
   /// Everything still blocking a save, in plain words (sidebar checklist).
   List<({String label, bool done})> get _saveChecklist {
     final hasName = _lastNameCtrl.text.trim().isNotEmpty && _firstNameCtrl.text.trim().isNotEmpty;
@@ -3455,7 +3525,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       (label: 'Last and first name', done: hasName),
       (label: 'Birthday', done: _birthDate != null),
       (label: 'Gender', done: _gender != null),
-      (label: 'Membership date', done: _membershipDate != null),
+      (label: 'Membership date', done: _effectiveMembershipDate != null),
       if (_selectedSectors.contains('Student')) (label: 'Year level', done: _yearLevel != null),
       (label: 'LGU and barangay', done: _lgu.isNotEmpty && _barangay.isNotEmpty),
       if (_purok.isEmpty && _unlistedPurok != null)

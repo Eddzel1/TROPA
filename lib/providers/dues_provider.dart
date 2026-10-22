@@ -111,3 +111,14 @@ final duesLedgerTotalsProvider = FutureProvider<({double total, double thisMonth
         query: ref.watch(duesLedgerQueryProvider),
       );
 });
+
+/// Dues starting month (`YYYY-MM`) per barangay that has one, keyed `LGU|BARANGAY` (upper-cased,
+/// trimmed). New members encoded there adopt it.
+final barangayStartMonthsProvider = FutureProvider<Map<String, String>>((ref) async {
+  ref.watch(tableChangesProvider('locations'));
+  return ref.watch(supabaseServiceProvider).getBarangayStartMonths();
+});
+
+/// The starting month for [lgu] / [barangay] from [months], or null.
+String? startMonthFor(Map<String, String> months, String? lgu, String? barangay) =>
+    months['${(lgu ?? '').trim().toUpperCase()}|${(barangay ?? '').trim().toUpperCase()}'];
