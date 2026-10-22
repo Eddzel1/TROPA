@@ -46,6 +46,11 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// index.html asks which build this worker has cached, to tell whether a new deploy is waiting.
+self.addEventListener('message', (event) => {
+  if (event.data === 'version' && event.ports[0]) event.ports[0].postMessage(VERSION);
+});
+
 self.addEventListener('fetch', (event) => {
   const request = event.request;
   if (request.method !== 'GET') return;

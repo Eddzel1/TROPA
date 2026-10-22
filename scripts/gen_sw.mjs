@@ -53,4 +53,8 @@ const output = readFileSync(templatePath, 'utf8')
   .replaceAll('__PRECACHE__', () => JSON.stringify(precache, null, 2))
   .replaceAll('__CANVASKIT__', () => JSON.stringify(CANVASKIT, null, 2));
 writeFileSync(join(buildDir, 'sw.js'), output);
+// index.html carries the same version so the page can tell when its cached worker is out of date.
+// It is stamped after hashing; the hash already covers the rest of index.html.
+const indexPath = join(buildDir, 'index.html');
+writeFileSync(indexPath, readFileSync(indexPath, 'utf8').replaceAll('__TROPA_BUILD__', () => version));
 console.log(`sw.js: version ${version}, ${precache.length} files precached`);
