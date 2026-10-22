@@ -144,9 +144,9 @@
     "semantic_hash": ""
   },
   "lib/views/login_view.dart": {
-    "mtime": 1792075696.9160106,
-    "seen": 1792075961.050724,
-    "ast_hash": "73404c446c8cb5671fb4edf4917a1752",
+    "mtime": 1792650586.6266818,
+    "seen": 1792650590.8354208,
+    "ast_hash": "96b01a819b27567ce0a589c05eb72be3",
     "semantic_hash": ""
   },
   "lib/views/members_view.dart": {
@@ -192,9 +192,9 @@
     "semantic_hash": ""
   },
   "lib/widgets/member_form_dialog.dart": {
-    "mtime": 1792634973.6882002,
-    "seen": 1792635030.635775,
-    "ast_hash": "7bbed98a8fd34c6529c0091627f3cb94",
+    "mtime": 1792650137.293644,
+    "seen": 1792650142.101012,
+    "ast_hash": "1a75024aba56fe9f0b7a05e871f61623",
     "semantic_hash": ""
   },
   "lib/widgets/tropa_map_widget.dart": {
@@ -252,9 +252,9 @@
     "semantic_hash": ""
   },
   "pubspec.yaml": {
-    "mtime": 1792300231.9440787,
-    "seen": 1792300475.566855,
-    "ast_hash": "38d7153bd8989b6a690652cb3b571a5c",
+    "mtime": 1792650578.8733838,
+    "seen": 1792650590.835468,
+    "ast_hash": "242c27a8d0abb6b66e6f96f3913c2531",
     "semantic_hash": ""
   },
   "lib/widgets/sync_status_pill.dart": {
@@ -510,9 +510,9 @@
     "semantic_hash": ""
   },
   "scripts/build_web.sh": {
-    "mtime": 1792129267.9694521,
-    "seen": 1792129309.842745,
-    "ast_hash": "fd3a3b854bf9bd7187e40a7679a63b6c",
+    "mtime": 1792651006.67938,
+    "seen": 1792651050.56611,
+    "ast_hash": "6a44af69b5fe69ebcd1be16b6b48638e",
     "semantic_hash": ""
   },
   "scripts/gen_sw.mjs": {
@@ -756,9 +756,9 @@
     "semantic_hash": ""
   },
   "lib/core/theme_palettes.dart": {
-    "mtime": 1792326397.1631045,
-    "seen": 1792326477.288127,
-    "ast_hash": "9784be59b1755ef7017a5b10e6a15649",
+    "mtime": 1792651688.8696585,
+    "seen": 1792651698.861283,
+    "ast_hash": "a9bca50f67fe7848e717d7913497416b",
     "semantic_hash": ""
   },
   "lib/widgets/page_header.dart": {
