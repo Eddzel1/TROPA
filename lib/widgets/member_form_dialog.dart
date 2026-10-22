@@ -49,6 +49,7 @@ class DependentMemberData {
   // Used to scroll this row back into view after a voter search
   final GlobalKey cardKey = GlobalKey();
   // Rows added by the keyboard shortcut start with the cursor here (last name is prefilled)
+  final FocusNode lastNameFocus = FocusNode();
   final FocusNode firstNameFocus = FocusNode();
   final FocusNode birthDateFocus = FocusNode();
   final Set<String> sectors = {'General'};
@@ -89,6 +90,7 @@ class DependentMemberData {
     middleNameCtrl.dispose();
     contactCtrl.dispose();
     phicNoCtrl.dispose();
+    lastNameFocus.dispose();
     firstNameFocus.dispose();
     birthDateFocus.dispose();
     matchDebounce?.cancel();
@@ -135,6 +137,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   DateTime? _birthDate;
   // Focused after a voter is picked so the birthday can be typed straight away
   final _birthDateFocus = FocusNode();
+  final _lastNameFocus = FocusNode();
   // Starts at today, except when joining a household (left blank so staff enter it deliberately)
   DateTime? _membershipDate = phToday();
 
@@ -448,6 +451,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     _searchMiddleNameCtrl.dispose();
     _lastNameCtrl.dispose();
     _birthDateFocus.dispose();
+    _lastNameFocus.dispose();
     _firstNameCtrl.dispose();
     _middleNameCtrl.dispose();
     _contactCtrl.dispose();
@@ -654,7 +658,20 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
 
   void _skipToManualForm() {
     final depIndex = _voterSearchDependentIndex;
-    if (depIndex != null && depIndex < _dependentMembers.length) _revealDependent(_dependentMembers[depIndex]);
+    final dep = depIndex != null && depIndex < _dependentMembers.length ? _dependentMembers[depIndex] : null;
+    if (dep != null) {
+      _revealDependent(dep);
+      dep.expanded = true;
+    }
+    // Manual entry starts at Last Name
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (dep != null) {
+        if (_dependentMembers.contains(dep)) dep.lastNameFocus.requestFocus();
+      } else {
+        _lastNameFocus.requestFocus();
+      }
+    });
     setState(() {
       // Searching for a household member: just return to the form, keep the primary voter
       if (_voterSearchDependentIndex == null) {
@@ -1321,8 +1338,14 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
               )
             else if (_currentStep == MemberFormStep.voterSearch)
               Flexible(
-                child: _buildStep1VoterSearch(
-                    isDark, cardBg, borderCol, textCol, subtextCol, inputFill, primaryCol, onPrimaryCol),
+                child: CallbackShortcuts(
+                  bindings: {
+                    const SingleActivator(LogicalKeyboardKey.keyN, control: true, shift: true): _skipToManualForm,
+                    const SingleActivator(LogicalKeyboardKey.keyN, meta: true, shift: true): _skipToManualForm,
+                  },
+                  child: _buildStep1VoterSearch(
+                      isDark, cardBg, borderCol, textCol, subtextCol, inputFill, primaryCol, onPrimaryCol),
+                ),
               )
             else
               Expanded(
@@ -1684,7 +1707,9 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
           // Bottom Skip Link
           Align(
             alignment: Alignment.centerRight,
-            child: InkWell(
+            child: Tooltip(
+              message: 'Ctrl+Shift+N (⌘⇧N on Mac)',
+              child: InkWell(
               onTap: _skipToManualForm,
               borderRadius: BorderRadius.circular(4),
               child: Padding(
@@ -1699,6 +1724,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                   ),
                 ),
               ),
+            ),
             ),
           ),
         ],
@@ -2020,6 +2046,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                       Expanded(
                                         child: _buildTextField(
                                           controller: _lastNameCtrl,
+                                          focusNode: _lastNameFocus,
                                           label: 'Last Name *',
                                           validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
                                           textCol: textCol,
@@ -3136,6 +3163,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
               Expanded(
                 child: _buildTextField(
                   controller: dep.lastNameCtrl,
+                  focusNode: dep.lastNameFocus,
                   label: 'Last Name *',
                   textCol: textCol,
                   borderCol: borderCol,
