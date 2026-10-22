@@ -41,7 +41,7 @@ class TropaPalette {
   static const defaultId = 'tropa';
 }
 
-/// TROPA first (the default), then t1..t18 in the order of the source list (Set 1, 2, 3). t10 was
+/// TROPA first (the default), then TROPA Green (light and dark), then t1..t18 in the order of the source list (Set 1, 2, 3). t10 was
 /// dropped: it had the same colours as t12. Ids stay fixed because they are saved per device.
 const tropaPalettes = <TropaPalette>[
   TropaPalette(id: 'tropa', name: 'TROPA', brightness: Brightness.light,
@@ -55,6 +55,24 @@ const tropaPalettes = <TropaPalette>[
         sidebarActiveBg: TropaColors.tropaWhite,
         sidebarActiveFg: TropaColors.tropaBlue,
       )),
+
+  // ---- TROPA Green: dark green #00653E, light green #39B54A, mint #E8F3EC; dark mode on #0A1712
+  // with #5FD08A. Surfaces, borders and text are derived from those. ----
+  TropaPalette(id: 'tropa-green', name: 'TROPA Green', brightness: Brightness.light,
+      background: Color(0xFFFFFFFF), surface: Color(0xFFFFFFFF), surfaceVariant: Color(0xFFE8F3EC),
+      primary: Color(0xFF00653E), onPrimary: Color(0xFFFFFFFF), secondary: Color(0xFF39B54A), onSecondary: Color(0xFFFFFFFF),
+      text: Color(0xDE000000), muted: Color(0x99000000), border: Color(0xFFD3E6DA), accentText: Color(0xFF00653E),
+      brand: TropaBrand(
+        sidebarBg: Color(0xFF00653E),
+        sidebarFg: Color(0xFFFFFFFF),
+        sidebarFgMuted: Color(0xB3FFFFFF), // 70% White
+        sidebarActiveBg: Color(0xFFFFFFFF),
+        sidebarActiveFg: Color(0xFF00653E),
+      )),
+  TropaPalette(id: 'tropa-green-dark', name: 'TROPA Green', brightness: Brightness.dark,
+      background: Color(0xFF0A1712), surface: Color(0xFF13241C), surfaceVariant: Color(0xFF1B3128),
+      primary: Color(0xFF5FD08A), onPrimary: Color(0xFF0A1712), secondary: Color(0xFF39B54A), onSecondary: Color(0xFF0A1712),
+      text: Color(0xFFF1F5F3), muted: Color(0xFF9DB3A8), border: Color(0xFF24392F), accentText: Color(0xFF5FD08A)),
 
   // ---- Set 1 ----
   TropaPalette(id: 't1', name: 'Ultra Violet + Plasma Yellow', brightness: Brightness.light,
