@@ -516,15 +516,15 @@
     "semantic_hash": ""
   },
   "scripts/gen_sw.mjs": {
-    "mtime": 1792197055.8416874,
-    "seen": 1792197104.6803079,
-    "ast_hash": "91e47d2a87d8222fc9fb5f739c29f260",
+    "mtime": 1792653318.2514167,
+    "seen": 1792653442.5774112,
+    "ast_hash": "419e92d82891a7543ea9604f94856261",
     "semantic_hash": ""
   },
   "scripts/sw.template.js": {
-    "mtime": 1792197055.8419518,
-    "seen": 1792197104.680309,
-    "ast_hash": "f4dd1828169d6059df3d1e255759c29d",
+    "mtime": 1792653318.2510018,
+    "seen": 1792653442.5774121,
+    "ast_hash": "785f5d68522de0308489cb751bf269b7",
     "semantic_hash": ""
   },
   "lib/core/ph_time.dart": {

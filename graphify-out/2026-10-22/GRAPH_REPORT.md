@@ -1,7 +1,7 @@
 # Graph Report - TROPAV2  (2026-10-22)
 
 ## Corpus Check
-- 126 files · ~135,545 words
+- 126 files · ~135,713 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 4 file(s) not represented in the graph (top: (none) 3, .toml 1)
 

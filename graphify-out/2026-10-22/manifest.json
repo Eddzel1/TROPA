@@ -756,9 +756,9 @@
     "semantic_hash": ""
   },
   "lib/core/theme_palettes.dart": {
-    "mtime": 1792326397.1631045,
-    "seen": 1792326477.288127,
-    "ast_hash": "9784be59b1755ef7017a5b10e6a15649",
+    "mtime": 1792651688.8696585,
+    "seen": 1792651698.861283,
+    "ast_hash": "a9bca50f67fe7848e717d7913497416b",
     "semantic_hash": ""
   },
   "lib/widgets/page_header.dart": {
