@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../core/design_system.dart';
 import '../providers/auth_provider.dart';
 import '../services/device_seed.dart';
@@ -19,6 +20,15 @@ class _LoginViewState extends ConsumerState<LoginView> {
   final _passCtrl = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
+  String? _version;
+
+  @override
+  void initState() {
+    super.initState();
+    PackageInfo.fromPlatform().then((info) {
+      if (mounted) setState(() => _version = 'v${info.version} (${info.buildNumber})');
+    });
+  }
 
   @override
   void dispose() {
@@ -180,6 +190,15 @@ class _LoginViewState extends ConsumerState<LoginView> {
                           ),
                         ),
                 ),
+                if (_version != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 20),
+                    child: Text(
+                      _version!,
+                      textAlign: TextAlign.center,
+                      style: TropaText.meta(TropaColors.textMedium(context)),
+                    ),
+                  ),
               ],
             ),
           ),
