@@ -1678,18 +1678,20 @@ class SupabaseService {
     });
   }
 
-  /// Renaming is blocked while households or members use the purok, since they store its name as text.
+  /// Renaming also updates the purok name stored as text on its households and members.
   Future<void> renamePurok(String locationId, String purokId, String name) async {
     if (name.trim().isEmpty) throw Exception('Purok name is required.');
-    final usage = await purokUsage(purokId);
-    if (usage.households > 0 || usage.members > 0) {
-      throw Exception(
-          'Cannot rename: ${usage.households} households and ${usage.members} members are assigned to this purok.');
-    }
     await _checkUniquePurok(locationId, name, exceptId: purokId);
+    final usage = await purokUsage(purokId);
     await db.writeTransaction((tx) async {
       await _update(tx, 'puroks', purokId, {'name': name.trim()});
-      await _log(tx, action: 'UPDATE', entityType: 'Purok', entityId: purokId, details: {'name': name.trim()});
+      await tx.execute('UPDATE households SET purok = ? WHERE purok_id = ?', [name.trim(), purokId]);
+      await tx.execute('UPDATE family_members SET purok = ? WHERE purok_id = ?', [name.trim(), purokId]);
+      await _log(tx,
+          action: 'UPDATE',
+          entityType: 'Purok',
+          entityId: purokId,
+          details: {'name': name.trim(), 'households': usage.households, 'members': usage.members});
     });
   }
 
