@@ -138,7 +138,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   // Focused after a voter is picked so the birthday can be typed straight away
   final _birthDateFocus = FocusNode();
   final _lastNameFocus = FocusNode();
-  // Starts at today, except when joining a household (left blank so staff enter it deliberately)
+  // Not shown in the form: saved as the barangay starting month, else today (corrected later in Dues)
   DateTime? _membershipDate = phToday();
 
   // Sectors
@@ -195,7 +195,6 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   FamilyMember? _savedMember;
 
   // Layout state
-  bool _showMoreDetails = false; // optional contact / TRU Care / PhilHealth fields
   bool _sidebarVisible = false; // summary panel, only on wide screens
 
   // LGU / barangay options come from the distinct values in the `locations` table
@@ -347,7 +346,6 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       // New Member Registration: pick the encoding set first, then search (a household already fixes the location)
       _currentStep = widget.presetHousehold == null ? MemberFormStep.encodingSet : MemberFormStep.voterSearch;
       if (widget.presetHousehold != null) {
-        _membershipDate = null;
         _lgu = widget.presetHousehold!.lgu.trim().toUpperCase();
         _barangay = widget.presetHousehold!.barangay.trim().toUpperCase();
         _purok = widget.presetHousehold!.purok.trim();
@@ -587,11 +585,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
         _voterSearchDependentIndex = null;
         _currentStep = MemberFormStep.memberForm;
       });
-      _revealDependent(dep);
       // Voter records rarely carry a birthday, so encoding continues there
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _dependentMembers.contains(dep)) dep.birthDateFocus.requestFocus();
-      });
+      _revealDependent(dep, focus: dep.birthDateFocus);
       return;
     }
 
@@ -609,10 +604,6 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
 
       if (voter.birthDate != null) {
         _birthDate = DateTime.tryParse(voter.birthDate!);
-      }
-      // Joining a household: membership date stays blank for staff to enter
-      if (voter.membershipDate != null && !_joiningHousehold) {
-        _membershipDate = DateTime.tryParse(voter.membershipDate!) ?? phToday();
       }
 
       if (voter.sector != null && voter.sector!.isNotEmpty) {
@@ -659,19 +650,15 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   void _skipToManualForm() {
     final depIndex = _voterSearchDependentIndex;
     final dep = depIndex != null && depIndex < _dependentMembers.length ? _dependentMembers[depIndex] : null;
-    if (dep != null) {
-      _revealDependent(dep);
-      dep.expanded = true;
-    }
     // Manual entry starts at Last Name
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      if (dep != null) {
-        if (_dependentMembers.contains(dep)) dep.lastNameFocus.requestFocus();
-      } else {
-        _lastNameFocus.requestFocus();
-      }
-    });
+    if (dep != null) {
+      dep.expanded = true;
+      _revealDependent(dep, focus: dep.lastNameFocus);
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _lastNameFocus.requestFocus();
+      });
+    }
     setState(() {
       // Searching for a household member: just return to the form, keep the primary voter
       if (_voterSearchDependentIndex == null) {
@@ -696,13 +683,16 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     });
   }
 
-  /// After returning from a household-member voter search, bring that member's card into view.
-  void _revealDependent(DependentMemberData dep) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+  /// After returning from a household-member voter search, bring that member's whole card into view.
+  /// [focus] is focused only once the scroll has finished: focusing a field earlier scrolls just far
+  /// enough to show that one field, which cuts the card off at the bottom of the form.
+  void _revealDependent(DependentMemberData dep, {FocusNode? focus}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       final ctx = dep.cardKey.currentContext;
       if (ctx != null && ctx.mounted) {
-        Scrollable.ensureVisible(ctx, alignment: 0.1, duration: const Duration(milliseconds: 250));
+        await Scrollable.ensureVisible(ctx, alignment: 0.05, duration: const Duration(milliseconds: 250));
       }
+      if (focus != null && mounted && _dependentMembers.contains(dep)) focus.requestFocus();
     });
   }
 
@@ -775,10 +765,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     if (_currentStep != MemberFormStep.memberForm || !_isHouseholdLeader) return;
     _addDependentRow();
     final dep = _dependentMembers.last;
-    _revealDependent(dep);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) dep.firstNameFocus.requestFocus();
-    });
+    _revealDependent(dep, focus: dep.firstNameFocus);
   }
 
   void _scheduleDependentMatchCheck(DependentMemberData dep) {
@@ -1191,13 +1178,12 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       _contactCtrl.clear();
       _phicNoCtrl.clear();
       _birthDate = null;
-      _membershipDate = _joiningHousehold ? null : phToday();
+      _membershipDate = phToday();
       _selectedSectors.clear();
       _selectedSectors.add('General');
       _seniorAutoChecked = false;
       _yearLevel = null;
       _gender = null;
-      _showMoreDetails = false;
       _trucareMember = false;
       _phicMember = false;
       _isHouseholdLeader = false;
@@ -2082,7 +2068,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                   ),
                                   const SizedBox(height: 14),
 
-                                  // Row 2: Birthday, Membership Date, Contact Number
+                                  // Row 2: Birthday, Contact Number (membership month is set later in Dues)
                                   ResponsiveFieldRow(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
@@ -2106,39 +2092,6 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                       ),
                                       const SizedBox(width: 14),
                                       Expanded(
-                                        child: _barangayStartMonth != null
-                                            ? _labeledField(
-                                                'Membership Date *',
-                                                TropaColors.textMedium(context),
-                                                InputDecorator(
-                                                  decoration: _searchBoxDecoration(null, borderCol, _fieldFill, primaryCol,
-                                                          TropaColors.textMedium(context))
-                                                      .copyWith(
-                                                    suffixIcon: Tooltip(
-                                                      message: 'Set in Settings › Locations & Barangays',
-                                                      child: Icon(Icons.lock_outline, size: 16, color: TropaColors.textMedium(context)),
-                                                    ),
-                                                  ),
-                                                  child: Text(
-                                                    '${monthLabel(parseMonthKey(_barangayStartMonth)!)} · set by barangay',
-                                                    style: GoogleFonts.inter(fontSize: 13, color: textCol),
-                                                  ),
-                                                ),
-                                              )
-                                            : _buildDatePickerField(
-                                          label: 'Membership Date *',
-                                          date: _membershipDate,
-                                          hint: 'mm/dd/yyyy',
-                                          onDateSelected: (d) => setState(() => _membershipDate = d),
-                                          onCleared: () => setState(() => _membershipDate = null),
-                                          textCol: textCol,
-                                          borderCol: borderCol,
-                                          fillCol: inputFill,
-                                          primaryCol: primaryCol,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 14),
-                                      Expanded(
                                         child: _buildTextField(
                                           controller: _contactCtrl,
                                           label: 'Contact Number',
@@ -2153,20 +2106,81 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                           primaryCol: primaryCol,
                                         ),
                                       ),
+                                      const SizedBox(width: 14),
+                                      const Expanded(child: SizedBox.shrink()),
                                     ],
                                   ),
                                   const SizedBox(height: 16),
 
-                                  // Gender (required)
-                                  _buildGenderField(
-                                    key: const ValueKey('gender-main'),
-                                    value: _gender,
-                                    onChanged: (g) => setState(() => _gender = g),
-                                    textCol: textCol,
-                                    borderCol: borderCol,
-                                    primaryCol: primaryCol,
-                                    subtextCol: subtextCol,
+                                  // Gender (required) with PhilHealth / TRU Care beside it
+                                  Wrap(
+                                    spacing: 48,
+                                    runSpacing: 12,
+                                    children: [
+                                      _buildGenderField(
+                                        key: const ValueKey('gender-main'),
+                                        value: _gender,
+                                        onChanged: (g) => setState(() => _gender = g),
+                                        textCol: textCol,
+                                        borderCol: borderCol,
+                                        primaryCol: primaryCol,
+                                        subtextCol: subtextCol,
+                                      ),
+                                      _labeledField(
+                                        'Affiliations',
+                                        subtextCol,
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 10),
+                                          child: Wrap(
+                                            spacing: 24,
+                                            runSpacing: 10,
+                                            children: [
+                                              _buildCheckbox(
+                                                label: 'PhilHealth Member',
+                                                value: _phicMember,
+                                                onChanged: (v) => setState(() => _phicMember = v ?? false),
+                                                textCol: textCol,
+                                                primaryCol: primaryCol,
+                                                onPrimaryCol: onPrimaryCol,
+                                              ),
+                                              _buildCheckbox(
+                                                label: 'TRU Care Member',
+                                                value: _trucareMember,
+                                                onChanged: (v) => setState(() => _trucareMember = v ?? false),
+                                                textCol: textCol,
+                                                primaryCol: primaryCol,
+                                                onPrimaryCol: onPrimaryCol,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
+                                  if (_phicMember) ...[
+                                    const SizedBox(height: 12),
+                                    ResponsiveFieldRow(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: _buildTextField(
+                                            controller: _phicNoCtrl,
+                                            label: 'PhilHealth (PHIC) No.',
+                                            upperCase: false,
+                                            hint: '00-000000000-0',
+                                            keyboardType: TextInputType.number,
+                                            inputFormatters: [_PhicFormatter()],
+                                            textCol: textCol,
+                                            borderCol: borderCol,
+                                            fillCol: inputFill,
+                                            primaryCol: primaryCol,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 14),
+                                        const Expanded(flex: 2, child: SizedBox.shrink()),
+                                      ],
+                                    ),
+                                  ],
                                   const SizedBox(height: 16),
 
                                   // Row 3: Sector chips
@@ -2206,65 +2220,6 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                     ),
                                     const SizedBox(height: 14),
                                   ],
-
-                                  // Optional details: TRU Care, PhilHealth
-                                  if (_moreDetailsOpen) ...[
-                                    Wrap(
-                                      spacing: 24,
-                                      runSpacing: 10,
-                                      children: [
-                                        _buildCheckbox(
-                                          label: 'TRU Care Member',
-                                          value: _trucareMember,
-                                          onChanged: (v) => setState(() => _trucareMember = v ?? false),
-                                          textCol: textCol,
-                                          primaryCol: primaryCol,
-                                          onPrimaryCol: onPrimaryCol,
-                                        ),
-                                        _buildCheckbox(
-                                          label: 'PhilHealth Member',
-                                          value: _phicMember,
-                                          onChanged: (v) => setState(() => _phicMember = v ?? false),
-                                          textCol: textCol,
-                                          primaryCol: primaryCol,
-                                          onPrimaryCol: onPrimaryCol,
-                                        ),
-                                      ],
-                                    ),
-                                    if (_phicMember) ...[
-                                      const SizedBox(height: 12),
-                                      ResponsiveFieldRow(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Expanded(
-                                            child: _buildTextField(
-                                              controller: _phicNoCtrl,
-                                              label: 'PhilHealth (PHIC) No.',
-                                              upperCase: false,
-                                              hint: '00-000000000-0',
-                                              keyboardType: TextInputType.number,
-                                              inputFormatters: [_PhicFormatter()],
-                                              textCol: textCol,
-                                              borderCol: borderCol,
-                                              fillCol: inputFill,
-                                              primaryCol: primaryCol,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 14),
-                                          const Expanded(flex: 2, child: SizedBox.shrink()),
-                                        ],
-                                      ),
-                                    ],
-                                    const SizedBox(height: 8),
-                                  ],
-                                  _buildMoreDetailsLink(
-                                    open: _moreDetailsOpen,
-                                    // Keep it open while any optional field holds a value
-                                    canClose: !_hasMoreDetails,
-                                    onTap: () => setState(() => _showMoreDetails = !_moreDetailsOpen),
-                                    primaryCol: primaryCol,
-                                    subtextCol: subtextCol,
-                                  ),
                                 ],
                               ),
                             ),
@@ -3354,11 +3309,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   }
 
   // ---------------------------------------------------------------------------
-  // Layout helpers: sector chips, "More details" link, photo picker, sidebar
+  // Layout helpers: sector chips, "More details" link (household members), photo picker, sidebar
   // ---------------------------------------------------------------------------
-
-  bool get _hasMoreDetails => _trucareMember || _phicMember;
-  bool get _moreDetailsOpen => _showMoreDetails || _hasMoreDetails;
 
   /// Male / Female toggle (single choice, required) with the form's red error text.
   Widget _buildGenderField({
@@ -3515,19 +3467,22 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             style: GoogleFonts.inter(fontSize: 10.5, color: subtextCol),
           ),
           const SizedBox(height: 10),
-          OutlinedButton(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: primaryCol,
-              side: BorderSide(color: primaryCol.withValues(alpha: 0.4)),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-              minimumSize: Size.zero,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          // Click-only: Tab skips the photo so keyboard encoding goes straight to the fields
+          ExcludeFocus(
+            child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: primaryCol,
+                side: BorderSide(color: primaryCol.withValues(alpha: 0.4)),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                minimumSize: Size.zero,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+              onPressed: _isUploadingPhoto ? null : _pickAvatar,
+              child: _isUploadingPhoto
+                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                  : Text(_avatarBytes != null || hasExisting ? 'Change' : 'Browse',
+                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600)),
             ),
-            onPressed: _isUploadingPhoto ? null : _pickAvatar,
-            child: _isUploadingPhoto
-                ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
-                : Text(_avatarBytes != null || hasExisting ? 'Change' : 'Browse',
-                    style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -3553,7 +3508,6 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       (label: 'Last and first name', done: hasName),
       (label: 'Birthday', done: _birthDate != null),
       (label: 'Gender', done: _gender != null),
-      (label: 'Membership date', done: _effectiveMembershipDate != null),
       if (_selectedSectors.contains('Student')) (label: 'Year level', done: _yearLevel != null),
       (label: 'LGU and barangay', done: _lgu.isNotEmpty && _barangay.isNotEmpty),
       if (_purok.isEmpty && _unlistedPurok != null)
