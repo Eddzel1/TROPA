@@ -4,13 +4,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../core/design_system.dart';
 import '../core/dues_math.dart';
+import '../core/geo.dart';
 import '../core/ph_time.dart';
 import '../models/models.dart';
 import '../providers/auth_provider.dart';
 import '../providers/dues_provider.dart';
+import '../providers/voter_provider.dart';
 import '../widgets/form_fields.dart';
 import '../widgets/keyboard_safe_body.dart';
 import '../widgets/membership_date_dialog.dart';
+import 'dues_sheet_print.dart';
 import 'settings/settings_common.dart';
 
 /// Below this page height (keyboard up, small phone) the page drops its description and badges.
@@ -42,6 +45,9 @@ class DuesCollectionView extends ConsumerWidget {
         // badges give their room to the search box and results.
         final narrow = TropaBreakpoints.isCompact(constraints.maxWidth);
         final short = constraints.maxHeight < _shortHeight;
+        final scope = scopeAsync.value;
+        void openPrint() => showDialog<void>(context: context, builder: (_) => _PrintSheetDialog(scope: scope!));
+        final canPrint = scope != null && !scope.isEmpty;
         return KeyboardSafeBody(
         minHeight: 360,
         padding: EdgeInsets.all(narrow ? 16 : 24),
@@ -49,7 +55,17 @@ class DuesCollectionView extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (!narrow) ...[
-              Text('Dues & Ledger', style: TropaText.pageTitle(textCol)),
+              Row(
+                children: [
+                  Expanded(child: Text('Dues & Ledger', style: TropaText.pageTitle(textCol))),
+                  if (canPrint)
+                    OutlinedButton.icon(
+                      onPressed: openPrint,
+                      icon: const Icon(Icons.print_outlined, size: 18),
+                      label: const Text('Print sheet'),
+                    ),
+                ],
+              ),
               const SizedBox(height: 4),
             ],
             if (!short) ...[
@@ -74,6 +90,14 @@ class DuesCollectionView extends ConsumerWidget {
                   icon: Icons.payments_outlined,
                   color: currentRate == null ? TropaColors.errorOf(context) : TropaColors.secondaryStrongOf(context),
                 ),
+                // Phones have no title row, so the print button sits with the badges.
+                if (narrow && canPrint)
+                  IconButton(
+                    tooltip: 'Print sheet',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: openPrint,
+                    icon: const Icon(Icons.print_outlined, size: 20),
+                  ),
               ],
             ),
             SizedBox(height: narrow ? 12 : 16),
@@ -770,6 +794,157 @@ class _ReceiptDialog extends StatelessWidget {
         ),
       ),
       actions: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done'))],
+    );
+  }
+}
+
+/// Picks a barangay, purok and year, then prints that purok's collection sheet.
+class _PrintSheetDialog extends ConsumerStatefulWidget {
+  final DuesScope scope;
+
+  const _PrintSheetDialog({required this.scope});
+
+  @override
+  ConsumerState<_PrintSheetDialog> createState() => _PrintSheetDialogState();
+}
+
+class _PrintSheetDialogState extends ConsumerState<_PrintSheetDialog> {
+  String? _lgu;
+  String? _locationId;
+
+  /// Null prints every purok.
+  String? _purok;
+  int _year = phToday().year;
+  bool _printing = false;
+
+  Future<void> _print(LocationOption location) async {
+    setState(() => _printing = true);
+    try {
+      final households = await ref.read(supabaseServiceProvider).getDuesHouseholdsByPurok(
+            scope: widget.scope,
+            lgu: location.lgu,
+            barangay: location.barangay,
+            purok: _purok,
+          );
+      if (households.isEmpty) throw Exception('No households with members to bill here.');
+      final pdf = await buildDuesSheet(
+        households: households,
+        barangayLabel: '${location.barangay}, ${location.lgu}',
+        purok: _purok,
+        year: _year,
+        rates: ref.read(duesRatesProvider).value ?? const [],
+      );
+      if (!mounted) return;
+      // Closing the preview comes back here, to pick another purok or year.
+      await Navigator.of(context).push(MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) => DuesSheetPreview(
+          title: 'Dues Sheet · ${location.barangay} · ${_purok ?? 'All puroks'} · $_year',
+          pdf: pdf,
+        ),
+      ));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not print the sheet: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _printing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final locations = widget.scope.everywhere
+        ? ref.watch(locationsProvider).value ?? const <LocationOption>[]
+        : widget.scope.barangays;
+    final lgus = {for (final l in locations) l.lgu}.toList()..sort();
+    if (_lgu == null && lgus.length == 1) _lgu = lgus.first;
+    final barangays = [for (final l in locations) if (l.lgu == _lgu) l]..sort((a, b) => a.barangay.compareTo(b.barangay));
+    if (_locationId == null && barangays.length == 1) _locationId = barangays.first.id;
+    final location = barangays.where((l) => l.id == _locationId).firstOrNull;
+    final puroks = location == null
+        ? const <String>[]
+        : [for (final p in ref.watch(puroksProvider(location.id)).value ?? const <({String id, String name})>[]) p.name];
+    final thisYear = phToday().year;
+
+    return AlertDialog(
+      title: const Text('Print collection sheet'),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Households and members of one purok, with a box for each month. Paid months are '
+                'marked; months crossed with an X are not billed.',
+                style: TropaText.meta(TropaColors.textMedium(context))),
+            const SizedBox(height: 16),
+            DropdownButtonFormField<String>(
+              // Rebuilt once the location list loads, to show a preselected sole LGU.
+              key: ValueKey(lgus.length),
+              initialValue: _lgu,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'LGU'),
+              items: [
+                for (final l in lgus) DropdownMenuItem(value: l, child: Text(l, overflow: TextOverflow.ellipsis)),
+              ],
+              onChanged: (v) => setState(() {
+                _lgu = v;
+                _locationId = null;
+                _purok = null;
+              }),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              // Rebuilt per LGU, so the barangay choice resets with it.
+              key: ValueKey('$_lgu|${barangays.length}'),
+              initialValue: location?.id,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Barangay'),
+              items: [
+                for (final l in barangays)
+                  DropdownMenuItem(value: l.id, child: Text(l.barangay, overflow: TextOverflow.ellipsis)),
+              ],
+              onChanged: _lgu == null
+                  ? null
+                  : (v) => setState(() {
+                        _locationId = v;
+                        _purok = null;
+                      }),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String?>(
+              // Rebuilt per barangay, so the purok choice resets with it.
+              key: ValueKey(location?.id),
+              initialValue: puroks.contains(_purok) ? _purok : null,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Purok'),
+              items: [
+                const DropdownMenuItem<String?>(value: null, child: Text('All puroks')),
+                for (final p in puroks) DropdownMenuItem<String?>(value: p, child: Text(p)),
+              ],
+              onChanged: location == null ? null : (v) => setState(() => _purok = v),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<int>(
+              initialValue: _year,
+              decoration: const InputDecoration(labelText: 'Year'),
+              items: [
+                for (var y = thisYear - 2; y <= thisYear + 1; y++) DropdownMenuItem(value: y, child: Text('$y')),
+              ],
+              onChanged: (v) => setState(() => _year = v ?? _year),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        FilledButton.icon(
+          onPressed: _printing || location == null ? null : () => _print(location),
+          icon: const Icon(Icons.print_outlined, size: 18),
+          label: Text(_printing ? 'Preparing…' : 'Preview'),
+        ),
+      ],
     );
   }
 }

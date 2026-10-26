@@ -729,6 +729,34 @@ class SupabaseService {
     return _withDuesMembers(households, scope);
   }
 
+  /// Unarchived households of [lgu] / [barangay] (and [purok], when given) with their members in
+  /// [scope], by purok then name. For the printed collection sheet.
+  Future<List<DuesHousehold>> getDuesHouseholdsByPurok({
+    required DuesScope scope,
+    required String lgu,
+    required String barangay,
+    String? purok,
+  }) async {
+    final params = <Object?>[lgu.trim().toUpperCase(), barangay.trim().toUpperCase()];
+    final where = [
+      'COALESCE(hh.is_archived, 0) = 0',
+      "${_n('hh.lgu')} = ?",
+      "${_n('hh.barangay')} = ?",
+    ];
+    if (purok != null) {
+      where.add("${_n('hh.purok')} = ?");
+      params.add(purok.trim().toUpperCase());
+    }
+    where.add('EXISTS (SELECT 1 FROM family_members s WHERE s.household_id = hh.id AND ${_duesScopeSql(scope, 's', params)})');
+    final households = await _rows(
+      'SELECT hh.id, hh.household_name, hh.lgu, hh.barangay, hh.purok FROM households hh '
+      "${_whereSql(where)} ORDER BY ${_n('hh.purok')}, hh.household_name",
+      params,
+    );
+    final list = await _withDuesMembers(households, scope);
+    return list.where((h) => h.members.isNotEmpty).toList();
+  }
+
   /// A household with its members in [scope], or null when none of its members are.
   Future<DuesHousehold?> getDuesHousehold(String id, DuesScope scope) async {
     final rows = await _rows('SELECT id, household_name, lgu, barangay, purok FROM households WHERE id = ?', [id]);
