@@ -19,6 +19,9 @@ const _notBilledFill = PdfColors.grey500;
 /// Long bond paper (8.5 x 13 in), portrait.
 const longBond = PdfPageFormat(8.5 * PdfPageFormat.inch, 13 * PdfPageFormat.inch, marginAll: 28);
 
+/// Paper sizes the sheet can be printed on, as offered in the preview.
+const duesSheetFormats = {'Long (8.5 × 13 in)': longBond, 'A4': PdfPageFormat.a4};
+
 /// The app's fonts, bundled so the sheet prints offline: Inter for text, Manrope for the title.
 Future<({pw.ThemeData theme, pw.Font title})> _pdfFonts() async {
   Future<pw.Font> load(String name) async => pw.Font.ttf(await rootBundle.load('assets/fonts/$name.ttf'));
@@ -27,7 +30,8 @@ Future<({pw.ThemeData theme, pw.Font title})> _pdfFonts() async {
   return (theme: pw.ThemeData.withFont(base: regular, bold: bold), title: await load('Manrope-Bold'));
 }
 
-/// A collection sheet for [households] (one barangay, one or all puroks), as PDF bytes: a row per
+/// A collection sheet for [households] (one barangay, one or all puroks), as PDF bytes on [format]
+/// (portrait): a row per
 /// member with a box for each month of [year]. Paid months are marked and months not billed are
 /// shaded, so only the boxes still to collect are blank.
 Future<Uint8List> buildDuesSheet({
@@ -36,6 +40,7 @@ Future<Uint8List> buildDuesSheet({
   String? purok,
   required int year,
   required List<DuesRate> rates,
+  PdfPageFormat format = longBond,
 }) async {
   final fonts = await _pdfFonts();
   final printedOn = formatPh(DateFormat('MMM d, yyyy h:mm a'), phNow());
@@ -172,7 +177,7 @@ Future<Uint8List> buildDuesSheet({
   final doc = pw.Document(theme: fonts.theme);
   doc.addPage(
     pw.MultiPage(
-      pageFormat: longBond,
+      pageFormat: format.portrait,
       margin: const pw.EdgeInsets.all(28),
       header: (_) => pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
@@ -205,25 +210,48 @@ Future<Uint8List> buildDuesSheet({
   return doc.save();
 }
 
-/// Full-screen preview of a sheet from [buildDuesSheet], with print, save and share.
-class DuesSheetPreview extends StatelessWidget {
+/// Full-screen preview of a sheet from [buildDuesSheet], one whole page in view at a time like
+/// paper, with a choice of paper size, print, save and share.
+class DuesSheetPreview extends StatefulWidget {
   final String title;
-  final Uint8List pdf;
 
-  const DuesSheetPreview({super.key, required this.title, required this.pdf});
+  /// Builds the sheet on the chosen paper size.
+  final Future<Uint8List> Function(PdfPageFormat format) build;
+
+  const DuesSheetPreview({super.key, required this.title, required this.build});
+
+  @override
+  State<DuesSheetPreview> createState() => _DuesSheetPreviewState();
+}
+
+class _DuesSheetPreviewState extends State<DuesSheetPreview> {
+  /// Room the preview takes besides the page: its action bar, and the margin around each page.
+  static const _actionBarHeight = 56.0;
+  static const _pageMargin = 16.0;
+
+  PdfPageFormat _format = longBond;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: PdfPreview(
-        build: (_) => pdf,
-        initialPageFormat: longBond,
-        canChangePageFormat: false,
-        canChangeOrientation: false,
-        canDebug: false,
-        pdfFileName: '${title.replaceAll(RegExp(r'[^A-Za-z0-9 -]'), '')}.pdf',
-      ),
+      appBar: AppBar(title: Text(widget.title)),
+      body: LayoutBuilder(builder: (context, constraints) {
+        // Size each page to the height left over, so a whole page shows without scrolling.
+        final pageHeight = constraints.maxHeight - _actionBarHeight - _pageMargin * 2;
+        final pageWidth = pageHeight * _format.width / _format.height;
+        return PdfPreview(
+          build: widget.build,
+          initialPageFormat: longBond,
+          pageFormats: duesSheetFormats,
+          onPageFormatChanged: (f) => setState(() => _format = f),
+          canChangeOrientation: false,
+          canDebug: false,
+          maxPageWidth: pageWidth.clamp(200.0, constraints.maxWidth).toDouble(),
+          previewPageMargin: const EdgeInsets.all(_pageMargin),
+          actionBarTheme: const PdfActionBarTheme(height: _actionBarHeight),
+          pdfFileName: '${widget.title.replaceAll(RegExp(r'[^A-Za-z0-9 -]'), '')}.pdf',
+        );
+      }),
     );
   }
 }

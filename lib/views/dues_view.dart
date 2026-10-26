@@ -827,20 +827,23 @@ class _PrintSheetDialogState extends ConsumerState<_PrintSheetDialog> {
             purok: _purok,
           );
       if (households.isEmpty) throw Exception('No households with members to bill here.');
-      final pdf = await buildDuesSheet(
-        households: households,
-        barangayLabel: '${location.barangay}, ${location.lgu}',
-        purok: _purok,
-        year: _year,
-        rates: ref.read(duesRatesProvider).value ?? const [],
-      );
+      final purok = _purok;
+      final year = _year;
+      final rates = ref.read(duesRatesProvider).value ?? const <DuesRate>[];
       if (!mounted) return;
       // Closing the preview comes back here, to pick another purok or year.
       await Navigator.of(context).push(MaterialPageRoute<void>(
         fullscreenDialog: true,
         builder: (_) => DuesSheetPreview(
-          title: 'Dues Sheet · ${location.barangay} · ${_purok ?? 'All puroks'} · $_year',
-          pdf: pdf,
+          title: 'Dues Sheet · ${location.barangay} · ${purok ?? 'All puroks'} · $year',
+          build: (format) => buildDuesSheet(
+            households: households,
+            barangayLabel: '${location.barangay}, ${location.lgu}',
+            purok: purok,
+            year: year,
+            rates: rates,
+            format: format,
+          ),
         ),
       ));
     } catch (e) {
