@@ -108,9 +108,9 @@
     "semantic_hash": ""
   },
   "lib/services/supabase_service.dart": {
-    "mtime": 1792634863.7329874,
-    "seen": 1792635030.63576,
-    "ast_hash": "d1ed25a675537e2ae628d0b7a20b6ebc",
+    "mtime": 1793003364.654595,
+    "seen": 1793003473.1364322,
+    "ast_hash": "06a99eb5baa7e47344cc75f9f23b318c",
     "semantic_hash": ""
   },
   "lib/views/audit_logs_view.dart": {
@@ -126,9 +126,9 @@
     "semantic_hash": ""
   },
   "lib/views/dues_view.dart": {
-    "mtime": 1792636078.4489985,
-    "seen": 1792636089.367604,
-    "ast_hash": "272731ac44f18c04139e67f52804708c",
+    "mtime": 1793004366.449718,
+    "seen": 1793004383.023895,
+    "ast_hash": "6b6376633e8fafd43332a49d4935cd91",
     "semantic_hash": ""
   },
   "lib/views/form_tracking_view.dart": {
@@ -192,9 +192,9 @@
     "semantic_hash": ""
   },
   "lib/widgets/member_form_dialog.dart": {
-    "mtime": 1792650137.293644,
-    "seen": 1792650142.101012,
-    "ast_hash": "1a75024aba56fe9f0b7a05e871f61623",
+    "mtime": 1792998880.3074195,
+    "seen": 1793003473.136448,
+    "ast_hash": "5a3ee098d8e0a3aebe377ce793635921",
     "semantic_hash": ""
   },
   "lib/widgets/tropa_map_widget.dart": {
@@ -252,9 +252,9 @@
     "semantic_hash": ""
   },
   "pubspec.yaml": {
-    "mtime": 1792650578.8733838,
-    "seen": 1792650590.835468,
-    "ast_hash": "242c27a8d0abb6b66e6f96f3913c2531",
+    "mtime": 1793003637.4682155,
+    "seen": 1793003755.428759,
+    "ast_hash": "7d6f5b7ce85b33bdbba7bb985c0b1e1e",
     "semantic_hash": ""
   },
   "lib/widgets/sync_status_pill.dart": {
@@ -831,6 +831,12 @@
     "mtime": 1792634990.284823,
     "seen": 1792635030.635798,
     "ast_hash": "a9eb6b2acb40ac94189af88e67fb2a9e",
+    "semantic_hash": ""
+  },
+  "lib/views/dues_sheet_print.dart": {
+    "mtime": 1793004350.297402,
+    "seen": 1793004383.023895,
+    "ast_hash": "d10949cdc61b66a48f5b9a22a9060d69",
     "semantic_hash": ""
   }
 }
