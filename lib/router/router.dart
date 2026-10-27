@@ -5,6 +5,7 @@ import '../models/models.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/desktop_scaffold.dart';
 import '../views/login_view.dart';
+import '../views/public_search_view.dart';
 import '../views/dashboard_view.dart';
 import '../views/households_view.dart';
 import '../views/members_view.dart';
@@ -22,6 +23,9 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/dashboard',
     redirect: (BuildContext context, GoRouterState state) {
+      // Public member search: open to everyone, signed in or not.
+      if (state.matchedLocation == '/search') return null;
+
       final user = userAsync.value;
       final isAuth = user != null;
       final isLogin = state.matchedLocation == '/login';
@@ -83,6 +87,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/login',
         builder: (context, state) => const LoginView(),
+      ),
+      GoRoute(
+        path: '/search',
+        builder: (context, state) => const PublicSearchView(),
       ),
       ShellRoute(
         builder: (context, state, child) => DesktopScaffold(child: child),
