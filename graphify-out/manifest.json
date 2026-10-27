@@ -96,9 +96,9 @@
     "semantic_hash": ""
   },
   "lib/router/router.dart": {
-    "mtime": 1792316500.5219975,
-    "seen": 1792316598.6400561,
-    "ast_hash": "989dc37307ca20b849b0b50fc3501a06",
+    "mtime": 1793066183.8252757,
+    "seen": 1793066204.992479,
+    "ast_hash": "81f67c8f883b132f4715555b12195591",
     "semantic_hash": ""
   },
   "lib/services/offline_auth.dart": {
@@ -144,8 +144,8 @@
     "semantic_hash": ""
   },
   "lib/views/login_view.dart": {
-    "mtime": 1792650586.6266818,
-    "seen": 1792650590.8354208,
+    "mtime": 1793066486.5713422,
+    "seen": 1793066852.049238,
     "ast_hash": "96b01a819b27567ce0a589c05eb72be3",
     "semantic_hash": ""
   },
@@ -714,9 +714,9 @@
     "semantic_hash": ""
   },
   "lib/views/member_id_view.dart": {
-    "mtime": 1792299301.679963,
-    "seen": 1792299304.290539,
-    "ast_hash": "8392466b2b6f77d6b247ae5f783303fe",
+    "mtime": 1793067372.3812582,
+    "seen": 1793067379.584679,
+    "ast_hash": "157b369edc38ef97a0a5098f7011ff6f",
     "semantic_hash": ""
   },
   "supabase/migrations/20261020010000_household_archive.sql": {
@@ -837,6 +837,36 @@
     "mtime": 1793005272.3168328,
     "seen": 1793005276.036534,
     "ast_hash": "deb72238233d9f3958af99333234c6bc",
+    "semantic_hash": ""
+  },
+  "lib/views/public_search_view.dart": {
+    "mtime": 1793067481.5749466,
+    "seen": 1793067487.282051,
+    "ast_hash": "bbcce52cd9e9331060711ed738fc7bce",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20261027000000_public_member_search.sql": {
+    "mtime": 1793066485.755677,
+    "seen": 1793066852.049269,
+    "ast_hash": "2e8a619d9f55696e30c66b9989d7d684",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20261027010000_public_household_members.sql": {
+    "mtime": 1793066844.1998231,
+    "seen": 1793066852.04927,
+    "ast_hash": "c18036ac084def8a02ce3c8fc43c5bb7",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20261027020000_public_search_details.sql": {
+    "mtime": 1793067064.5156353,
+    "seen": 1793067104.823736,
+    "ast_hash": "5b86057871cc333696e0bf5ddce95b57",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20261027030000_public_search_voter.sql": {
+    "mtime": 1793067468.7475715,
+    "seen": 1793067487.282086,
+    "ast_hash": "9ffdf45db84482fde788697fb5e120fc",
     "semantic_hash": ""
   }
 }
