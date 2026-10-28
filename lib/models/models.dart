@@ -674,6 +674,8 @@ class AppUser {
 /// Permission keys checked by the router guards and the sidebar (see lib/router/router.dart).
 class AppPermissions {
   static const systemAdmin = 'system_admin';
+  static const manageHouseholds = 'manage_households';
+  static const manageMembers = 'manage_members';
   static const deleteRecords = 'delete_records';
   static const duesCollection = 'dues_collection';
   static const formTracking = 'form_tracking';

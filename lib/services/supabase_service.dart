@@ -1334,8 +1334,92 @@ class SupabaseService {
     return pa.length.compareTo(pb.length);
   }
 
-  /// Queries the COMELEC voters registry only (never `family_members`). Uses the offline snapshot
-  /// for its LGUs and Supabase for the rest.
+  /// `voters.status` spellings for a Tropa Finder status filter. Tropa Finder only lists MEMBERS, HHL
+  /// and PC voters, so no status (or 'All') means all three.
+  static List<String> _voterStatusValues(String? status) {
+    const groups = {
+      'MEMBERS': ['MEMBER', 'MEMBERS'],
+      'HHL': ['HHL', 'HL'],
+      'PC': ['PC'],
+    };
+    return groups[status?.trim().toUpperCase()] ?? [for (final g in groups.values) ...g];
+  }
+
+  /// Name cleanup shared by the member match: upper case, no dots or commas, trimmed.
+  static String _normNameSql(String col) => "UPPER(TRIM(REPLACE(REPLACE(COALESCE($col, ''), '.', ''), ',', '')))";
+
+  /// CTE `tm` of cooperative members with their names already cleaned up, keyed by `last|first`.
+  /// Materialized once per query so SQLite indexes `k`; cleaning names per voter instead scans every
+  /// member for every voter, which takes minutes for a printout.
+  static final String _tropaMembersCte = 'WITH tm AS MATERIALIZED (SELECT '
+      "${_normNameSql('lastname')} || '|' || ${_normNameSql('firstname')} AS k, "
+      '${_normNameSql('middlename')} AS mid, ${_normNameSql('extension')} AS ext, ${_normNameSql('lgu')} AS lgu '
+      'FROM family_members WHERE is_cooperative_member = 1) ';
+
+  /// Subquery over [_tropaMembersCte] finding a cooperative member who is voter `v`, matched by name
+  /// like scripts/match_family_voters.sql: last and first names equal; middle names equal, one the
+  /// other's initial, or either blank; extensions and LGUs equal or either blank.
+  static final String _tropaMemberMatchSql = () {
+    const n = _normNameSql;
+    String blankOrEqual(String a, String b) => "($a = '' OR $b = '' OR $a = $b)";
+    final vm = n('v.middlename');
+    return "SELECT 1 FROM tm WHERE tm.k = ${n('v.lastname')} || '|' || ${n('v.firstname')} "
+        'AND (${blankOrEqual('tm.mid', vm)} '
+        'OR (LENGTH(tm.mid) = 1 AND tm.mid = SUBSTR($vm, 1, 1)) OR (LENGTH($vm) = 1 AND $vm = SUBSTR(tm.mid, 1, 1))) '
+        "AND ${blankOrEqual('tm.ext', n('v.ext'))} AND ${blankOrEqual('tm.lgu', n('v.lgu'))}";
+  }();
+
+  /// Dart version of [_tropaMemberMatchSql] for voters fetched from Supabase, checked against the
+  /// cooperative members synced to this device.
+  Future<bool Function(Voter)> _tropaMemberMatcher() async {
+    String n(String? s) =>
+        (s ?? '').toUpperCase().replaceAll(RegExp(r'[.,]'), '').replaceAll(RegExp(r'\s+'), ' ').trim();
+    bool blankOrEqual(String a, String b) => a.isEmpty || b.isEmpty || a == b;
+    final members = <String, List<Map<String, dynamic>>>{};
+    final rows = await _rows('SELECT lastname, firstname, middlename, extension, lgu FROM family_members '
+        'WHERE is_cooperative_member = 1');
+    for (final r in rows) {
+      members.putIfAbsent('${n(r['lastname']?.toString())}|${n(r['firstname']?.toString())}', () => []).add(r);
+    }
+    return (v) {
+      final vm = n(v.middlename);
+      return (members['${n(v.lastname)}|${n(v.firstname)}'] ?? const []).any((m) {
+        final mm = n(m['middlename']?.toString());
+        return (blankOrEqual(mm, vm) ||
+                (mm.length == 1 && vm.startsWith(mm)) ||
+                (vm.length == 1 && mm.startsWith(vm))) &&
+            blankOrEqual(n(m['extension']?.toString()), n(v.ext)) &&
+            blankOrEqual(n(m['lgu']?.toString()), n(v.lgu));
+      });
+    };
+  }
+
+  /// Tropa Finder columns voters can be sorted by (local `voters` columns).
+  static const voterSortColumns = {
+    'lastname', 'firstname', 'middlename', 'ext', 'lgu', 'brgy', 'purok', 'status', 'pc', //
+  };
+
+  /// ORDER BY for a local voter search on [sortBy]: blanks (and `-----` placeholders) last, then by
+  /// name. Puroks sort naturally, so "P-2" comes before "P-10".
+  static String _voterOrderSql(String sortBy, bool ascending) {
+    final dir = ascending ? 'ASC' : 'DESC';
+    if (sortBy == 'lastname' || !voterSortColumns.contains(sortBy)) {
+      return 'ORDER BY v.lastname $dir, v.firstname $dir';
+    }
+    final blanksLast = "(v.$sortBy IS NULL OR TRIM(v.$sortBy, '- ') = '')";
+    if (sortBy == 'purok') {
+      // Split "P-4A" into its text before the number ("P-") and the rest ("4A", cast to 4)
+      const u = "UPPER(TRIM(COALESCE(v.purok, '')))";
+      const rest = "LTRIM($u, 'ABCDEFGHIJKLMNOPQRSTUVWXYZ -.#_/')";
+      const prefix = 'SUBSTR($u, 1, LENGTH($u) - LENGTH($rest))';
+      return 'ORDER BY $blanksLast, $prefix $dir, CAST($rest AS INTEGER) $dir, $u $dir, v.lastname, v.firstname';
+    }
+    return 'ORDER BY $blanksLast, v.$sortBy $dir, v.lastname, v.firstname';
+  }
+
+  /// Queries the COMELEC voters registry only (never `family_members`, which is only consulted to
+  /// leave out Tropa members when [notTropaMember] is set). Uses the offline snapshot for its LGUs
+  /// and Supabase for the rest.
   Future<List<Voter>> getVoters({
     String? lastName,
     String? firstName,
@@ -1343,7 +1427,14 @@ class SupabaseService {
     String? lgu,
     String? barangay,
     bool? flaggedOnly,
+    String? status,
+    bool notTropaMember = false,
+    int limit = 100,
+    int offset = 0,
+    String sortBy = 'lastname',
+    bool sortAscending = true,
   }) async {
+    final statuses = _voterStatusValues(status);
     if (!await _useLocalVoters(lgu)) {
       return _getVotersOnline(
           lastName: lastName,
@@ -1351,14 +1442,28 @@ class SupabaseService {
           middleName: middleName,
           lgu: lgu,
           barangay: barangay,
-          flaggedOnly: flaggedOnly);
+          flaggedOnly: flaggedOnly,
+          statuses: statuses,
+          notTropaMember: notTropaMember,
+          limit: limit,
+          offset: offset,
+          sortBy: sortBy,
+          sortAscending: sortAscending);
     }
     try {
       final w =
           _voterWhere(lastName: lastName, firstName: firstName, middleName: middleName, lgu: lgu, barangay: barangay);
       if (flaggedOnly == true) w.where.add('f.voter_id IS NOT NULL');
-      final rows =
-          await _rows('$_localVoterSelect ${_whereSql(w.where)} ORDER BY v.lastname, v.firstname LIMIT 100', w.params);
+      if (statuses.isNotEmpty) {
+        w.where.add('UPPER(TRIM(v.status)) IN (${List.filled(statuses.length, '?').join(', ')})');
+        w.params.addAll(statuses);
+      }
+      if (notTropaMember) w.where.add('NOT EXISTS ($_tropaMemberMatchSql)');
+      final rows = await _rows(
+        '${notTropaMember ? _tropaMembersCte : ''}'
+        '$_localVoterSelect ${_whereSql(w.where)} ${_voterOrderSql(sortBy, sortAscending)} LIMIT ? OFFSET ?',
+        [...w.params, limit, offset],
+      );
       return rows.map(Voter.fromJson).toList();
     } catch (e) {
       return [];
@@ -1372,26 +1477,55 @@ class SupabaseService {
     String? lgu,
     String? barangay,
     bool? flaggedOnly,
+    List<String> statuses = const [],
+    bool notTropaMember = false,
+    int limit = 100,
+    int offset = 0,
+    String sortBy = 'lastname',
+    bool sortAscending = true,
   }) async {
     bool has(String? v) => v != null && v.trim().isNotEmpty && v != 'All';
+    // `ext` and `lgu` aren't in every voters import, so those sort by name online
+    const onlineSortColumns = {'firstname', 'middlename', 'brgy', 'purok', 'status', 'pc'};
 
     try {
-      var req = client.from('voters').select();
-      if (has(lastName)) req = req.ilike('lastname', '%${lastName!.trim()}%');
-      if (has(firstName)) req = req.ilike('firstname', '%${firstName!.trim()}%');
-      if (has(middleName)) req = req.ilike('middlename', '%${middleName!.trim()}%');
-      if (has(barangay)) req = req.ilike('brgy', barangay!.trim());
-      if (flaggedOnly == true) {
-        req = req.eq('is_flagged', true);
+      PostgrestTransformBuilder<PostgrestList> query(int from, int to) {
+        var req = client.from('voters').select();
+        if (has(lastName)) req = req.ilike('lastname', '%${lastName!.trim()}%');
+        if (has(firstName)) req = req.ilike('firstname', '%${firstName!.trim()}%');
+        if (has(middleName)) req = req.ilike('middlename', '%${middleName!.trim()}%');
+        if (has(barangay)) req = req.ilike('brgy', barangay!.trim());
+        if (flaggedOnly == true) {
+          req = req.eq('is_flagged', true);
+        }
+        if (statuses.isNotEmpty) req = req.inFilter('status', statuses);
+        final byName = !onlineSortColumns.contains(sortBy);
+        final sorted = byName
+            ? req.order('lastname', ascending: sortAscending).order('firstname', ascending: sortAscending)
+            : req
+                .order(sortBy, ascending: sortAscending, nullsFirst: false)
+                .order('lastname', ascending: true)
+                .order('firstname', ascending: true);
+        return sorted.range(from, to);
       }
-      final response = await req.order('lastname', ascending: true).order('firstname', ascending: true).limit(100);
-      var results = (response as List).map((row) => Voter.fromJson(row as Map<String, dynamic>)).toList();
 
-      // LGU is filtered locally because not every voters import carries an `lgu` column
-      if (has(lgu)) {
-        results = results.where((v) => v.lgu.isEmpty || v.lgu.toUpperCase() == lgu!.toUpperCase()).toList();
+      // LGU is filtered locally because not every voters import carries an `lgu` column, and members
+      // can't be joined server-side. With either filter, read in chunks and page over what's kept.
+      if (!has(lgu) && !notTropaMember) {
+        final response = await query(offset, offset + limit - 1);
+        return response.map(Voter.fromJson).toList();
       }
-      return results;
+      final isMember = notTropaMember ? await _tropaMemberMatcher() : null;
+      const chunk = 500, maxChunks = 20;
+      final kept = <Voter>[];
+      for (var i = 0; i < maxChunks && kept.length < offset + limit; i++) {
+        final response = await query(i * chunk, (i + 1) * chunk - 1);
+        kept.addAll(response.map(Voter.fromJson).where((v) =>
+            (!has(lgu) || v.lgu.isEmpty || v.lgu.toUpperCase() == lgu!.toUpperCase()) &&
+            !(isMember?.call(v) ?? false)));
+        if (response.length < chunk) break;
+      }
+      return kept.skip(offset).take(limit).toList();
     } catch (e) {
       return [];
     }

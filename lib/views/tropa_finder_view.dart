@@ -11,6 +11,8 @@ import '../providers/voter_provider.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/voter_snapshot_status.dart';
 import '../widgets/page_header.dart';
+import 'dues_sheet_print.dart';
+import 'voter_list_print.dart';
 
 class TropaFinderView extends ConsumerStatefulWidget {
   const TropaFinderView({super.key});
@@ -26,17 +28,57 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
   Timer? _nameDebounce;
 
   static const double _actionWidth = 96;
+  /// Table columns and the `voters` column each one sorts by (PC / HHL sorts by PC).
   static const _columns = [
-    (label: 'LAST NAME', flex: 3),
-    (label: 'FIRST NAME', flex: 3),
-    (label: 'MIDDLE NAME', flex: 3),
-    (label: 'EXT.', flex: 1),
-    (label: 'LGU', flex: 3),
-    (label: 'BARANGAY', flex: 3),
-    (label: 'PUROK', flex: 2),
-    (label: 'STATUS', flex: 3),
-    (label: 'PC / HHL', flex: 4),
+    (label: 'LAST NAME', flex: 3, sort: 'lastname'),
+    (label: 'FIRST NAME', flex: 3, sort: 'firstname'),
+    (label: 'MIDDLE NAME', flex: 3, sort: 'middlename'),
+    (label: 'EXT.', flex: 1, sort: 'ext'),
+    (label: 'LGU', flex: 3, sort: 'lgu'),
+    (label: 'BARANGAY', flex: 3, sort: 'brgy'),
+    (label: 'PUROK', flex: 2, sort: 'purok'),
+    (label: 'STATUS', flex: 3, sort: 'status'),
+    (label: 'PC / HHL', flex: 4, sort: 'pc'),
   ];
+
+  /// A column header that sorts by its column; clicking the sorted column again flips the order.
+  Widget _sortHeader(
+      ({String label, int flex, String sort}) c, VoterFilter filter, Color subtextCol, Color primaryCol) {
+    final active = filter.sortBy == c.sort;
+    final color = active ? primaryCol : subtextCol;
+    return Expanded(
+      flex: c.flex,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(4),
+            onTap: () => _applyFilter((f) => f.copyWith(
+                  sortBy: c.sort,
+                  sortAscending: active ? !f.sortAscending : true,
+                )),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(c.label, style: TropaText.tableHeader(color), overflow: TextOverflow.ellipsis),
+                ),
+                const SizedBox(width: 2),
+                Icon(
+                  active
+                      ? (filter.sortAscending ? Icons.arrow_upward : Icons.arrow_downward)
+                      : Icons.unfold_more,
+                  size: 14,
+                  color: active ? primaryCol : subtextCol.withValues(alpha: 0.5),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _cell(String? text, int flex, TextStyle style) {
     return Expanded(
@@ -46,15 +88,6 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
         child: Text(text == null || text.isEmpty ? '—' : text, style: style, overflow: TextOverflow.ellipsis),
       ),
     );
-  }
-
-  String _formatStatus(String? raw) {
-    if (raw == null || raw.trim().isEmpty) return '—';
-    final upper = raw.trim().toUpperCase();
-    if (upper == 'MEMBER' || upper == 'COOP' || upper == 'COOPERATIVE') {
-      return 'TROPA MEMBER';
-    }
-    return raw.trim();
   }
 
   Widget _pageBody({required bool scroll, required EdgeInsets padding, required Widget child}) =>
@@ -106,7 +139,7 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         if (statusText != '—')
-                          TropaBadge(statusText, color: statusText == 'TROPA MEMBER' ? primaryCol : subtextCol),
+                          TropaBadge(statusText, color: statusText == 'MEMBER' ? primaryCol : subtextCol),
                         if (pc.isNotEmpty) Text('PC: $pc', style: TropaText.caption(subtextCol)),
                         if (hhl.isNotEmpty) Text('HHL: $hhl', style: TropaText.caption(subtextCol)),
                       ],
@@ -125,7 +158,7 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
 
   Widget _statusCell(String text, int flex, bool isDark, Color primaryCol, TextStyle defaultStyle) {
     if (text == '—') return _cell('—', flex, defaultStyle);
-    final isTropa = text == 'TROPA MEMBER';
+    final isTropa = text == 'MEMBER';
     return Expanded(
       flex: flex,
       child: Padding(
@@ -233,9 +266,86 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
     super.dispose();
   }
 
+  /// Applies a filter change and goes back to the first page.
   void _applyFilter(VoterFilter Function(VoterFilter) update) {
-    ref.read(voterFilterProvider.notifier).update(update);
+    ref.read(voterFilterProvider.notifier).update((f) => update(f).copyWith(page: 0));
     ref.read(voterNotifierProvider.notifier).refresh();
+  }
+
+  void _goToPage(int page) {
+    ref.read(voterFilterProvider.notifier).update((f) => f.copyWith(page: page));
+    ref.read(voterNotifierProvider.notifier).refresh();
+  }
+
+  /// Opens the print preview at once and lists every voter matching the current filters (not just
+  /// this page), up to [voterPrintLimit]; the voters load behind the preview's spinner.
+  void _printList() {
+    final f = ref.read(voterFilterProvider);
+    // Read once and shared by every paper size the preview builds
+    final fetched = ref.read(supabaseServiceProvider).getVoters(
+          lastName: f.lastName,
+          firstName: f.firstName,
+          middleName: f.middleName,
+          lgu: f.lgu,
+          barangay: f.barangay,
+          flaggedOnly: f.flaggedOnly,
+          status: f.status,
+          notTropaMember: f.notTropaMember,
+          // One extra row tells whether the list was cut short
+          limit: voterPrintLimit + 1,
+          sortBy: f.sortBy,
+          sortAscending: f.sortAscending,
+        );
+    final filtersLabel = [
+      f.barangay == 'All' ? 'All barangays' : f.barangay,
+      f.lgu == 'All' ? 'All LGUs' : f.lgu,
+      f.status == 'All' ? 'MEMBER / HHL / PC' : f.status,
+      if (f.notTropaMember) 'Not member',
+      if ([f.lastName, f.firstName, f.middleName].any((s) => s.isNotEmpty))
+        'Name: ${[f.lastName, f.firstName, f.middleName].where((s) => s.isNotEmpty).join(' ')}',
+    ].join('  •  ');
+    Navigator.of(context).push(MaterialPageRoute<void>(
+      fullscreenDialog: true,
+      builder: (_) => DuesSheetPreview(
+        title: 'Voter List · ${f.barangay == 'All' ? 'All barangays' : f.barangay}',
+        build: (format) async {
+          final voters = await fetched;
+          return buildVoterList(
+            voters: voters.take(voterPrintLimit).toList(),
+            filtersLabel: filtersLabel,
+            truncated: voters.length > voterPrintLimit,
+            format: format,
+          );
+        },
+      ),
+    ));
+  }
+
+  /// Footer with the shown row range and previous/next page buttons.
+  Widget _pager(VoterFilter filter, int shown, bool hasNext, Color borderCol, Color subtextCol) {
+    final first = filter.page * voterPageSize + 1;
+    return Container(
+      decoration: BoxDecoration(border: Border(top: BorderSide(color: borderCol))),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text('Page ${filter.page + 1} · rows $first–${first + shown - 1}',
+                style: TropaText.meta(subtextCol)),
+          ),
+          IconButton(
+            icon: const Icon(Icons.chevron_left),
+            tooltip: 'Previous page',
+            onPressed: filter.page > 0 ? () => _goToPage(filter.page - 1) : null,
+          ),
+          IconButton(
+            icon: const Icon(Icons.chevron_right),
+            tooltip: 'Next page',
+            onPressed: hasNext ? () => _goToPage(filter.page + 1) : null,
+          ),
+        ],
+      ),
+    );
   }
 
   void _onNameChanged() {
@@ -382,6 +492,12 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
               actions: [
                 OutlinedButton.icon(
                   style: TropaStyles.secondaryAction(context),
+                  icon: const Icon(Icons.print_outlined, size: 18),
+                  label: const Text('Print List'),
+                  onPressed: _printList,
+                ),
+                OutlinedButton.icon(
+                  style: TropaStyles.secondaryAction(context),
                   icon: const Icon(Icons.upload_file, size: 18),
                   label: const Text('Upload Blocklist CSV'),
                   onPressed: () async {
@@ -467,6 +583,39 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
                 ),
               ],
             ),
+            const SizedBox(height: 10),
+
+            // Filters — Row 3: listing status + not-yet-member prospects
+            Row(
+              children: [
+                Expanded(
+                  child: _filterDropdown(
+                    value: filter.status,
+                    allLabel: 'All Statuses',
+                    options: const ['MEMBERS', 'HHL', 'PC'],
+                    onChanged: (v) => _applyFilter((f) => f.copyWith(status: v)),
+                    isDark: isDark,
+                    textCol: textCol,
+                    borderCol: borderCol,
+                    fillCol: fieldFill,
+                    primaryCol: primaryCol,
+                    subtextCol: subtextCol,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: FilterChip(
+                      label: Text('Not member', style: TropaText.body(textCol)),
+                      tooltip: 'Voters with no matching cooperative member record',
+                      selected: filter.notTropaMember,
+                      onSelected: (sel) => _applyFilter((f) => f.copyWith(notTropaMember: sel)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 20),
 
             // Voter Cross-reference list
@@ -476,10 +625,22 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
               child: votersAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, _) => Center(child: Text('Error querying voters: $e', style: TextStyle(color: textCol))),
-                data: (voters) {
+                data: (fetched) {
+                  // The notifier fetches one row past the page to know whether a next page exists
+                  final hasNext = fetched.length > voterPageSize;
+                  final voters = fetched.take(voterPageSize).toList();
+                  if (voters.isEmpty && filter.page > 0) {
+                    return Center(
+                      child: TextButton(onPressed: () => _goToPage(0), child: const Text('Back to first page')),
+                    );
+                  }
                   if (voters.isEmpty) {
                     return Center(
-                      child: Text('No registered voters match these filters.', style: TropaText.body(subtextCol)),
+                      child: Text(
+                          filter.notTropaMember
+                              ? 'No non-members match these filters.'
+                              : 'No MEMBER / HHL / PC voters match these filters.',
+                          style: TropaText.body(subtextCol)),
                     );
                   }
                   // Ten columns need ~1000px; narrower screens show each voter as a stacked row.
@@ -513,7 +674,7 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
                             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                             child: Row(
                               children: [
-                                for (final c in _columns) _cell(c.label, c.flex, TropaText.tableHeader(subtextCol)),
+                                for (final c in _columns) _sortHeader(c, filter, subtextCol, primaryCol),
                                 const SizedBox(width: _flaggingEnabled ? _actionWidth : 64),
                               ],
                             ),
@@ -524,7 +685,7 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
                             flex: compact ? 0 : 1,
                             fit: compact ? FlexFit.loose : FlexFit.tight,
                             child: ListView.separated(
-                              // At most 100 rows, so phones lay them all out inside the page scroll.
+                              // At most one page of rows, so phones lay them all out inside the page scroll.
                               shrinkWrap: compact,
                               physics: compact ? const NeverScrollableScrollPhysics() : null,
                               itemCount: voters.length,
@@ -532,7 +693,7 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
                               itemBuilder: (context, index) {
                                 final v = voters[index];
                                 final rowStyle = TropaText.body(v.isFlagged ? TropaColors.error : textCol);
-                                final statusText = _formatStatus(v.status);
+                                final statusText = formatVoterStatus(v.status);
                                 if (stacked) return _stackedVoterRow(v, statusText, textCol, subtextCol, primaryCol);
                                 return Tooltip(
                                   message: v.isFlagged ? 'FLAG: ${v.flagReason ?? ''}' : '',
@@ -563,6 +724,8 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
                               },
                             ),
                           ),
+                          if (filter.page > 0 || hasNext)
+                            _pager(filter, voters.length, hasNext, borderCol, subtextCol),
                         ],
                       ),
                     ),

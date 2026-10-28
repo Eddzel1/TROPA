@@ -456,7 +456,87 @@ class _PaymentPanelState extends ConsumerState<_PaymentPanel> {
     }
   }
 
-  Future<void> _record(List<DuesRate> rates) async {
+  /// Asks before saving: who pays for which months, the total, the method and the reference.
+  Future<bool> _confirmPayment(DuesHousehold data, List<DuesRate> rates) async {
+    final lines = <({String name, String months, double amount})>[];
+    var total = 0.0;
+    for (final m in data.members) {
+      final n = _months[m.id] ?? 0;
+      final b = balanceFor(m, rates);
+      if (b == null || n <= 0) continue;
+      final amount = b.amountFor(n);
+      total += amount;
+      lines.add((name: m.fullName, months: '$n mo · ${monthRangeLabel(b.nextUnpaidMonth, n)}', amount: amount));
+    }
+    final reference = _reference.text.trim();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (c) {
+        final textCol = TropaColors.textHigh(c);
+        final subCol = TropaColors.textMedium(c);
+        return AlertDialog(
+          title: Text('Record ${_peso.format(total)}?'),
+          content: SizedBox(
+            width: 460,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (widget.selection.mode == DuesSearchMode.household)
+                    Text(data.householdName, style: TropaText.sectionTitle(textCol)),
+                  const SizedBox(height: 8),
+                  for (final l in lines)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(l.name, style: TropaText.bodyStrong(textCol)),
+                                Text(l.months, style: TropaText.caption(subCol)),
+                              ],
+                            ),
+                          ),
+                          Text(_peso.format(l.amount), style: TropaText.body(textCol)),
+                        ],
+                      ),
+                    ),
+                  Divider(height: 20, color: TropaColors.borderOf(c)),
+                  Row(
+                    children: [
+                      Expanded(child: Text('Total', style: TropaText.sectionTitle(textCol))),
+                      Text(_peso.format(total), style: TropaText.sectionTitle(TropaColors.secondaryStrongOf(c))),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '$_method · ${reference.isEmpty ? 'no receipt / reference #' : 'Ref $reference'}',
+                    style: TropaText.meta(subCol),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Go back')),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(c, true),
+              icon: const Icon(Icons.check, size: 18),
+              label: const Text('Record payment'),
+            ),
+          ],
+        );
+      },
+    );
+    return ok == true;
+  }
+
+  Future<void> _record(DuesHousehold data, List<DuesRate> rates) async {
+    if (!await _confirmPayment(data, rates) || !mounted) return;
     setState(() => _saving = true);
     final user = ref.read(currentAppUserProvider).value;
     try {
@@ -643,7 +723,7 @@ class _PaymentPanelState extends ConsumerState<_PaymentPanel> {
                         ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(Icons.check, size: 18),
                     label: Text('Record ${_peso.format(total)}'),
-                    onPressed: canRecord ? () => _record(rates) : null,
+                    onPressed: canRecord ? () => _record(data, rates) : null,
                   ),
                 ),
               ],

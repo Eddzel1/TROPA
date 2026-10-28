@@ -5,6 +5,9 @@ import '../data/db.dart';
 import '../models/models.dart';
 import 'auth_provider.dart';
 
+/// Tropa Finder rows per page.
+const voterPageSize = 30;
+
 class VoterFilter {
   final String lastName;
   final String firstName;
@@ -12,6 +15,15 @@ class VoterFilter {
   final String lgu;
   final String barangay;
   final bool? flaggedOnly;
+  /// `voters.status` group: 'All', 'MEMBERS', 'HHL' or 'PC'.
+  final String status;
+  /// Only voters not yet Tropa (cooperative) members.
+  final bool notTropaMember;
+  /// Zero-based results page of [voterPageSize] rows.
+  final int page;
+  /// Column the results are sorted by (see SupabaseService.voterSortColumns).
+  final String sortBy;
+  final bool sortAscending;
 
   const VoterFilter({
     this.lastName = '',
@@ -20,6 +32,11 @@ class VoterFilter {
     this.lgu = 'All',
     this.barangay = 'All',
     this.flaggedOnly,
+    this.status = 'All',
+    this.notTropaMember = false,
+    this.page = 0,
+    this.sortBy = 'lastname',
+    this.sortAscending = true,
   });
 
   VoterFilter copyWith({
@@ -29,6 +46,11 @@ class VoterFilter {
     String? lgu,
     String? barangay,
     bool? flaggedOnly,
+    String? status,
+    bool? notTropaMember,
+    int? page,
+    String? sortBy,
+    bool? sortAscending,
   }) {
     return VoterFilter(
       lastName: lastName ?? this.lastName,
@@ -37,6 +59,11 @@ class VoterFilter {
       lgu: lgu ?? this.lgu,
       barangay: barangay ?? this.barangay,
       flaggedOnly: flaggedOnly ?? this.flaggedOnly,
+      status: status ?? this.status,
+      notTropaMember: notTropaMember ?? this.notTropaMember,
+      page: page ?? this.page,
+      sortBy: sortBy ?? this.sortBy,
+      sortAscending: sortAscending ?? this.sortAscending,
     );
   }
 }
@@ -67,6 +94,8 @@ final votersAsyncProvider = FutureProvider<List<Voter>>((ref) async {
     lgu: filter.lgu,
     barangay: filter.barangay,
     flaggedOnly: filter.flaggedOnly,
+    status: filter.status,
+    notTropaMember: filter.notTropaMember,
   );
   if (items.isNotEmpty) return items;
 
@@ -148,6 +177,13 @@ class VoterNotifier extends StateNotifier<AsyncValue<List<Voter>>> {
         lgu: filter.lgu,
         barangay: filter.barangay,
         flaggedOnly: filter.flaggedOnly,
+        status: filter.status,
+        notTropaMember: filter.notTropaMember,
+        // One extra row tells the view whether a next page exists
+        limit: voterPageSize + 1,
+        offset: filter.page * voterPageSize,
+        sortBy: filter.sortBy,
+        sortAscending: filter.sortAscending,
       );
       state = AsyncValue.data(items);
     } catch (e, st) {

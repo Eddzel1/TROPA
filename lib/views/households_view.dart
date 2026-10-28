@@ -441,6 +441,9 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
     final filter = ref.watch(householdFilterProvider);
     final householdsAsync = ref.watch(householdListNotifierProvider);
     final canDelete = ref.watch(canPermissionProvider(AppPermissions.deleteRecords));
+    final canEdit = ref.watch(canPermissionProvider(AppPermissions.manageHouseholds));
+    final canEditRoster = ref.watch(canPermissionProvider(AppPermissions.manageMembers));
+    final rosterLabel = canEditRoster ? 'View Roster & Add Dependents' : 'View Roster';
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryCol = TropaColors.primaryOf(context);
     final cardBg = TropaColors.cardOf(context);
@@ -694,8 +697,8 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
                                         _ => _confirmDelete(context, h),
                                       },
                                       itemBuilder: (_) => [
-                                        const PopupMenuItem(value: 'roster', child: Text('View Roster & Add Dependents')),
-                                        const PopupMenuItem(value: 'edit', child: Text('Edit Household')),
+                                        PopupMenuItem(value: 'roster', child: Text(rosterLabel)),
+                                        if (canEdit) const PopupMenuItem(value: 'edit', child: Text('Edit Household')),
                                         if (canDelete)
                                           PopupMenuItem(
                                               value: 'archive',
@@ -718,7 +721,7 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
                                   const SizedBox(width: 8),
                                   IconButton(
                                     icon: Icon(Icons.people_outline, size: 19, color: primaryCol),
-                                    tooltip: 'View Roster & Add Dependents',
+                                    tooltip: rosterLabel,
                                     onPressed: () {
                                       showDialog(
                                         context: context,
@@ -726,11 +729,12 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
                                       );
                                     },
                                   ),
-                                  IconButton(
-                                    icon: Icon(Icons.edit_outlined, size: 18, color: TropaColors.textMedium(context)),
-                                    tooltip: 'Edit Household',
-                                    onPressed: () => _openHouseholdDialog(h),
-                                  ),
+                                  if (canEdit)
+                                    IconButton(
+                                      icon: Icon(Icons.edit_outlined, size: 18, color: TropaColors.textMedium(context)),
+                                      tooltip: 'Edit Household',
+                                      onPressed: () => _openHouseholdDialog(h),
+                                    ),
                                   if (canDelete)
                                     IconButton(
                                       icon: Icon(h.isArchived ? Icons.unarchive_outlined : Icons.archive_outlined,

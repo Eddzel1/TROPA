@@ -90,14 +90,14 @@
     "semantic_hash": ""
   },
   "lib/providers/voter_provider.dart": {
-    "mtime": 1791961960.429222,
-    "seen": 1791962062.0384908,
-    "ast_hash": "7778626ed313f941919790960ed9b475",
+    "mtime": 1793103837.788655,
+    "seen": 1793103846.452332,
+    "ast_hash": "36ba26305f40a2e7981dfd709733ed2e",
     "semantic_hash": ""
   },
   "lib/router/router.dart": {
-    "mtime": 1793066183.8252757,
-    "seen": 1793066204.992479,
+    "mtime": 1793067665.215735,
+    "seen": 1793103056.334084,
     "ast_hash": "81f67c8f883b132f4715555b12195591",
     "semantic_hash": ""
   },
@@ -108,9 +108,9 @@
     "semantic_hash": ""
   },
   "lib/services/supabase_service.dart": {
-    "mtime": 1793003364.654595,
-    "seen": 1793003473.1364322,
-    "ast_hash": "06a99eb5baa7e47344cc75f9f23b318c",
+    "mtime": 1793104890.2541494,
+    "seen": 1793104896.5285518,
+    "ast_hash": "99e27ed6bf43641dd7a52d02251a796f",
     "semantic_hash": ""
   },
   "lib/views/audit_logs_view.dart": {
@@ -168,9 +168,9 @@
     "semantic_hash": ""
   },
   "lib/views/tropa_finder_view.dart": {
-    "mtime": 1792363347.7087069,
-    "seen": 1792389918.848762,
-    "ast_hash": "767a1e0a996603a4922ef84e52ebea8c",
+    "mtime": 1793104878.6751282,
+    "seen": 1793104896.528586,
+    "ast_hash": "5202a434fb31901702db7ff325b604da",
     "semantic_hash": ""
   },
   "lib/widgets/bulk_add_member_dialog.dart": {
@@ -192,9 +192,9 @@
     "semantic_hash": ""
   },
   "lib/widgets/member_form_dialog.dart": {
-    "mtime": 1792998880.3074195,
-    "seen": 1793003473.136448,
-    "ast_hash": "5a3ee098d8e0a3aebe377ce793635921",
+    "mtime": 1793082348.7215004,
+    "seen": 1793103056.334104,
+    "ast_hash": "14dc89218e40696dc4b52ccb73481511",
     "semantic_hash": ""
   },
   "lib/widgets/tropa_map_widget.dart": {
@@ -714,8 +714,8 @@
     "semantic_hash": ""
   },
   "lib/views/member_id_view.dart": {
-    "mtime": 1793067372.3812582,
-    "seen": 1793067379.584679,
+    "mtime": 1793067665.2160428,
+    "seen": 1793103056.334094,
     "ast_hash": "157b369edc38ef97a0a5098f7011ff6f",
     "semantic_hash": ""
   },
@@ -834,33 +834,45 @@
     "semantic_hash": ""
   },
   "lib/views/dues_sheet_print.dart": {
-    "mtime": 1793005272.3168328,
-    "seen": 1793005276.036534,
-    "ast_hash": "deb72238233d9f3958af99333234c6bc",
+    "mtime": 1793104865.414122,
+    "seen": 1793104896.528563,
+    "ast_hash": "1ef4188f454859b69e2f33b8a440ee89",
     "semantic_hash": ""
   },
   "lib/views/public_search_view.dart": {
-    "mtime": 1793067373.1598752,
-    "seen": 1793067379.5846798,
-    "ast_hash": "6b369c94eba5331b3bd75f2b158bbcf5",
+    "mtime": 1793067665.2171783,
+    "seen": 1793103056.334095,
+    "ast_hash": "bbcce52cd9e9331060711ed738fc7bce",
     "semantic_hash": ""
   },
   "supabase/migrations/20261027000000_public_member_search.sql": {
-    "mtime": 1793066485.755677,
-    "seen": 1793066852.049269,
+    "mtime": 1793067665.2174332,
+    "seen": 1793103056.334126,
     "ast_hash": "2e8a619d9f55696e30c66b9989d7d684",
     "semantic_hash": ""
   },
   "supabase/migrations/20261027010000_public_household_members.sql": {
-    "mtime": 1793066844.1998231,
-    "seen": 1793066852.04927,
+    "mtime": 1793067665.218094,
+    "seen": 1793103056.334126,
     "ast_hash": "c18036ac084def8a02ce3c8fc43c5bb7",
     "semantic_hash": ""
   },
   "supabase/migrations/20261027020000_public_search_details.sql": {
-    "mtime": 1793067064.5156353,
-    "seen": 1793067104.823736,
+    "mtime": 1793067665.2185097,
+    "seen": 1793103056.3341272,
     "ast_hash": "5b86057871cc333696e0bf5ddce95b57",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20261027030000_public_search_voter.sql": {
+    "mtime": 1793067665.220222,
+    "seen": 1793103056.3341272,
+    "ast_hash": "9ffdf45db84482fde788697fb5e120fc",
+    "semantic_hash": ""
+  },
+  "lib/views/voter_list_print.dart": {
+    "mtime": 1793104878.6753159,
+    "seen": 1793104896.528587,
+    "ast_hash": "d83fe607af0c712f40a865578cef7a92",
     "semantic_hash": ""
   }
 }

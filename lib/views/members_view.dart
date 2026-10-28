@@ -269,6 +269,7 @@ class _MembersViewState extends ConsumerState<MembersView> {
       ..sort();
     final membersAsync = ref.watch(memberListNotifierProvider);
     final canDelete = ref.watch(canPermissionProvider(AppPermissions.deleteRecords));
+    final canEdit = ref.watch(canPermissionProvider(AppPermissions.manageMembers));
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = TropaColors.cardOf(context);
     final borderCol = TropaColors.borderOf(context);
@@ -415,7 +416,7 @@ class _MembersViewState extends ConsumerState<MembersView> {
                           : const Icon(Icons.print_outlined, size: 18, semanticLabel: 'Print Members'),
                     ),
                   ),
-                  if (!narrow) ...[
+                  if (!narrow && canEdit) ...[
                     const SizedBox(width: 10),
                     addButton,
                   ],
@@ -444,7 +445,7 @@ class _MembersViewState extends ConsumerState<MembersView> {
                     ],
                   ),
                 ),
-                if (narrow) ...[
+                if (narrow && canEdit) ...[
                   const SizedBox(width: 12),
                   addButton,
                 ],
@@ -552,15 +553,16 @@ class _MembersViewState extends ConsumerState<MembersView> {
                                     MaterialPageRoute<void>(builder: (_) => MemberIdView(member: m)),
                                   ),
                             ),
-                            (
-                              icon: Icons.swap_horiz,
-                              label: 'Transfer to Household',
-                              color: null,
-                              onTap: () => showDialog<bool>(
-                                    context: context,
-                                    builder: (_) => TransferMemberDialog(member: m),
-                                  ),
-                            ),
+                            if (canEdit)
+                              (
+                                icon: Icons.swap_horiz,
+                                label: 'Transfer to Household',
+                                color: null,
+                                onTap: () => showDialog<bool>(
+                                      context: context,
+                                      builder: (_) => TransferMemberDialog(member: m),
+                                    ),
+                              ),
                             if (canDelete)
                               (
                                 icon: m.isArchived ? Icons.unarchive_outlined : Icons.archive_outlined,
@@ -628,7 +630,7 @@ class _MembersViewState extends ConsumerState<MembersView> {
                               mainAxisSize: MainAxisSize.min,
                               children: narrow
                                   ? [
-                                      editButton,
+                                      if (canEdit) editButton,
                                       PopupMenuButton<int>(
                                         icon: Icon(Icons.more_vert, size: 18, color: TropaColors.textMedium(context)),
                                         tooltip: 'More actions',
@@ -657,7 +659,7 @@ class _MembersViewState extends ConsumerState<MembersView> {
                                         tooltip: actions[0].label,
                                         onPressed: actions[0].onTap,
                                       ),
-                                      editButton,
+                                      if (canEdit) editButton,
                                       for (final a in actions.skip(1))
                                         IconButton(
                                           icon: Icon(a.icon, size: 18, color: a.color ?? TropaColors.textMedium(context)),

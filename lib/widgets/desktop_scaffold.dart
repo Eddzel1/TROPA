@@ -2,13 +2,43 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../core/design_system.dart';
 import '../models/models.dart';
 import '../providers/auth_provider.dart';
 import 'sync_status_pill.dart';
 
+/// Whether the desktop sidebar is collapsed to the icon rail. Saved per device.
+final sidebarCollapsedProvider = StateNotifierProvider<SidebarCollapsedNotifier, bool>((ref) {
+  return SidebarCollapsedNotifier();
+});
+
+class SidebarCollapsedNotifier extends StateNotifier<bool> {
+  SidebarCollapsedNotifier() : super(false) {
+    _loadPreference();
+  }
+
+  static const _prefKey = 'tropa_sidebar_collapsed';
+
+  Future<void> _loadPreference() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      state = prefs.getBool(_prefKey) ?? false;
+    } catch (_) {}
+  }
+
+  Future<void> toggle() async {
+    state = !state;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_prefKey, state);
+    } catch (_) {}
+  }
+}
+
 /// App shell for every signed-in page. Desktop gets the full sidebar, tablets an icon rail, and
-/// phones a drawer opened from the header.
+/// phones a drawer opened from the header. On desktop the header button collapses the sidebar to
+/// the rail.
 class DesktopScaffold extends ConsumerWidget {
   final Widget child;
 
@@ -21,7 +51,9 @@ class DesktopScaffold extends ConsumerWidget {
     final brand = Theme.of(context).extension<TropaBrand>();
     final width = MediaQuery.sizeOf(context).width;
     final compact = TropaBreakpoints.isCompact(width);
-    final rail = !compact && !TropaBreakpoints.isExpanded(width);
+    final expanded = TropaBreakpoints.isExpanded(width);
+    final collapsed = ref.watch(sidebarCollapsedProvider);
+    final rail = !compact && (!expanded || collapsed);
 
     final currentPath = GoRouterState.of(context).matchedLocation;
 
@@ -40,7 +72,9 @@ class DesktopScaffold extends ConsumerWidget {
           // 1. Sidebar Navigation (rail on tablets, hidden in the drawer on phones)
           // ----------------------------------------
           if (!compact)
-            Container(
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
               width: rail ? 76 : 270,
               decoration: BoxDecoration(
                 color: brand?.sidebarBg ?? TropaColors.cardOf(context),
@@ -53,7 +87,14 @@ class DesktopScaffold extends ConsumerWidget {
                         ),
                       ),
               ),
-              child: SafeArea(right: false, child: _Sidebar(currentPath: currentPath, rail: rail)),
+              // The full layout needs the whole 270px, so the rail is shown while the width animates.
+              child: SafeArea(
+                right: false,
+                child: LayoutBuilder(
+                  builder: (context, constraints) =>
+                      _Sidebar(currentPath: currentPath, rail: rail || constraints.maxWidth < 270),
+                ),
+              ),
             ),
 
           // ----------------------------------------
@@ -88,6 +129,14 @@ class DesktopScaffold extends ConsumerWidget {
                                 onPressed: () => Scaffold.of(context).openDrawer(),
                               ),
                             ),
+                          if (expanded) ...[
+                            IconButton(
+                              icon: Icon(collapsed ? Icons.menu : Icons.menu_open, color: TropaColors.textMedium(context)),
+                              tooltip: collapsed ? 'Expand sidebar' : 'Collapse sidebar',
+                              onPressed: () => ref.read(sidebarCollapsedProvider.notifier).toggle(),
+                            ),
+                            const SizedBox(width: 8),
+                          ],
 
                           // Breadcrumb (just the page title on phones)
                           Expanded(

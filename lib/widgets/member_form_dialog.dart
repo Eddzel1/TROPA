@@ -51,6 +51,7 @@ class DependentMemberData {
   // Rows added by the keyboard shortcut start with the cursor here (last name is prefilled)
   final FocusNode lastNameFocus = FocusNode();
   final FocusNode firstNameFocus = FocusNode();
+  final FocusNode phicNoFocus = FocusNode();
   final FocusNode birthDateFocus = FocusNode();
   final Set<String> sectors = {'General'};
   String? yearLevel;
@@ -92,6 +93,7 @@ class DependentMemberData {
     phicNoCtrl.dispose();
     lastNameFocus.dispose();
     firstNameFocus.dispose();
+    phicNoFocus.dispose();
     birthDateFocus.dispose();
     matchDebounce?.cancel();
   }
@@ -137,6 +139,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   DateTime? _birthDate;
   // Focused after a voter is picked so the birthday can be typed straight away
   final _birthDateFocus = FocusNode();
+  // Ticking PhilHealth moves the cursor into the PHIC No. box
+  final _phicNoFocus = FocusNode();
   final _lastNameFocus = FocusNode();
   // Not shown in the form: saved as the barangay starting month, else today (corrected later in Dues)
   DateTime? _membershipDate = phToday();
@@ -358,6 +362,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     }
 
     _loadHouseholds();
+    HardwareKeyboard.instance.addHandler(_onDialogKey);
   }
 
   void _onPrimaryNameChanged() {
@@ -408,8 +413,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       _searchLastNameCtrl.text = _lastNameCtrl.text.trim();
       _searchFirstNameCtrl.text = _firstNameCtrl.text.trim();
       _searchMiddleNameCtrl.text = _middleNameCtrl.text.trim();
-      final lgu = _possibleMatches.first.lgu;
-      if (lgu.trim().isNotEmpty) _searchLgu = lgu.trim().toUpperCase();
+      _searchLgu = 'All LGUs';
       _searchBarangay = 'All Barangays';
       _searchResults = _possibleMatches;
       _searchPerformed = true;
@@ -449,6 +453,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     _searchMiddleNameCtrl.dispose();
     _lastNameCtrl.dispose();
     _birthDateFocus.dispose();
+    _phicNoFocus.dispose();
+    HardwareKeyboard.instance.removeHandler(_onDialogKey);
     _lastNameFocus.dispose();
     _firstNameCtrl.dispose();
     _middleNameCtrl.dispose();
@@ -808,8 +814,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       _searchLastNameCtrl.text = dep.lastNameCtrl.text.trim();
       _searchFirstNameCtrl.text = dep.firstNameCtrl.text.trim();
       _searchMiddleNameCtrl.text = dep.middleNameCtrl.text.trim();
-      final lgu = dep.possibleMatches.first.lgu;
-      if (lgu.trim().isNotEmpty) _searchLgu = lgu.trim().toUpperCase();
+      _searchLgu = 'All LGUs';
       _searchBarangay = 'All Barangays';
       _searchResults = dep.possibleMatches;
       _searchPerformed = true;
@@ -1171,6 +1176,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       _searchLastNameCtrl.clear();
       _searchFirstNameCtrl.clear();
       _searchMiddleNameCtrl.clear();
+      _searchLgu = 'All LGUs';
+      _searchBarangay = 'All Barangays';
 
       _lastNameCtrl.clear();
       _firstNameCtrl.clear();
@@ -1324,35 +1331,13 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
               )
             else if (_currentStep == MemberFormStep.voterSearch)
               Flexible(
-                child: CallbackShortcuts(
-                  bindings: {
-                    const SingleActivator(LogicalKeyboardKey.keyN, control: true, shift: true): _skipToManualForm,
-                    const SingleActivator(LogicalKeyboardKey.keyN, meta: true, shift: true): _skipToManualForm,
-                  },
-                  child: _buildStep1VoterSearch(
-                      isDark, cardBg, borderCol, textCol, subtextCol, inputFill, primaryCol, onPrimaryCol),
-                ),
+                child: _buildStep1VoterSearch(
+                    isDark, cardBg, borderCol, textCol, subtextCol, inputFill, primaryCol, onPrimaryCol),
               )
             else
               Expanded(
-                child: CallbackShortcuts(
-                  bindings: {
-                    const SingleActivator(LogicalKeyboardKey.keyA, control: true, shift: true):
-                        _addDependentRowFromShortcut,
-                    const SingleActivator(LogicalKeyboardKey.keyA, meta: true, shift: true):
-                        _addDependentRowFromShortcut,
-                    const SingleActivator(LogicalKeyboardKey.keyS, control: true): _saveAndClose,
-                    const SingleActivator(LogicalKeyboardKey.keyS, meta: true): _saveAndClose,
-                    const SingleActivator(LogicalKeyboardKey.keyS, control: true, shift: true): _saveAndAddAnother,
-                    const SingleActivator(LogicalKeyboardKey.keyS, meta: true, shift: true): _saveAndAddAnother,
-                    const SingleActivator(LogicalKeyboardKey.keyM, control: true, shift: true):
-                        _reviewMatchesFromShortcut,
-                    const SingleActivator(LogicalKeyboardKey.keyM, meta: true, shift: true):
-                        _reviewMatchesFromShortcut,
-                  },
-                  child: _buildStep2MemberForm(
-                      isDark, cardBg, borderCol, textCol, subtextCol, inputFill, primaryCol, onPrimaryCol),
-                ),
+                child: _buildStep2MemberForm(
+                    isDark, cardBg, borderCol, textCol, subtextCol, inputFill, primaryCol, onPrimaryCol),
               ),
           ],
         ),
@@ -1360,6 +1345,34 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       ),
       ),
     );
+  }
+
+  /// Dialog keyboard shortcuts (Ctrl or Cmd). Registered on [HardwareKeyboard] rather than as
+  /// widget shortcuts so they work even when nothing in the form has focus, e.g. right after
+  /// ticking a checkbox or picking a voter.
+  bool _onDialogKey(KeyEvent event) {
+    if (event is! KeyDownEvent || !mounted || ModalRoute.of(context)?.isCurrent != true) return false;
+    final keys = HardwareKeyboard.instance;
+    if (!keys.isControlPressed && !keys.isMetaPressed) return false;
+    final shift = keys.isShiftPressed;
+    final key = event.logicalKey;
+    final VoidCallback? action = switch (_currentStep) {
+      MemberFormStep.voterSearch when shift && key == LogicalKeyboardKey.keyN => _skipToManualForm,
+      MemberFormStep.memberForm when shift && key == LogicalKeyboardKey.keyA => _addDependentRowFromShortcut,
+      MemberFormStep.memberForm when shift && key == LogicalKeyboardKey.keyS => _saveAndAddAnother,
+      MemberFormStep.memberForm when !shift && key == LogicalKeyboardKey.keyS => _saveAndClose,
+      MemberFormStep.memberForm when shift && key == LogicalKeyboardKey.keyM => _reviewMatchesFromShortcut,
+      _ => null,
+    };
+    action?.call();
+    return action != null;
+  }
+
+  /// Focuses a field that is only built on the next frame (e.g. the PHIC No. box after ticking PhilHealth).
+  void _focusNextFrame(FocusNode node) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && node.context != null) node.requestFocus();
+    });
   }
 
   bool get _closesSearchOnly => _currentStep == MemberFormStep.voterSearch && _searchFromForm;
@@ -2138,7 +2151,10 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                               _buildCheckbox(
                                                 label: 'PhilHealth Member',
                                                 value: _phicMember,
-                                                onChanged: (v) => setState(() => _phicMember = v ?? false),
+                                                onChanged: (v) {
+                                                  setState(() => _phicMember = v ?? false);
+                                                  if (_phicMember) _focusNextFrame(_phicNoFocus);
+                                                },
                                                 textCol: textCol,
                                                 primaryCol: primaryCol,
                                                 onPrimaryCol: onPrimaryCol,
@@ -2165,6 +2181,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                         Expanded(
                                           child: _buildTextField(
                                             controller: _phicNoCtrl,
+                                            focusNode: _phicNoFocus,
                                             label: 'PhilHealth (PHIC) No.',
                                             upperCase: false,
                                             hint: '00-000000000-0',
@@ -3262,7 +3279,10 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                 _buildCheckbox(
                   label: 'PhilHealth Member',
                   value: dep.phicMember,
-                  onChanged: (v) => setState(() => dep.phicMember = v ?? false),
+                  onChanged: (v) {
+                    setState(() => dep.phicMember = v ?? false);
+                    if (dep.phicMember) _focusNextFrame(dep.phicNoFocus);
+                  },
                   textCol: textCol,
                   primaryCol: primaryCol,
                   onPrimaryCol: onPrimaryCol,
@@ -3277,6 +3297,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                   Expanded(
                     child: _buildTextField(
                       controller: dep.phicNoCtrl,
+                      focusNode: dep.phicNoFocus,
                       label: 'PhilHealth (PHIC) No.',
                       upperCase: false,
                       hint: '00-000000000-0',

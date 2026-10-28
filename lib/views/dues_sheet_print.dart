@@ -23,7 +23,7 @@ const longBond = PdfPageFormat(8.5 * PdfPageFormat.inch, 13 * PdfPageFormat.inch
 const duesSheetFormats = {'Long (8.5 × 13 in)': longBond, 'A4': PdfPageFormat.a4};
 
 /// The app's fonts, bundled so the sheet prints offline: Inter for text, Manrope for the title.
-Future<({pw.ThemeData theme, pw.Font title})> _pdfFonts() async {
+Future<({pw.ThemeData theme, pw.Font title})> pdfFonts() async {
   Future<pw.Font> load(String name) async => pw.Font.ttf(await rootBundle.load('assets/fonts/$name.ttf'));
   final regular = await load('Inter-Regular');
   final bold = await load('Inter-Bold');
@@ -42,7 +42,7 @@ Future<Uint8List> buildDuesSheet({
   required List<DuesRate> rates,
   PdfPageFormat format = longBond,
 }) async {
-  final fonts = await _pdfFonts();
+  final fonts = await pdfFonts();
   final printedOn = formatPh(DateFormat('MMM d, yyyy h:mm a'), phNow());
   final members = households.fold<int>(0, (n, h) => n + h.members.length);
 
@@ -210,8 +210,8 @@ Future<Uint8List> buildDuesSheet({
   return doc.save();
 }
 
-/// Full-screen preview of a sheet from [buildDuesSheet], one whole page in view at a time like
-/// paper, with a choice of paper size, print, save and share.
+/// Full-screen preview of a sheet from [buildDuesSheet] (or another printout), one whole page in
+/// view at a time like paper, with a long bond / A4 switch in the app bar, print, save and share.
 class DuesSheetPreview extends StatefulWidget {
   final String title;
 
@@ -234,16 +234,34 @@ class _DuesSheetPreviewState extends State<DuesSheetPreview> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
+      appBar: AppBar(
+        title: Text(widget.title),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: SegmentedButton<PdfPageFormat>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(value: longBond, label: Text('Long bond')),
+                ButtonSegment(value: PdfPageFormat.a4, label: Text('A4')),
+              ],
+              selected: {_format},
+              onSelectionChanged: (s) => setState(() => _format = s.first),
+            ),
+          ),
+        ],
+      ),
       body: LayoutBuilder(builder: (context, constraints) {
         // Size each page to the height left over, so a whole page shows without scrolling.
         final pageHeight = constraints.maxHeight - _actionBarHeight - _pageMargin * 2;
         final pageWidth = pageHeight * _format.width / _format.height;
         return PdfPreview(
+          // Paper is picked in the app bar; a new key rebuilds the sheet on it.
+          key: ValueKey(_format),
           build: widget.build,
-          initialPageFormat: longBond,
+          initialPageFormat: _format,
           pageFormats: duesSheetFormats,
-          onPageFormatChanged: (f) => setState(() => _format = f),
+          canChangePageFormat: false,
           canChangeOrientation: false,
           canDebug: false,
           maxPageWidth: pageWidth.clamp(200.0, constraints.maxWidth).toDouble(),

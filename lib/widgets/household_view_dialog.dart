@@ -99,6 +99,7 @@ class _HouseholdViewDialogState extends ConsumerState<HouseholdViewDialog> {
   @override
   Widget build(BuildContext context) {
     final canDelete = ref.watch(canPermissionProvider(AppPermissions.deleteRecords));
+    final canEdit = ref.watch(canPermissionProvider(AppPermissions.manageMembers));
     final dlgBg = TropaColors.cardOf(context);
     final textCol = TropaColors.textHigh(context);
     final subtextCol = TropaColors.textMedium(context);
@@ -303,6 +304,7 @@ class _HouseholdViewDialogState extends ConsumerState<HouseholdViewDialog> {
                   if (compact) const SizedBox(height: 12),
 
                   // Direct Registration Buttons
+                  if (canEdit)
                   Wrap(
                     direction: compact ? Axis.horizontal : Axis.vertical,
                     spacing: 8,
@@ -375,6 +377,7 @@ class _HouseholdViewDialogState extends ConsumerState<HouseholdViewDialog> {
                                   'No family members registered yet',
                                   style: TropaText.sectionTitle(textCol),
                                 ),
+                                if (canEdit) ...[
                                 const SizedBox(height: 4),
                                 Text(
                                   'Click "Add Member" or "Bulk Add" above to register dependents with pre-filled household data.',
@@ -390,6 +393,7 @@ class _HouseholdViewDialogState extends ConsumerState<HouseholdViewDialog> {
                                   label: const Text('Add First TROPA Member'),
                                   onPressed: _openAddMemberDirect,
                                 ),
+                                ],
                               ],
                             ),
                           ),
@@ -488,7 +492,9 @@ class _HouseholdViewDialogState extends ConsumerState<HouseholdViewDialog> {
                                     ],
                                   ),
                                   trailing: narrow
-                                      ? PopupMenuButton<String>(
+                                      ? (!canEdit && !canDelete)
+                                          ? null
+                                          : PopupMenuButton<String>(
                                           icon: const Icon(Icons.more_vert, size: 18),
                                           tooltip: 'Member actions',
                                           onSelected: (v) => switch (v) {
@@ -497,8 +503,9 @@ class _HouseholdViewDialogState extends ConsumerState<HouseholdViewDialog> {
                                             _ => _confirmRemove(m),
                                           },
                                           itemBuilder: (_) => [
-                                            const PopupMenuItem(value: 'edit', child: Text('Edit Dependent')),
-                                            const PopupMenuItem(value: 'transfer', child: Text('Transfer to Household')),
+                                            if (canEdit) const PopupMenuItem(value: 'edit', child: Text('Edit Dependent')),
+                                            if (canEdit)
+                                              const PopupMenuItem(value: 'transfer', child: Text('Transfer to Household')),
                                             if (canDelete)
                                               const PopupMenuItem(
                                                   value: 'delete',
@@ -510,16 +517,18 @@ class _HouseholdViewDialogState extends ConsumerState<HouseholdViewDialog> {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       ...badges,
-                                      IconButton(
-                                        icon: const Icon(Icons.edit_outlined, size: 16),
-                                        tooltip: 'Edit Dependent',
-                                        onPressed: () => _openEditMember(m),
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.swap_horiz, size: 16),
-                                        tooltip: 'Transfer to Household',
-                                        onPressed: () => _openTransferMember(m),
-                                      ),
+                                      if (canEdit)
+                                        IconButton(
+                                          icon: const Icon(Icons.edit_outlined, size: 16),
+                                          tooltip: 'Edit Dependent',
+                                          onPressed: () => _openEditMember(m),
+                                        ),
+                                      if (canEdit)
+                                        IconButton(
+                                          icon: const Icon(Icons.swap_horiz, size: 16),
+                                          tooltip: 'Transfer to Household',
+                                          onPressed: () => _openTransferMember(m),
+                                        ),
                                       if (canDelete)
                                         IconButton(
                                           icon: const Icon(Icons.delete_outline, size: 16, color: TropaColors.error),
