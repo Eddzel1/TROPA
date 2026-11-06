@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/design_system.dart';
+import '../../core/motion.dart';
 import '../../models/models.dart';
 import '../../providers/admin_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -31,7 +32,7 @@ class _UsersTabState extends ConsumerState<UsersTab> {
       me != null && (me.id == u.id || me.email.toLowerCase() == u.email.toLowerCase());
 
   Future<void> _openForm({AppUser? user, bool isSelf = false}) async {
-    final saved = await showDialog<bool>(
+    final saved = await showTropaDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => UserFormDialog(user: user, isSelf: isSelf),

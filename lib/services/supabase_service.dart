@@ -214,6 +214,7 @@ class SupabaseService {
     String? query,
     String? lgu,
     String? barangay,
+    String? purok,
     bool archived = false,
     int page = 0,
     int pageSize = 50,
@@ -228,6 +229,10 @@ class SupabaseService {
       if (barangay != null && barangay.isNotEmpty && barangay != 'All') {
         where.add('UPPER(TRIM(barangay)) = ?');
         params.add(barangay.trim().toUpperCase());
+      }
+      if (purok != null && purok.isNotEmpty && purok != 'All') {
+        where.add('UPPER(TRIM(purok)) = ?');
+        params.add(purok.trim().toUpperCase());
       }
       if (query != null && query.trim().isNotEmpty) {
         where.add(r"household_name LIKE ? ESCAPE '\'");
@@ -362,6 +367,7 @@ class SupabaseService {
     String? middleName,
     String? lgu,
     String? barangay,
+    String? purok,
     String? sector,
     String? listingStatus,
     bool? isCoopMember,
@@ -376,6 +382,7 @@ class SupabaseService {
       middleName: middleName,
       lgu: lgu,
       barangay: barangay,
+      purok: purok,
       sector: sector,
       listingStatus: listingStatus,
       isCoopMember: isCoopMember,
@@ -394,6 +401,7 @@ class SupabaseService {
     String? middleName,
     String? lgu,
     String? barangay,
+    String? purok,
     String? sector,
     String? listingStatus,
     bool? isCoopMember,
@@ -420,6 +428,7 @@ class SupabaseService {
       if (has(householdId)) eq('household_id', householdId);
       if (has(lgu)) eq('lgu', lgu);
       if (has(barangay)) eq('barangay', barangay);
+      if (has(purok)) eq('UPPER(TRIM(purok))', purok!.trim().toUpperCase());
       if (has(sector)) {
         // sector holds a comma list ("Student, PWD"); match the whole entry anywhere in it
         where.add("(', ' || sector || ',') LIKE ? ESCAPE '\\'");
@@ -494,6 +503,32 @@ class SupabaseService {
     });
   }
 
+  /// A non-archived member of [householdId] with the same last and first name (and birth date,
+  /// when both have one), used to stop the same person being added to a household twice.
+  Future<FamilyMember?> findMemberInHousehold({
+    required String householdId,
+    required String lastname,
+    required String firstname,
+    DateTime? birthDate,
+  }) async {
+    final row = await db.getOptional(
+      'SELECT * FROM family_members WHERE household_id = ? AND COALESCE(is_archived, 0) = 0 '
+      'AND UPPER(TRIM(lastname)) = ? AND UPPER(TRIM(firstname)) = ? '
+      'AND (? IS NULL OR birth_date IS NULL OR substr(birth_date, 1, 10) = ?) LIMIT 1',
+      [
+        householdId,
+        lastname.trim().toUpperCase(),
+        firstname.trim().toUpperCase(),
+        birthDate == null ? null : _dateOnly(birthDate),
+        birthDate == null ? null : _dateOnly(birthDate),
+      ],
+    );
+    return row == null ? null : FamilyMember.fromJson(Map<String, dynamic>.from(row));
+  }
+
+  static String _dateOnly(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
   Future<FamilyMember> createMember(FamilyMember member) async {
     await db.writeTransaction((tx) async {
       await _insert(tx, 'family_members',
@@ -549,6 +584,11 @@ class SupabaseService {
       );
     });
     return FamilyMember.fromJson((await _getRow('family_members', member.id))!);
+  }
+
+  /// Points [memberId]'s dues payments at [householdId], after the member moves there.
+  Future<void> moveMemberDues(String memberId, String householdId) async {
+    await db.execute('UPDATE dues_payments SET household_id = ? WHERE member_id = ?', [householdId, memberId]);
   }
 
   Future<int> countHouseholdMembers(String householdId) async {

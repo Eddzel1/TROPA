@@ -8,6 +8,7 @@ class HouseholdFilter {
   final String query;
   final String lgu;
   final String barangay;
+  final String purok;
 
   /// Show archived households instead of active ones.
   final bool archived;
@@ -17,6 +18,7 @@ class HouseholdFilter {
     this.query = '',
     this.lgu = 'All',
     this.barangay = 'All',
+    this.purok = 'All',
     this.archived = false,
     this.page = 0,
   });
@@ -25,6 +27,7 @@ class HouseholdFilter {
     String? query,
     String? lgu,
     String? barangay,
+    String? purok,
     bool? archived,
     int? page,
   }) {
@@ -32,6 +35,7 @@ class HouseholdFilter {
       query: query ?? this.query,
       lgu: lgu ?? this.lgu,
       barangay: barangay ?? this.barangay,
+      purok: purok ?? this.purok,
       archived: archived ?? this.archived,
       page: page ?? this.page,
     );
@@ -49,6 +53,7 @@ final householdsAsyncProvider = FutureProvider<List<Household>>((ref) async {
     query: filter.query,
     lgu: filter.lgu == 'All' ? null : filter.lgu,
     barangay: filter.barangay == 'All' ? null : filter.barangay,
+    purok: filter.purok == 'All' ? null : filter.purok,
     page: filter.page,
     pageSize: 50,
   );
@@ -99,6 +104,7 @@ class HouseholdListNotifier extends StateNotifier<AsyncValue<List<Household>>> {
         query: filter.query,
         lgu: filter.lgu == 'All' ? null : filter.lgu,
         barangay: filter.barangay == 'All' ? null : filter.barangay,
+        purok: filter.purok == 'All' ? null : filter.purok,
         archived: filter.archived,
         page: filter.page,
       );

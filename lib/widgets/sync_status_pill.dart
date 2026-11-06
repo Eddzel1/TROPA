@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../core/design_system.dart';
+import '../core/motion.dart';
 import '../data/db.dart';
 import '../services/fallback_sync.dart';
 import '../core/ph_time.dart';
@@ -65,32 +66,38 @@ class SyncStatusPill extends ConsumerWidget {
       SyncState.localOnly => (TropaColors.offline, 'Local only', 'Sync is not configured (POWERSYNC_URL is empty).'),
     };
 
+    // Pulses once when the queue empties and the device is up to date.
+    final upToDate = state == SyncState.synced && pending == 0 && !uploadFailing;
+
     return Tooltip(
       message: compact ? '$label\n$tooltip\nTap to view the sync queue.' : '$tooltip\nClick to view the sync queue.',
-      child: Material(
-        color: TropaColors.chipOf(context),
-        borderRadius: BorderRadius.circular(20),
-        child: InkWell(
+      child: TropaSuccessPulse(
+        done: upToDate,
+        child: Material(
+          color: TropaColors.chipOf(context),
           borderRadius: BorderRadius.circular(20),
-          onTap: () => showDialog<void>(context: context, builder: (_) => const SyncQueueDialog()),
-          child: Padding(
-            padding: compact ? const EdgeInsets.all(10) : const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: compact ? 8 : 6,
-                  height: compact ? 8 : 6,
-                  decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-                ),
-                if (!compact) ...[
-                  const SizedBox(width: 6),
-                  Text(
-                    label,
-                    style: TropaText.badge(TropaColors.textMedium(context)),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(20),
+            onTap: () => showTropaDialog<void>(context: context, builder: (_) => const SyncQueueDialog()),
+            child: Padding(
+              padding: compact ? const EdgeInsets.all(10) : const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: compact ? 8 : 6,
+                    height: compact ? 8 : 6,
+                    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
                   ),
+                  if (!compact) ...[
+                    const SizedBox(width: 6),
+                    Text(
+                      label,
+                      style: TropaText.badge(TropaColors.textMedium(context)),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),

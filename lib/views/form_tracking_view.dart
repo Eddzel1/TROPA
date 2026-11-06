@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../core/design_system.dart';
+import '../core/motion.dart';
 import '../widgets/form_fields.dart';
 import '../core/geo.dart';
 import '../models/models.dart';
@@ -47,7 +48,7 @@ class FormTrackingView extends ConsumerStatefulWidget {
 
 class _FormTrackingViewState extends ConsumerState<FormTrackingView> {
   void _openBatchDialog({FormTracking? existing, String? initialStatus}) {
-    showDialog(context: context, builder: (_) => FormTrackingDialog(existing: existing, initialStatus: initialStatus));
+    showTropaDialog(context: context, builder: (_) => FormTrackingDialog(existing: existing, initialStatus: initialStatus));
   }
 
   /// Moves a card to another stage. Returned needs the returned-by details, so it goes through the dialog.
@@ -103,7 +104,7 @@ class _FormTrackingViewState extends ConsumerState<FormTrackingView> {
   }
 
   Future<void> _confirmDelete(FormTracking b) async {
-    final ok = await showDialog<bool>(
+    final ok = await showTropaDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete submission?'),

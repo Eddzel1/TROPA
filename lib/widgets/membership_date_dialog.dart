@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/design_system.dart';
+import '../core/motion.dart';
 import '../core/dues_math.dart';
 import '../models/models.dart';
 import '../providers/auth_provider.dart';
@@ -17,7 +18,7 @@ Future<DateTime?> showMembershipDateDialog(
   required List<DuesMember> members,
   required List<DuesRate> rates,
 }) {
-  return showDialog<DateTime>(
+  return showTropaDialog<DateTime>(
     context: context,
     builder: (_) => _MembershipDateDialog(members: members, rates: rates),
   );
@@ -133,7 +134,7 @@ class _MembershipDateDialogState extends State<_MembershipDateDialog> {
 /// there adopt it; the dialog also offers to apply it to the members already there. Returns a
 /// message to show when something was saved, or null when cancelled.
 Future<String?> showBarangayStartMonthDialog(BuildContext context, {required Location location}) {
-  return showDialog<String>(context: context, builder: (_) => _BarangayStartMonthDialog(location: location));
+  return showTropaDialog<String>(context: context, builder: (_) => _BarangayStartMonthDialog(location: location));
 }
 
 class _BarangayStartMonthDialog extends ConsumerStatefulWidget {

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/design_system.dart';
+import '../core/motion.dart';
 import '../models/models.dart';
 import '../tropa_id/tropa_id.dart';
 import '../widgets/form_fields.dart';
@@ -202,7 +203,7 @@ class _PublicSearchViewState extends State<PublicSearchView> {
         .then((rows) => (rows as List).map((r) => Map<String, dynamic>.from(r as Map)).toList());
     final title = leader.household?.trim().isNotEmpty ?? false ? leader.household!.trim() : leader.name;
 
-    showDialog(
+    showTropaDialog(
       context: context,
       builder: (ctx) {
         final textCol = TropaColors.textHigh(ctx);

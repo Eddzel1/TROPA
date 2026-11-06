@@ -15,6 +15,7 @@ class StartupScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'TROPA - Tabang Respeto Og Panalipud',
       debugShowCheckedModeBanner: false,
       theme: TropaTheme.tropaTheme,
       home: Scaffold(

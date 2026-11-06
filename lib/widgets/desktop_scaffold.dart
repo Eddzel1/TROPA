@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/design_system.dart';
+import '../core/motion.dart';
 import '../models/models.dart';
 import '../providers/auth_provider.dart';
 import 'sync_status_pill.dart';
@@ -72,9 +73,8 @@ class DesktopScaffold extends ConsumerWidget {
           // 1. Sidebar Navigation (rail on tablets, hidden in the drawer on phones)
           // ----------------------------------------
           if (!compact)
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeOutCubic,
+            // Not animated: changing the width re-lays out the whole page on every frame.
+            Container(
               width: rail ? 76 : 270,
               decoration: BoxDecoration(
                 color: brand?.sidebarBg ?? TropaColors.cardOf(context),
@@ -87,13 +87,9 @@ class DesktopScaffold extends ConsumerWidget {
                         ),
                       ),
               ),
-              // The full layout needs the whole 270px, so the rail is shown while the width animates.
               child: SafeArea(
                 right: false,
-                child: LayoutBuilder(
-                  builder: (context, constraints) =>
-                      _Sidebar(currentPath: currentPath, rail: rail || constraints.maxWidth < 270),
-                ),
+                child: _Sidebar(currentPath: currentPath, rail: rail, collapsible: expanded),
               ),
             ),
 
@@ -129,14 +125,6 @@ class DesktopScaffold extends ConsumerWidget {
                                 onPressed: () => Scaffold.of(context).openDrawer(),
                               ),
                             ),
-                          if (expanded) ...[
-                            IconButton(
-                              icon: Icon(collapsed ? Icons.menu : Icons.menu_open, color: TropaColors.textMedium(context)),
-                              tooltip: collapsed ? 'Expand sidebar' : 'Collapse sidebar',
-                              onPressed: () => ref.read(sidebarCollapsedProvider.notifier).toggle(),
-                            ),
-                            const SizedBox(width: 8),
-                          ],
 
                           // Breadcrumb (just the page title on phones)
                           Expanded(
@@ -215,13 +203,15 @@ class DesktopScaffold extends ConsumerWidget {
 }
 
 /// Logo, nav links and the signed-in user card. [rail] shrinks it to icons only (tablets);
-/// [inDrawer] closes the phone drawer after a link is tapped.
+/// [inDrawer] closes the phone drawer after a link is tapped; [collapsible] adds the bottom-left
+/// button that switches between the full sidebar and the rail (desktop).
 class _Sidebar extends ConsumerWidget {
   final String currentPath;
   final bool rail;
   final bool inDrawer;
+  final bool collapsible;
 
-  const _Sidebar({required this.currentPath, this.rail = false, this.inDrawer = false});
+  const _Sidebar({required this.currentPath, this.rail = false, this.inDrawer = false, this.collapsible = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -254,6 +244,7 @@ class _Sidebar extends ConsumerWidget {
       style: TextStyle(color: brand?.sidebarActiveFg ?? TropaColors.onPrimaryOf(context), fontWeight: FontWeight.bold),
     );
     final logoutIcon = Icon(Icons.logout, size: 18, color: brand?.sidebarFgMuted ?? TropaColors.textMedium(context));
+    void toggleCollapsed() => ref.read(sidebarCollapsedProvider.notifier).toggle();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -371,10 +362,19 @@ class _Sidebar extends ConsumerWidget {
           ),
         ),
 
+        // Collapse toggle, styled like a nav link and set apart from the links by a divider
+        if (collapsible) ...[
+          Divider(height: 17, indent: 24, endIndent: 24, color: sidebarMuted.withValues(alpha: 0.3)),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: _collapseToggle(context, brand: brand, onTap: toggleCollapsed),
+          ),
+        ],
+
         // Bottom User & Logout Card
         if (rail)
           Padding(
-            padding: const EdgeInsets.only(bottom: 16),
+            padding: EdgeInsets.only(top: collapsible ? 8 : 0, bottom: 16),
             child: Center(
               child: Column(
                 children: [
@@ -394,7 +394,7 @@ class _Sidebar extends ConsumerWidget {
           )
         else
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.fromLTRB(16, collapsible ? 8 : 16, 16, 16),
             child: Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
@@ -441,6 +441,37 @@ class _Sidebar extends ConsumerWidget {
     );
   }
 
+  Widget _collapseToggle(BuildContext context, {required TropaBrand? brand, required VoidCallback onTap}) {
+    final color = brand?.sidebarFgMuted ?? TropaColors.textMedium(context);
+    final icon = Icon(rail ? Icons.keyboard_double_arrow_right : Icons.keyboard_double_arrow_left, size: 20, color: color);
+
+    final button = TropaPressable(
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          hoverColor: (brand?.sidebarFg ?? TropaColors.textHigh(context)).withValues(alpha: 0.08),
+          onTap: onTap,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: rail ? 0 : 14, vertical: rail ? 12 : 10),
+            child: rail
+                ? Center(child: icon)
+                : Row(
+                    children: [
+                      icon,
+                      const SizedBox(width: 12),
+                      Text('Collapse', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500, color: color)),
+                    ],
+                  ),
+          ),
+        ),
+      ),
+    );
+
+    return rail ? Tooltip(message: 'Expand sidebar', preferBelow: false, child: button) : button;
+  }
+
   Widget _navItem(
     BuildContext context, {
     required IconData icon,
@@ -460,43 +491,45 @@ class _Sidebar extends ConsumerWidget {
 
     final item = Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
-        child: InkWell(
+      child: TropaPressable(
+        child: Material(
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(10),
-          onTap: () {
-            if (inDrawer) Navigator.of(context).pop();
-            context.go(path);
-          },
-          child: Container(
-            padding: EdgeInsets.symmetric(horizontal: rail ? 0 : 14, vertical: rail ? 12 : 10),
-            decoration: BoxDecoration(
-              color: isActive ? (brand?.sidebarActiveBg ?? TropaColors.primaryOf(context)) : Colors.transparent,
-              borderRadius: BorderRadius.circular(10),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: () {
+              if (inDrawer) Navigator.of(context).pop();
+              context.go(path);
+            },
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: rail ? 0 : 14, vertical: rail ? 12 : 10),
+              decoration: BoxDecoration(
+                color: isActive ? (brand?.sidebarActiveBg ?? TropaColors.primaryOf(context)) : Colors.transparent,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: rail
+                  ? Center(child: iconWidget)
+                  : Row(
+                      children: [
+                        iconWidget,
+                        const SizedBox(width: 12),
+                        Flexible(
+                          child: Text(
+                          title,
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                            color: isActive
+                                ? (brand?.sidebarActiveFg ?? TropaColors.onPrimaryOf(context))
+                                : (brand?.sidebarFg ?? TropaColors.textHigh(context)),
+                          ),
+                          ),
+                        ),
+                      ],
+                    ),
             ),
-            child: rail
-                ? Center(child: iconWidget)
-                : Row(
-                    children: [
-                      iconWidget,
-                      const SizedBox(width: 12),
-                      Flexible(
-                        child: Text(
-                        title,
-                        overflow: TextOverflow.ellipsis,
-                        maxLines: 1,
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                          color: isActive
-                              ? (brand?.sidebarActiveFg ?? TropaColors.onPrimaryOf(context))
-                              : (brand?.sidebarFg ?? TropaColors.textHigh(context)),
-                        ),
-                        ),
-                      ),
-                    ],
-                  ),
           ),
         ),
       ),

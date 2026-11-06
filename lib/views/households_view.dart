@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:uuid/uuid.dart';
 import '../core/design_system.dart';
+import '../core/motion.dart';
 import '../widgets/form_fields.dart';
 import '../core/geo.dart';
 import '../models/models.dart';
@@ -73,7 +74,7 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
         }.toList()
           ..sort();
 
-    showDialog(
+    showTropaDialog(
       context: context,
       builder: (dialogCtx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
@@ -461,6 +462,8 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
         if (l.barangay.isNotEmpty && (filter.lgu == 'All' || l.lgu == filter.lgu)) l.barangay
     }).toList()
       ..sort();
+    final puroks = ref.watch(purokNamesProvider((lgu: filter.lgu, barangay: filter.barangay))).valueOrNull ??
+        const <String>[];
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -501,13 +504,20 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
   allLabel: 'All LGUs',
   options: lgus,
   // Barangay list depends on the LGU, so reset it when the LGU changes
-  onChanged: (v) => _applyFilter((f) => f.copyWith(lgu: v, barangay: 'All')),
+  onChanged: (v) => _applyFilter((f) => f.copyWith(lgu: v, barangay: 'All', purok: 'All')),
 );
         final barangayFilter = _filterDropdown(
   value: filter.barangay,
   allLabel: 'All Barangays',
   options: barangays,
-  onChanged: (v) => _applyFilter((f) => f.copyWith(barangay: v)),
+  // Purok list depends on the barangay
+  onChanged: (v) => _applyFilter((f) => f.copyWith(barangay: v, purok: 'All')),
+);
+        final purokFilter = _filterDropdown(
+  value: filter.purok,
+  allLabel: 'All Puroks',
+  options: puroks,
+  onChanged: (v) => _applyFilter((f) => f.copyWith(purok: v)),
 );
         final archivedChip = FilterChip(
   avatar: Icon(Icons.archive_outlined, size: 16, color: filter.archived ? primaryCol : subtextCol),
@@ -557,6 +567,8 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
                   Expanded(flex: 2, child: lguFilter),
                   const SizedBox(width: 14),
                   Expanded(flex: 2, child: barangayFilter),
+                  const SizedBox(width: 14),
+                  Expanded(flex: 2, child: purokFilter),
                   if (canDelete) ...[
                     const SizedBox(width: 12),
                     archivedChip,
@@ -579,6 +591,8 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
                   Expanded(child: lguFilter),
                   const SizedBox(width: 10),
                   Expanded(child: barangayFilter),
+                  const SizedBox(width: 10),
+                  Expanded(child: purokFilter),
                   if (canDelete && !compact) ...[
                     const SizedBox(width: 10),
                     archivedChip,
@@ -642,7 +656,7 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
                             color: Colors.transparent,
                             child: ListTile(
                               onTap: () {
-                                showDialog(
+                                showTropaDialog(
                                   context: context,
                                   builder: (_) => HouseholdViewDialog(household: h),
                                 );
@@ -688,7 +702,7 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
                                       icon: Icon(Icons.more_vert, size: 18, color: TropaColors.textMedium(context)),
                                       tooltip: 'Household actions',
                                       onSelected: (v) => switch (v) {
-                                        'roster' => showDialog(
+                                        'roster' => showTropaDialog(
                                             context: context,
                                             builder: (_) => HouseholdViewDialog(household: h),
                                           ),
@@ -723,7 +737,7 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
                                     icon: Icon(Icons.people_outline, size: 19, color: primaryCol),
                                     tooltip: rosterLabel,
                                     onPressed: () {
-                                      showDialog(
+                                      showTropaDialog(
                                         context: context,
                                         builder: (_) => HouseholdViewDialog(household: h),
                                       );
@@ -771,7 +785,7 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
     final textCol = TropaColors.textHigh(context);
     final subtextCol = TropaColors.textMedium(context);
     final archive = !h.isArchived;
-    final confirm = await showDialog<bool>(
+    final confirm = await showTropaDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
         backgroundColor: cardBg,
@@ -809,7 +823,7 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
     final cardBg = TropaColors.cardOf(context);
     final textCol = TropaColors.textHigh(context);
     final subtextCol = TropaColors.textMedium(context);
-    final confirm = await showDialog<bool>(
+    final confirm = await showTropaDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
         backgroundColor: cardBg,

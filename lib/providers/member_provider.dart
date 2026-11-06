@@ -11,6 +11,7 @@ class MemberFilter {
   final String middleName;
   final String lgu;
   final String barangay;
+  final String purok;
   final String sector;
   final String listingStatus;
   final bool? isCooperativeMember;
@@ -27,6 +28,7 @@ class MemberFilter {
     this.middleName = '',
     this.lgu = 'All',
     this.barangay = 'All',
+    this.purok = 'All',
     this.sector = 'All',
     this.listingStatus = 'All',
     this.isCooperativeMember,
@@ -43,6 +45,7 @@ class MemberFilter {
     String? middleName,
     String? lgu,
     String? barangay,
+    String? purok,
     String? sector,
     String? listingStatus,
     bool? isCooperativeMember,
@@ -58,6 +61,7 @@ class MemberFilter {
       middleName: middleName ?? this.middleName,
       lgu: lgu ?? this.lgu,
       barangay: barangay ?? this.barangay,
+      purok: purok ?? this.purok,
       sector: sector ?? this.sector,
       listingStatus: listingStatus ?? this.listingStatus,
       isCooperativeMember: isCooperativeMember ?? this.isCooperativeMember,
@@ -84,6 +88,7 @@ final membersAsyncProvider = FutureProvider<List<FamilyMember>>((ref) async {
   return service.getMembers(
     query: filter.query,
     barangay: filter.barangay == 'All' ? null : filter.barangay,
+    purok: filter.purok == 'All' ? null : filter.purok,
     sector: filter.sector == 'All' ? null : filter.sector,
     isCoopMember: filter.isCooperativeMember,
     householdId: filter.householdId,
@@ -129,6 +134,7 @@ class MemberListNotifier extends StateNotifier<AsyncValue<List<FamilyMember>>> {
           middleName: filter.middleName,
           lgu: filter.lgu,
           barangay: filter.barangay,
+          purok: filter.purok,
           sector: filter.sector,
           listingStatus: filter.listingStatus,
           isCoopMember: filter.isCooperativeMember,

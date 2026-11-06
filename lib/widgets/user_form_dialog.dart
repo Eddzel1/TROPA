@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/design_system.dart';
+import '../core/motion.dart';
 import '../core/geo.dart';
 import '../models/models.dart';
 import '../providers/auth_provider.dart';
@@ -51,7 +52,7 @@ class _UserFormDialogState extends ConsumerState<UserFormDialog> {
   }
 
   Future<void> _pickDuesBarangays() async {
-    final picked = await showDialog<Set<String>>(
+    final picked = await showTropaDialog<Set<String>>(
       context: context,
       builder: (_) => _BarangayPickerDialog(locations: _locations, selected: _duesBarangays),
     );

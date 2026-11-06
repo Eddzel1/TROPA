@@ -80,7 +80,7 @@ class TropaApp extends ConsumerWidget {
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
-      title: 'TROPA v2 - Tabang Respeto Og Panalipud',
+      title: 'TROPA - Tabang Respeto Og Panalipud',
       debugShowCheckedModeBanner: false,
       theme: TropaTheme.of(themeId),
       routerConfig: router,

@@ -442,7 +442,17 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   /// Location can't be changed in the intake form: it follows the household or the encoding set.
   bool get _locationLocked => _joiningHousehold || _locationSet;
 
-  bool get _createsNewHousehold => _isHouseholdLeader && widget.existing == null && widget.presetHousehold == null;
+  /// A member newly ticked as leader (a new member, or an existing one who wasn't leader) gets a
+  /// household of their own, instead of becoming a second leader of the one they're in.
+  bool get _createsNewHousehold =>
+      _isHouseholdLeader && widget.presetHousehold == null && !(widget.existing?.isHouseholdLeader ?? false);
+
+  /// The household a member who doesn't create one is saved into, or null when there is none.
+  String? get _existingHouseholdId => [
+        _selectedHousehold?.id,
+        widget.existing?.householdId,
+        widget.presetHousehold?.id,
+      ].firstWhere((id) => id != null && id.isNotEmpty, orElse: () => null);
 
   @override
   void dispose() {
@@ -953,7 +963,21 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     );
   }
 
+  /// Set synchronously on entry, unlike [_isSaving] (set only after the checks below await), so a
+  /// double click or Enter + click can't start a second save that inserts the member twice.
+  bool _saveInFlight = false;
+
   Future<bool> _saveMemberRecord() async {
+    if (_saveInFlight) return false;
+    _saveInFlight = true;
+    try {
+      return await _saveMemberRecordOnce();
+    } finally {
+      _saveInFlight = false;
+    }
+  }
+
+  Future<bool> _saveMemberRecordOnce() async {
     // Leave any half-typed field so its "still typing" leniency ends and it's checked;
     // the focus change applies asynchronously (it also expands 2-digit years), so wait for it
     FocusScope.of(context).unfocus();
@@ -979,6 +1003,25 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
         ));
         return false;
       }
+      // A household member card repeating the leader (or an earlier card) would save the person twice
+      String key(String last, String first, DateTime? birth) =>
+          '${last.trim().toUpperCase()}|${first.trim().toUpperCase()}|'
+          '${birth == null ? '' : '${birth.year}-${birth.month}-${birth.day}'}';
+      final seen = {key(_lastNameCtrl.text, _firstNameCtrl.text, _birthDate)};
+      for (var i = 0; i < _dependentMembers.length; i++) {
+        final d = _dependentMembers[i];
+        if (d.firstNameCtrl.text.trim().isEmpty || d.lastNameCtrl.text.trim().isEmpty) continue;
+        if (!seen.add(key(d.lastNameCtrl.text, d.firstNameCtrl.text, d.birthDate))) {
+          setState(() => d.expanded = true);
+          _revealDependent(d);
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Household member #${i + 1} (${d.firstNameCtrl.text.trim()} ${d.lastNameCtrl.text.trim()}) '
+                'is entered twice. Remove the extra card.'),
+            backgroundColor: TropaColors.error,
+          ));
+          return false;
+        }
+      }
     }
     // The purok must come from the barangay's purok list (checked here too in case the list was still loading)
     final locationId = _locationId;
@@ -998,6 +1041,31 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     if (_formKey.currentState?.validate() != true) {
       setState(() {}); // refresh field decorations (e.g. red calendar icon) after the check
       return false;
+    }
+    if (!_createsNewHousehold && _existingHouseholdId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('This member has no household. Tick "Household Leader" to create one, '
+            'or add them from their household with "Add TROPA Member".'),
+      ));
+      return false;
+    }
+
+    // Same person already in this household (e.g. saved earlier from another device): don't add again
+    if (widget.existing == null && !_createsNewHousehold && _existingHouseholdId != null) {
+      final twin = await ref.read(supabaseServiceProvider).findMemberInHousehold(
+            householdId: _existingHouseholdId!,
+            lastname: _lastNameCtrl.text,
+            firstname: _firstNameCtrl.text,
+            birthDate: _birthDate,
+          );
+      if (!mounted) return false;
+      if (twin != null) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('${twin.fullName} is already a member of this household.'),
+          backgroundColor: TropaColors.error,
+        ));
+        return false;
+      }
     }
 
     setState(() => _isSaving = true);
@@ -1038,11 +1106,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
         ));
       }
 
-      final targetHouseholdId = newHousehold?.id ??
-          _selectedHousehold?.id ??
-          widget.existing?.householdId ??
-          widget.presetHousehold?.id ??
-          '4d46e4ff-77ff-4714-9eb2-d70bc25cc31c';
+      final targetHouseholdId = newHousehold?.id ?? _existingHouseholdId!;
 
       final age = _birthDate != null ? _ageOn(_birthDate!) : (widget.existing?.age ?? 30);
 
@@ -1085,6 +1149,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
         final ok = await ref.read(memberListNotifierProvider.notifier).updateMember(primaryMember);
         if (!ok) throw Exception('the changes could not be saved');
         _savedMember = primaryMember;
+        // Now leading a household of their own: their dues receipts follow them, as on a transfer
+        if (newHousehold != null) await service.moveMemberDues(memberId, newHousehold.id);
       }
 
       // Save additional dependent rows if entered (only when this member leads the household)
@@ -2271,9 +2337,11 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                           child: Text(
                             _joiningHousehold
                                 ? 'Adding to ${widget.presetHousehold!.householdName}; this member joins as a household member.'
-                                : _isHouseholdLeader
+                                : _createsNewHousehold
                                     ? 'A new household is created for this member, and you can add the rest of the household below.'
-                                    : 'Tick if this member heads their household.',
+                                    : _isHouseholdLeader
+                                        ? 'This member leads their household.'
+                                        : 'Tick if this member heads their household.',
                             style: GoogleFonts.inter(fontSize: 11.5, color: subtextCol),
                           ),
                         ),
@@ -2540,6 +2608,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     final String name;
     if (widget.presetHousehold != null) {
       name = widget.presetHousehold!.householdName;
+    } else if (_createsNewHousehold) {
+      name = _generatedHouseholdName;
     } else if (widget.existing != null) {
       name = _selectedHousehold?.householdName ?? '';
     } else {

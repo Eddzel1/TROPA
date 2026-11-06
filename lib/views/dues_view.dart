@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../core/design_system.dart';
+import '../core/motion.dart';
 import '../core/dues_math.dart';
 import '../core/geo.dart';
 import '../core/ph_time.dart';
@@ -46,7 +47,7 @@ class DuesCollectionView extends ConsumerWidget {
         final narrow = TropaBreakpoints.isCompact(constraints.maxWidth);
         final short = constraints.maxHeight < _shortHeight;
         final scope = scopeAsync.value;
-        void openPrint() => showDialog<void>(context: context, builder: (_) => _PrintSheetDialog(scope: scope!));
+        void openPrint() => showTropaDialog<void>(context: context, builder: (_) => _PrintSheetDialog(scope: scope!));
         final canPrint = scope != null && !scope.isEmpty;
         return KeyboardSafeBody(
         minHeight: 360,
@@ -189,7 +190,7 @@ class _CollectTabState extends ConsumerState<_CollectTab> {
   void _open(DuesSelection sel, {required bool wide}) {
     ref.read(duesSelectionProvider.notifier).state = sel;
     if (wide) return;
-    showDialog(
+    showTropaDialog(
       context: context,
       builder: (c) => Dialog(
         insetPadding: const EdgeInsets.all(16),
@@ -469,7 +470,7 @@ class _PaymentPanelState extends ConsumerState<_PaymentPanel> {
       lines.add((name: m.fullName, months: '$n mo · ${monthRangeLabel(b.nextUnpaidMonth, n)}', amount: amount));
     }
     final reference = _reference.text.trim();
-    final ok = await showDialog<bool>(
+    final ok = await showTropaDialog<bool>(
       context: context,
       builder: (c) {
         final textCol = TropaColors.textHigh(c);
@@ -553,7 +554,7 @@ class _PaymentPanelState extends ConsumerState<_PaymentPanel> {
       _reference.clear();
       _notes.clear();
       setState(() => _saving = false);
-      await showDialog(context: context, builder: (_) => _ReceiptDialog(receipt: receipt));
+      await showTropaDialog(context: context, builder: (_) => _ReceiptDialog(receipt: receipt));
     } catch (e) {
       if (!mounted) return;
       setState(() => _saving = false);

@@ -130,48 +130,57 @@ Future<Uint8List> buildDuesSheet({
     );
   }
 
+  // Most rows a household block may hold and still fit on one page: the page less its margins,
+  // the repeated header and footer (~150 pt) and the block's headings (~30 pt), over the tallest
+  // a row gets (a wrapped name plus a note, ~41 pt).
+  final maxRows = ((format.portrait.height - 56 - 180) / 41).floor();
+
+  pw.Widget householdHeading(String text) => pw.Container(
+        padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        decoration: const pw.BoxDecoration(
+          color: PdfColors.grey100,
+          border: pw.Border(
+            left: pw.BorderSide(color: PdfColors.grey600, width: 0.5),
+            right: pw.BorderSide(color: PdfColors.grey600, width: 0.5),
+          ),
+        ),
+        child: pw.Text(text, style: bold),
+      );
+
   final blocks = <pw.Widget>[];
   var n = 0;
   String? lastPurok;
   for (final h in households) {
     final purokHeading = purok == null && h.purok.trim().toUpperCase() != lastPurok;
     lastPurok = h.purok.trim().toUpperCase();
-    // One block per household, never split across pages. A new purok's heading stays with its
-    // first household.
-    blocks.add(pw.Inseparable(
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-        children: [
-          if (purokHeading)
-            pw.Padding(
-              padding: const pw.EdgeInsets.only(top: 8, bottom: 4),
-              child: pw.Text(lastPurok.isEmpty ? 'NO PUROK' : 'PUROK  $lastPurok',
-                  style: pw.TextStyle(font: fonts.title, fontSize: 10)),
-            ),
-          pw.Container(
-            padding: const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-            decoration: const pw.BoxDecoration(
-              color: PdfColors.grey100,
-              border: pw.Border(
-                left: pw.BorderSide(color: PdfColors.grey600, width: 0.5),
-                right: pw.BorderSide(color: PdfColors.grey600, width: 0.5),
+    // A household is one block, never split across pages, unless it is too long for one page: then
+    // it continues in page-sized blocks. A new purok's heading stays with its first household.
+    for (var start = 0; start < h.members.length; start += maxRows) {
+      final chunk = h.members.sublist(start, (start + maxRows).clamp(0, h.members.length));
+      blocks.add(pw.Inseparable(
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+          children: [
+            if (purokHeading && start == 0)
+              pw.Padding(
+                padding: const pw.EdgeInsets.only(top: 8, bottom: 4),
+                child: pw.Text(lastPurok.isEmpty ? 'NO PUROK' : 'PUROK  $lastPurok',
+                    style: pw.TextStyle(font: fonts.title, fontSize: 10)),
               ),
+            householdHeading(start == 0
+                ? '${h.householdName}  ·  ${h.members.length} member${h.members.length == 1 ? '' : 's'}'
+                : '${h.householdName}  (continued)'),
+            pw.Table(
+              border: border,
+              columnWidths: columnWidths,
+              children: [
+                for (final member in chunk) memberRow(member, ++n),
+              ],
             ),
-            child: pw.Text(
-              '${h.householdName}  ·  ${h.members.length} member${h.members.length == 1 ? '' : 's'}',
-              style: bold,
-            ),
-          ),
-          pw.Table(
-            border: border,
-            columnWidths: columnWidths,
-            children: [
-              for (final member in h.members) memberRow(member, ++n),
-            ],
-          ),
-        ],
-      ),
-    ));
+          ],
+        ),
+      ));
+    }
   }
 
   final doc = pw.Document(theme: fonts.theme);

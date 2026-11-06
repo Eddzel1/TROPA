@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/design_system.dart';
+import '../../core/motion.dart';
 import '../../widgets/form_fields.dart';
 
 /// Colors shared by the Settings & Administration tabs.
@@ -138,7 +139,7 @@ Future<bool> confirmAction(
   bool destructive = false,
 }) async {
   final p = SettingsPalette.of(context);
-  final ok = await showDialog<bool>(
+  final ok = await showTropaDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
       title: Text(title),
@@ -165,7 +166,7 @@ Future<String?> promptText(
   String confirmLabel = 'Save',
   bool upperCase = false,
 }) {
-  return showDialog<String>(
+  return showTropaDialog<String>(
     context: context,
     builder: (_) =>
         _PromptDialog(title: title, label: label, initial: initial, confirmLabel: confirmLabel, upperCase: upperCase),

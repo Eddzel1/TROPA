@@ -6,8 +6,10 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../core/design_system.dart';
+import '../core/motion.dart';
 import '../core/geo.dart';
 import '../widgets/form_fields.dart';
+import '../widgets/household_view_dialog.dart';
 import '../models/models.dart';
 import '../providers/auth_provider.dart';
 import '../providers/member_provider.dart';
@@ -246,7 +248,7 @@ class _MembersViewState extends ConsumerState<MembersView> {
   }
 
   void _openMemberDialog([FamilyMember? existing]) {
-    showDialog(
+    showTropaDialog(
       context: context,
       builder: (_) => MemberFormDialog(existing: existing),
     );
@@ -267,6 +269,8 @@ class _MembersViewState extends ConsumerState<MembersView> {
         if (l.barangay.isNotEmpty && (filter.lgu == 'All' || l.lgu == filter.lgu)) l.barangay
     }).toList()
       ..sort();
+    final puroks = ref.watch(purokNamesProvider((lgu: filter.lgu, barangay: filter.barangay))).valueOrNull ??
+        const <String>[];
     final membersAsync = ref.watch(memberListNotifierProvider);
     final canDelete = ref.watch(canPermissionProvider(AppPermissions.deleteRecords));
     final canEdit = ref.watch(canPermissionProvider(AppPermissions.manageMembers));
@@ -316,7 +320,7 @@ class _MembersViewState extends ConsumerState<MembersView> {
                       value: filter.lgu,
                       allLabel: 'All LGUs',
                       options: lgus,
-                      onChanged: (v) => _applyFilter((f) => f.copyWith(lgu: v, barangay: 'All')),
+                      onChanged: (v) => _applyFilter((f) => f.copyWith(lgu: v, barangay: 'All', purok: 'All')),
                       isDark: isDark,
                       textCol: textCol,
                       borderCol: borderCol,
@@ -332,7 +336,24 @@ class _MembersViewState extends ConsumerState<MembersView> {
                       value: filter.barangay,
                       allLabel: 'All Barangays',
                       options: barangays,
-                      onChanged: (v) => _applyFilter((f) => f.copyWith(barangay: v)),
+                      // Purok list depends on the barangay
+                      onChanged: (v) => _applyFilter((f) => f.copyWith(barangay: v, purok: 'All')),
+                      isDark: isDark,
+                      textCol: textCol,
+                      borderCol: borderCol,
+                      fillCol: fieldFill,
+                      primaryCol: primaryCol,
+                      subtextCol: subtextCol,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  slot(
+                    3,
+                    _filterDropdown(
+                      value: filter.purok,
+                      allLabel: 'All Puroks',
+                      options: puroks,
+                      onChanged: (v) => _applyFilter((f) => f.copyWith(purok: v)),
                       isDark: isDark,
                       textCol: textCol,
                       borderCol: borderCol,
@@ -553,12 +574,19 @@ class _MembersViewState extends ConsumerState<MembersView> {
                                     MaterialPageRoute<void>(builder: (_) => MemberIdView(member: m)),
                                   ),
                             ),
+                            if (m.householdId.isNotEmpty)
+                              (
+                                icon: Icons.home_outlined,
+                                label: 'View Household',
+                                color: null,
+                                onTap: () => _openHousehold(context, m),
+                              ),
                             if (canEdit)
                               (
                                 icon: Icons.swap_horiz,
                                 label: 'Transfer to Household',
                                 color: null,
-                                onTap: () => showDialog<bool>(
+                                onTap: () => showTropaDialog<bool>(
                                       context: context,
                                       builder: (_) => TransferMemberDialog(member: m),
                                     ),
@@ -683,12 +711,24 @@ class _MembersViewState extends ConsumerState<MembersView> {
     );
   }
 
+  /// Opens [m]'s household with its roster, as on the Households page.
+  Future<void> _openHousehold(BuildContext context, FamilyMember m) async {
+    final household = await ref.read(supabaseServiceProvider).getHouseholdById(m.householdId);
+    if (!context.mounted) return;
+    if (household == null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('${m.fullName}\'s household could not be found.')));
+      return;
+    }
+    await showTropaDialog<void>(context: context, builder: (_) => HouseholdViewDialog(household: household));
+  }
+
   Future<void> _toggleArchived(BuildContext context, FamilyMember m) async {
     final cardBg = TropaColors.cardOf(context);
     final textCol = TropaColors.textHigh(context);
     final subtextCol = TropaColors.textMedium(context);
     final archive = !m.isArchived;
-    final confirm = await showDialog<bool>(
+    final confirm = await showTropaDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
         backgroundColor: cardBg,
@@ -725,7 +765,7 @@ class _MembersViewState extends ConsumerState<MembersView> {
     final cardBg = TropaColors.cardOf(context);
     final textCol = TropaColors.textHigh(context);
     final subtextCol = TropaColors.textMedium(context);
-    final confirm = await showDialog<bool>(
+    final confirm = await showTropaDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
         backgroundColor: cardBg,

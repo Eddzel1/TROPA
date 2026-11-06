@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:file_picker/file_picker.dart';
 import '../core/design_system.dart';
+import '../core/motion.dart';
 import '../widgets/form_fields.dart';
 import '../models/models.dart';
 import '../providers/voter_provider.dart';
@@ -411,7 +412,7 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
     final dlgBg = TropaColors.cardOf(context);
     final dlgText = TropaColors.textHigh(context);
 
-    showDialog(
+    showTropaDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: dlgBg,

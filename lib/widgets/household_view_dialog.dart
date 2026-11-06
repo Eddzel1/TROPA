@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/design_system.dart';
+import '../core/motion.dart';
 import '../models/models.dart';
 import '../providers/auth_provider.dart';
 import '../providers/household_provider.dart';
 import '../providers/member_provider.dart';
-import 'bulk_add_member_dialog.dart';
 import 'member_form_dialog.dart';
 import 'transfer_member_dialog.dart';
 
@@ -50,7 +50,7 @@ class _HouseholdViewDialogState extends ConsumerState<HouseholdViewDialog> {
   }
 
   void _openAddMemberDirect() async {
-    final result = await showDialog<FamilyMember>(
+    final result = await showTropaDialog<FamilyMember>(
       context: context,
       builder: (ctx) => MemberFormDialog(presetHousehold: _currentHousehold),
     );
@@ -60,19 +60,8 @@ class _HouseholdViewDialogState extends ConsumerState<HouseholdViewDialog> {
     }
   }
 
-  void _openBulkAddDirect() async {
-    final result = await showDialog<List<FamilyMember>>(
-      context: context,
-      builder: (ctx) => BulkAddMemberDialog(presetHousehold: _currentHousehold),
-    );
-    if (result != null && result.isNotEmpty) {
-      _fetchRoster();
-      ref.read(householdListNotifierProvider.notifier).refresh();
-    }
-  }
-
   void _openEditMember(FamilyMember member) async {
-    final result = await showDialog<FamilyMember>(
+    final result = await showTropaDialog<FamilyMember>(
       context: context,
       builder: (ctx) => MemberFormDialog(existing: member, presetHousehold: _currentHousehold),
     );
@@ -83,7 +72,7 @@ class _HouseholdViewDialogState extends ConsumerState<HouseholdViewDialog> {
   }
 
   void _openTransferMember(FamilyMember member) async {
-    final moved = await showDialog<bool>(
+    final moved = await showTropaDialog<bool>(
       context: context,
       builder: (ctx) => TransferMemberDialog(member: member),
     );
@@ -303,35 +292,19 @@ class _HouseholdViewDialogState extends ConsumerState<HouseholdViewDialog> {
 
                   if (compact) const SizedBox(height: 12),
 
-                  // Direct Registration Buttons
+                  // Direct Registration Button
                   if (canEdit)
-                  Wrap(
-                    direction: compact ? Axis.horizontal : Axis.vertical,
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: primaryCol,
-                          foregroundColor: onPrimaryCol,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        icon: const Icon(Icons.person_add, size: 16),
-                        label: Text('Add TROPA Member', style: TropaText.action()),
-                        onPressed: _openAddMemberDirect,
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: primaryCol,
+                        foregroundColor: onPrimaryCol,
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                        icon: const Icon(Icons.table_chart, size: 16),
-                        label: Text('Bulk Add', style: TropaText.action()),
-                        onPressed: _openBulkAddDirect,
-                      ),
-                    ],
-                  ),
+                      icon: const Icon(Icons.person_add, size: 16),
+                      label: Text('Add TROPA Member', style: TropaText.action()),
+                      onPressed: _openAddMemberDirect,
+                    ),
                 ],
               ),
             ),
@@ -380,7 +353,7 @@ class _HouseholdViewDialogState extends ConsumerState<HouseholdViewDialog> {
                                 if (canEdit) ...[
                                 const SizedBox(height: 4),
                                 Text(
-                                  'Click "Add Member" or "Bulk Add" above to register dependents with pre-filled household data.',
+                                  'Click "Add TROPA Member" above to register dependents with pre-filled household data.',
                                   style: TropaText.caption(subtextCol),
                                 ),
                                 const SizedBox(height: 14),
@@ -559,7 +532,7 @@ class _HouseholdViewDialogState extends ConsumerState<HouseholdViewDialog> {
     final dlgBg = TropaColors.cardOf(context);
     final textCol = TropaColors.textHigh(context);
     final subtextCol = TropaColors.textMedium(context);
-    final confirm = await showDialog<bool>(
+    final confirm = await showTropaDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
         backgroundColor: dlgBg,

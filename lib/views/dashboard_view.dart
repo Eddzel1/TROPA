@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../core/design_system.dart';
+import '../core/motion.dart';
 import '../providers/dashboard_provider.dart';
 import '../providers/household_provider.dart';
 import '../widgets/tropa_map_widget.dart';
@@ -116,46 +117,50 @@ class DashboardView extends ConsumerWidget {
                       ),
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
+                      // Cards settle in one after another, 30ms apart.
                       children: [
-                        _kpiCard(
-                          title: 'TOTAL HOUSEHOLDS',
-                          value: numFormat.format(totalHouseholds),
-                          unit: 'hh',
-                          icon: Icons.cottage,
-                          accentColor: primaryCol,
-                          subtext: 'Purok verified records',
-                          cardBg: cardBg,
-                          borderCol: borderCol,
-                          textCol: textCol,
-                          subtextCol: subtextCol,
-                          isDark: isDark,
-                        ),
-                        _kpiCard(
-                          title: 'REGISTERED MEMBERS',
-                          value: numFormat.format(registeredMembers),
-                          unit: 'indiv',
-                          icon: Icons.groups,
-                          accentColor: TropaColors.secondaryOf(context),
-                          subtext: '51.4% female / 48.6% male',
-                          cardBg: cardBg,
-                          borderCol: borderCol,
-                          textCol: textCol,
-                          subtextCol: subtextCol,
-                          isDark: isDark,
-                        ),
-                        _kpiCard(
-                          title: 'TOTAL VOTERS',
-                          value: numFormat.format(totalVoters),
-                          unit: 'voters',
-                          icon: Icons.how_to_vote,
-                          accentColor: TropaColors.tertiary,
-                          subtext: '${registeredMembers > 0 ? ((totalVoters / registeredMembers) * 100).toStringAsFixed(1) : "0.0"}% of registered members',
-                          cardBg: cardBg,
-                          borderCol: borderCol,
-                          textCol: textCol,
-                          subtextCol: subtextCol,
-                          isDark: isDark,
-                        ),
+                        for (final (i, card) in [
+                            _kpiCard(
+                              title: 'TOTAL HOUSEHOLDS',
+                              value: numFormat.format(totalHouseholds),
+                              unit: 'hh',
+                              icon: Icons.cottage,
+                              accentColor: primaryCol,
+                              subtext: 'Purok verified records',
+                              cardBg: cardBg,
+                              borderCol: borderCol,
+                              textCol: textCol,
+                              subtextCol: subtextCol,
+                              isDark: isDark,
+                            ),
+                            _kpiCard(
+                              title: 'REGISTERED MEMBERS',
+                              value: numFormat.format(registeredMembers),
+                              unit: 'indiv',
+                              icon: Icons.groups,
+                              accentColor: TropaColors.secondaryOf(context),
+                              subtext: '51.4% female / 48.6% male',
+                              cardBg: cardBg,
+                              borderCol: borderCol,
+                              textCol: textCol,
+                              subtextCol: subtextCol,
+                              isDark: isDark,
+                            ),
+                            _kpiCard(
+                              title: 'TOTAL VOTERS',
+                              value: numFormat.format(totalVoters),
+                              unit: 'voters',
+                              icon: Icons.how_to_vote,
+                              accentColor: TropaColors.tertiary,
+                              subtext: '${registeredMembers > 0 ? ((totalVoters / registeredMembers) * 100).toStringAsFixed(1) : "0.0"}% of registered members',
+                              cardBg: cardBg,
+                              borderCol: borderCol,
+                              textCol: textCol,
+                              subtextCol: subtextCol,
+                              isDark: isDark,
+                            ),
+                        ].indexed)
+                          TropaStaggerIn(index: i, child: card),
                       ],
                     );
                   },

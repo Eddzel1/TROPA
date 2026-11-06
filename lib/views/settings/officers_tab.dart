@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/design_system.dart';
+import '../../core/motion.dart';
 import '../../models/models.dart';
 import '../../providers/admin_provider.dart';
 import '../../providers/auth_provider.dart';
@@ -186,7 +187,7 @@ class _OfficerSlate extends ConsumerWidget {
   const _OfficerSlate({required this.location, this.purok, required this.officers});
 
   Future<void> _open(BuildContext context, String position, {Officer? officer}) async {
-    final saved = await showDialog<bool>(
+    final saved = await showTropaDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => OfficerFormDialog(

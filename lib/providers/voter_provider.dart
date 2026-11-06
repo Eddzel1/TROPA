@@ -80,6 +80,19 @@ final puroksProvider = FutureProvider.family<List<({String id, String name})>, S
   return ref.watch(supabaseServiceProvider).getPuroks(locationId);
 });
 
+/// Purok names of a barangay, for directory filters. [lgu] may be 'All', then every barangay of
+/// that name contributes its puroks. Empty while [barangay] is 'All'.
+final purokNamesProvider = FutureProvider.family<List<String>, ({String lgu, String barangay})>((ref, key) async {
+  if (key.barangay == 'All') return const [];
+  final locations = await ref.watch(locationsProvider.future);
+  final names = <String>{};
+  for (final l in locations) {
+    if (l.barangay != key.barangay || (key.lgu != 'All' && l.lgu != key.lgu)) continue;
+    names.addAll((await ref.watch(puroksProvider(l.id).future)).map((p) => p.name));
+  }
+  return names.toList();
+});
+
 final voterFilterProvider = StateProvider<VoterFilter>((ref) {
   return const VoterFilter();
 });

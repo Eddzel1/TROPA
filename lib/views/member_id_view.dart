@@ -5,6 +5,7 @@ import 'package:printing/printing.dart';
 import '../core/ph_time.dart';
 import '../models/models.dart';
 import '../tropa_id/tropa_id.dart';
+import '../core/motion.dart';
 
 /// Printed on the back of every card. Fill these in before issuing cards.
 const tropaIssuer = TropaIssuer();
@@ -61,7 +62,7 @@ class MemberIdView extends StatelessWidget {
 
 /// A member's TROPA ID popup (public search page): same card and Print button as [MemberIdView].
 Future<void> showMemberIdDialog(BuildContext context, FamilyMember member) {
-  return showDialog<void>(
+  return showTropaDialog<void>(
     context: context,
     builder: (ctx) => Dialog(
       insetPadding: const EdgeInsets.all(16),
