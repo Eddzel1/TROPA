@@ -7,7 +7,8 @@ import '../providers/member_provider.dart';
 import 'form_fields.dart';
 
 /// Moves a member into another existing household as a regular member, e.g. when they were
-/// encoded as a household leader by mistake. Pops `true` once the transfer is saved.
+/// encoded as a household leader by mistake, or out into a new household of their own as its
+/// leader. Pops `true` once the transfer is saved.
 class TransferMemberDialog extends ConsumerStatefulWidget {
   final FamilyMember member;
 
@@ -20,6 +21,9 @@ class TransferMemberDialog extends ConsumerStatefulWidget {
 class _TransferMemberDialogState extends ConsumerState<TransferMemberDialog> {
   Household? _currentHousehold;
   Household? _target;
+
+  /// Moving out into a new household they lead, instead of joining [_target].
+  bool _ownHousehold = false;
   bool _leavesEmpty = false;
   bool _isSaving = false;
 
@@ -43,15 +47,23 @@ class _TransferMemberDialogState extends ConsumerState<TransferMemberDialog> {
 
   Future<void> _save() async {
     final target = _target;
-    if (target == null) return;
+    if (!_ownHousehold && target == null) return;
     setState(() => _isSaving = true);
     final messenger = ScaffoldMessenger.of(context);
+    final notifier = ref.read(memberListNotifierProvider.notifier);
     try {
-      final deletedOld =
-          await ref.read(memberListNotifierProvider.notifier).transferMember(widget.member.id, target.id);
+      final String message;
+      final bool deletedOld;
+      if (_ownHousehold) {
+        final result = await notifier.transferMemberToNewHousehold(widget.member.id);
+        deletedOld = result.deletedOld;
+        message = '${widget.member.fullName} now leads ${result.household.householdName}';
+      } else {
+        deletedOld = await notifier.transferMember(widget.member.id, target!.id);
+        message = '${widget.member.fullName} moved to ${target.householdName}';
+      }
       messenger.showSnackBar(SnackBar(
-        content: Text('${widget.member.fullName} moved to ${target.householdName}'
-            '${deletedOld ? '; the empty household was removed.' : '.'}'),
+        content: Text('$message${deletedOld ? '; the empty household was removed.' : '.'}'),
       ));
       if (mounted) Navigator.of(context).pop(true);
     } catch (e) {
@@ -67,6 +79,8 @@ class _TransferMemberDialogState extends ConsumerState<TransferMemberDialog> {
     final textCol = TropaColors.textHigh(context);
     final subtextCol = TropaColors.textMedium(context);
     final currentName = _currentHousehold?.householdName ?? '—';
+    final m = widget.member;
+    final newName = Household.familyNameFor(lastname: m.lastname, firstname: m.firstname, middlename: m.middlename);
 
     return AlertDialog(
       backgroundColor: dlgBg,
@@ -84,13 +98,54 @@ class _TransferMemberDialogState extends ConsumerState<TransferMemberDialog> {
             const SizedBox(height: 4),
             Text('Current household: $currentName', style: TropaText.caption(subtextCol)),
             const SizedBox(height: 16),
-            _householdPicker(isDark, textCol, subtextCol),
-            const SizedBox(height: 12),
-            Text(
-              'The member joins as a regular household member (not leader) and takes on the new household\'s barangay and purok.',
-              style: TropaText.caption(subtextCol),
+            SizedBox(
+              width: double.infinity,
+              child: SegmentedButton<bool>(
+                showSelectedIcon: false,
+                segments: [
+                  const ButtonSegment(
+                    value: false,
+                    icon: Icon(Icons.home_work_outlined, size: 18),
+                    label: Text('Existing household'),
+                  ),
+                  ButtonSegment(
+                    value: true,
+                    icon: const Icon(Icons.add_home_outlined, size: 18),
+                    label: const Text('Own household'),
+                    // Already alone in their household, so a new one would change nothing.
+                    enabled: !_leavesEmpty,
+                    tooltip: _leavesEmpty ? 'Already the only member of their household' : null,
+                  ),
+                ],
+                selected: {_ownHousehold},
+                onSelectionChanged: _isSaving ? null : (v) => setState(() => _ownHousehold = v.first),
+              ),
             ),
-            if (_leavesEmpty) ...[
+            const SizedBox(height: 16),
+            if (_ownHousehold) ...[
+              _newHouseholdPreview(newName, textCol, subtextCol),
+              const SizedBox(height: 12),
+              Text(
+                'A new household is created with this name, at the member\'s current barangay and purok, '
+                'and the member becomes its leader.',
+                style: TropaText.caption(subtextCol),
+              ),
+            ] else ...[
+              _householdPicker(isDark, textCol, subtextCol),
+              const SizedBox(height: 12),
+              Text(
+                'The member joins as a regular household member (not leader) and takes on the new household\'s barangay and purok.',
+                style: TropaText.caption(subtextCol),
+              ),
+            ],
+            if (m.isHouseholdLeader && !_leavesEmpty && _currentHousehold != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                '"$currentName" will have no leader until you set a new one.',
+                style: TropaText.caption(subtextCol),
+              ),
+            ],
+            if (_leavesEmpty && !_ownHousehold) ...[
               const SizedBox(height: 8),
               Text(
                 '"$currentName" will be deleted because it has no other members.',
@@ -104,10 +159,43 @@ class _TransferMemberDialogState extends ConsumerState<TransferMemberDialog> {
       actions: [
         TextButton(onPressed: _isSaving ? null : () => Navigator.of(context).pop(false), child: const Text('Cancel')),
         FilledButton(
-          onPressed: _target == null || _isSaving ? null : _save,
-          child: Text(_isSaving ? 'Transferring…' : 'Transfer'),
+          onPressed: (!_ownHousehold && _target == null) || _isSaving ? null : _save,
+          child: Text(_ownHousehold
+              ? (_isSaving ? 'Creating…' : 'Create household')
+              : (_isSaving ? 'Transferring…' : 'Transfer')),
         ),
       ],
+    );
+  }
+
+  /// The household that "Own household" will create, shown in place of the search field.
+  Widget _newHouseholdPreview(String name, Color textCol, Color subtextCol) {
+    final m = widget.member;
+    final place = [m.purok, m.barangay].where((p) => p.trim().isNotEmpty).join(', ');
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: TropaColors.fieldFillOf(context),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: TropaColors.borderOf(context)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.add_home_outlined, size: 18, color: subtextCol),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name, style: TropaText.bodyStrong(textCol)),
+                if (place.isNotEmpty) Text(place, style: TropaText.caption(subtextCol)),
+              ],
+            ),
+          ),
+          TropaBadge('NEW', color: TropaColors.primaryOf(context)),
+        ],
+      ),
     );
   }
 

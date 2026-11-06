@@ -104,6 +104,14 @@ class Household {
         'created_by': createdBy,
       };
 
+  /// Name for a household led by this person: "LASTNAME, FIRSTNAME MIDDLENAME FAMILY".
+  static String familyNameFor({required String lastname, required String firstname, String? middlename}) {
+    final last = lastname.trim().toUpperCase();
+    final given = [firstname, middlename ?? ''].map((n) => n.trim().toUpperCase()).where((n) => n.isNotEmpty).join(' ');
+    if (last.isEmpty && given.isEmpty) return '';
+    return '${[last, given].where((n) => n.isNotEmpty).join(', ')} FAMILY';
+  }
+
   Household copyWith({
     String? id,
     String? householdName,

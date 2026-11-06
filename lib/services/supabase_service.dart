@@ -606,63 +606,128 @@ class SupabaseService {
       final target = await tx.getOptional('SELECT * FROM households WHERE id = ?', [targetHouseholdId]);
       if (member == null) throw StateError('Member not found');
       if (target == null) throw StateError('Target household not found');
-      final oldId = member['household_id'] as String?;
-      if (oldId == targetHouseholdId) throw StateError('Member is already in this household');
+      deletedOld = await _moveMember(tx, member, target, asLeader: false);
+    });
+    return deletedOld;
+  }
 
-      await _update(tx, 'family_members', memberId, {
-        'household_id': targetHouseholdId,
-        'is_household_leader': false,
-        'lgu': target['lgu'],
-        'barangay': target['barangay'],
-        'purok': target['purok'],
-        'purok_id': target['purok_id'],
-        'updated_date': _now(),
-      });
-      await tx.execute('UPDATE dues_payments SET household_id = ? WHERE member_id = ?', [targetHouseholdId, memberId]);
-
-      // Member counts on a household are encoded by hand, so only raise them when the roster outgrows them.
-      final targetCount = (await tx
-          .get('SELECT COUNT(*) AS n FROM family_members WHERE household_id = ?', [targetHouseholdId]))['n'] as int;
-      await tx.execute(
-        'UPDATE households SET total_members = MAX(COALESCE(total_members, 0), ?), '
-        'active_members = MAX(COALESCE(active_members, 0), ?), updated_date = ? WHERE id = ?',
-        [targetCount, targetCount, _now(), targetHouseholdId],
+  /// Moves a member out into a new household of their own, as its leader. The household is named
+  /// "LASTNAME, FIRSTNAME MIDDLENAME FAMILY", keeps the member's barangay and purok, and is placed
+  /// near the barangay center. Returns the new household and whether the old one was deleted.
+  Future<({Household household, bool deletedOld})> transferMemberToNewHousehold(String memberId) async {
+    final locations = await getLocations();
+    final householdId = uuid.v4();
+    var deletedOld = false;
+    await db.writeTransaction((tx) async {
+      final member = await tx.getOptional('SELECT * FROM family_members WHERE id = ?', [memberId]);
+      if (member == null) throw StateError('Member not found');
+      final lgu = member['lgu']?.toString() ?? '';
+      final barangay = member['barangay']?.toString() ?? '';
+      final center = barangayCenter(locations, lgu, barangay);
+      final point = center == null ? null : jitterAround(center);
+      final household = Household(
+        id: householdId,
+        householdName: Household.familyNameFor(
+          lastname: member['lastname']?.toString() ?? '',
+          firstname: member['firstname']?.toString() ?? '',
+          middlename: member['middlename']?.toString(),
+        ),
+        lgu: lgu,
+        barangay: barangay,
+        purok: member['purok']?.toString() ?? '',
+        purokId: member['purok_id']?.toString(),
+        householdLeaderId: memberId,
+        totalMembers: 1,
+        activeMembers: 1,
+        status: 'active',
+        latitude: point?.latitude,
+        longitude: point?.longitude,
+        createdDate: phNow(),
+        updatedDate: phNow(),
+        createdBy: currentAuthUser?.email ?? '',
       );
-
-      if (oldId != null && oldId.isNotEmpty) {
-        final left =
-            (await tx.get('SELECT COUNT(*) AS n FROM family_members WHERE household_id = ?', [oldId]))['n'] as int;
-        final dues =
-            (await tx.get('SELECT COUNT(*) AS n FROM dues_payments WHERE household_id = ?', [oldId]))['n'] as int;
-        if (left == 0 && dues == 0) {
-          await tx.execute('DELETE FROM households WHERE id = ?', [oldId]);
-          await _log(tx,
-              action: 'DELETE',
-              entityType: 'Household',
-              entityId: oldId,
-              details: {'reason': 'emptied by member transfer'});
-          deletedOld = true;
-        } else {
-          await tx.execute(
-            'UPDATE households SET household_leader_id = NULL, updated_date = ? WHERE id = ? AND household_leader_id = ?',
-            [_now(), oldId, memberId],
-          );
-        }
-      }
-
+      await _insert(tx, 'households', _stampCreator(_upperNames(household.toJson(), _householdNameKeys)));
       await _log(
         tx,
-        action: 'TRANSFER',
-        entityType: 'FamilyMember',
-        entityId: memberId,
-        details: {
-          'name': '${member['lastname']}, ${member['firstname']}',
-          'from_household_id': oldId,
-          'to_household_id': targetHouseholdId,
-          'to_household_name': target['household_name'],
-        },
+        action: 'CREATE',
+        entityType: 'Household',
+        entityId: householdId,
+        details: {'household_name': household.householdName, 'barangay': barangay, 'reason': 'member moved out'},
       );
+      final target = await tx.get('SELECT * FROM households WHERE id = ?', [householdId]);
+      deletedOld = await _moveMember(tx, member, target, asLeader: true);
     });
+    return (household: Household.fromJson((await _getRow('households', householdId))!), deletedOld: deletedOld);
+  }
+
+  /// Shared by both transfers: points [member] at [target], takes on its address, carries their
+  /// dues along, and deletes or un-leads the household they leave. Returns whether it was deleted.
+  Future<bool> _moveMember(
+    SqliteWriteContext tx,
+    Map<String, dynamic> member,
+    Map<String, dynamic> target, {
+    required bool asLeader,
+  }) async {
+    final memberId = member['id'] as String;
+    final targetHouseholdId = target['id'] as String;
+    final oldId = member['household_id'] as String?;
+    if (oldId == targetHouseholdId) throw StateError('Member is already in this household');
+
+    await _update(tx, 'family_members', memberId, {
+      'household_id': targetHouseholdId,
+      'is_household_leader': asLeader,
+      'lgu': target['lgu'],
+      'barangay': target['barangay'],
+      'purok': target['purok'],
+      'purok_id': target['purok_id'],
+      'updated_date': _now(),
+    });
+    await tx.execute('UPDATE dues_payments SET household_id = ? WHERE member_id = ?', [targetHouseholdId, memberId]);
+
+    // Member counts on a household are encoded by hand, so only raise them when the roster outgrows them.
+    final targetCount = (await tx
+        .get('SELECT COUNT(*) AS n FROM family_members WHERE household_id = ?', [targetHouseholdId]))['n'] as int;
+    await tx.execute(
+      'UPDATE households SET total_members = MAX(COALESCE(total_members, 0), ?), '
+      'active_members = MAX(COALESCE(active_members, 0), ?), updated_date = ? WHERE id = ?',
+      [targetCount, targetCount, _now(), targetHouseholdId],
+    );
+
+    var deletedOld = false;
+    if (oldId != null && oldId.isNotEmpty) {
+      final left =
+          (await tx.get('SELECT COUNT(*) AS n FROM family_members WHERE household_id = ?', [oldId]))['n'] as int;
+      final dues =
+          (await tx.get('SELECT COUNT(*) AS n FROM dues_payments WHERE household_id = ?', [oldId]))['n'] as int;
+      if (left == 0 && dues == 0) {
+        await tx.execute('DELETE FROM households WHERE id = ?', [oldId]);
+        await _log(tx,
+            action: 'DELETE',
+            entityType: 'Household',
+            entityId: oldId,
+            details: {'reason': 'emptied by member transfer'});
+        deletedOld = true;
+      } else {
+        await tx.execute(
+          'UPDATE households SET household_leader_id = NULL, updated_date = ? WHERE id = ? AND household_leader_id = ?',
+          [_now(), oldId, memberId],
+        );
+      }
+    }
+
+    await _log(
+      tx,
+      action: 'TRANSFER',
+      entityType: 'FamilyMember',
+      entityId: memberId,
+      details: {
+        'name': '${member['lastname']}, ${member['firstname']}',
+        'from_household_id': oldId,
+        'to_household_id': targetHouseholdId,
+        'to_household_name': target['household_name'],
+        if (asLeader) 'as_leader': true,
+      },
+    );
     return deletedOld;
   }
 

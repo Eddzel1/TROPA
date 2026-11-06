@@ -424,15 +424,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   }
 
   /// Household name for a new household led by this member: "LASTNAME, FIRSTNAME MIDDLENAME FAMILY".
-  String get _generatedHouseholdName {
-    final last = _lastNameCtrl.text.trim().toUpperCase();
-    final given = [_firstNameCtrl.text, _middleNameCtrl.text]
-        .map((n) => n.trim().toUpperCase())
-        .where((n) => n.isNotEmpty)
-        .join(' ');
-    if (last.isEmpty && given.isEmpty) return '';
-    return '${[last, given].where((n) => n.isNotEmpty).join(', ')} FAMILY';
-  }
+  String get _generatedHouseholdName => Household.familyNameFor(
+      lastname: _lastNameCtrl.text, firstname: _firstNameCtrl.text, middlename: _middleNameCtrl.text);
 
   /// A new household is created on save only for a new leader who isn't already attached to one.
   /// Opened from a household's "Add TROPA Member": the member joins that household,
