@@ -18,6 +18,17 @@ List<String>? asStringList(dynamic v) {
   return v is List ? v.map((e) => e.toString()).toList() : null;
 }
 
+/// Name suffixes offered in the member form; stored in `family_members.extension`.
+const memberSuffixes = ['JR.', 'SR.', 'II', 'III', 'IV', 'V'];
+
+/// [raw] as one of [memberSuffixes] ('jr' -> 'JR.'), or null when blank or not a known suffix.
+String? normalizeSuffix(String? raw) {
+  final s = (raw ?? '').toUpperCase().replaceAll(RegExp(r'[\s.,]'), '');
+  if (s.isEmpty) return null;
+  final canon = switch (s) { 'JR' => 'JR.', 'SR' => 'SR.', _ => s };
+  return memberSuffixes.contains(canon) ? canon : null;
+}
+
 // ==========================================
 // 1. Household
 // ==========================================
@@ -104,10 +115,19 @@ class Household {
         'created_by': createdBy,
       };
 
-  /// Name for a household led by this person: "LASTNAME, FIRSTNAME MIDDLENAME FAMILY".
-  static String familyNameFor({required String lastname, required String firstname, String? middlename}) {
+  /// Name for a household led by this person: "LASTNAME, FIRSTNAME MIDDLENAME SUFFIX FAMILY",
+  /// e.g. "SELORIO, DOMINADOR SABACAJAN JR. FAMILY".
+  static String familyNameFor({
+    required String lastname,
+    required String firstname,
+    String? middlename,
+    String? suffix,
+  }) {
     final last = lastname.trim().toUpperCase();
-    final given = [firstname, middlename ?? ''].map((n) => n.trim().toUpperCase()).where((n) => n.isNotEmpty).join(' ');
+    final given = [firstname, middlename ?? '', suffix ?? '']
+        .map((n) => n.trim().toUpperCase())
+        .where((n) => n.isNotEmpty)
+        .join(' ');
     if (last.isEmpty && given.isEmpty) return '';
     return '${[last, given].where((n) => n.isNotEmpty).join(', ')} FAMILY';
   }
@@ -287,7 +307,7 @@ class FamilyMember {
         'firstname': firstname,
         'lastname': lastname,
         if (middlename != null) 'middlename': middlename,
-        if (extension != null) 'extension': extension,
+        'extension': extension, // sent even when null, so picking no suffix clears it
         'lgu': lgu,
         'barangay': barangay,
         'purok': purok,
@@ -540,6 +560,64 @@ class DuesScope {
       everywhere || keys.contains('${lgu.trim().toUpperCase()}|${barangay.trim().toUpperCase()}');
 }
 
+/// Date presets for the ledger; [custom] uses [DuesLedgerFilter.from] / [DuesLedgerFilter.to].
+enum LedgerPeriod { all, today, week, month, custom }
+
+/// What the ledger shows: a text [query], a payment-date [period], and an optional LGU, barangay
+/// and purok (null means any). Dates are GMT+8 calendar days.
+class DuesLedgerFilter {
+  final String query;
+  final LedgerPeriod period;
+  final DateTime? from;
+  final DateTime? to;
+  final String? lgu;
+  final String? barangay;
+  final String? purok;
+
+  const DuesLedgerFilter({
+    this.query = '',
+    this.period = LedgerPeriod.all,
+    this.from,
+    this.to,
+    this.lgu,
+    this.barangay,
+    this.purok,
+  });
+
+  /// First and last day (inclusive) of the period, relative to [today], or null for all time.
+  ({DateTime from, DateTime to})? days(DateTime today) => switch (period) {
+        LedgerPeriod.all => null,
+        LedgerPeriod.today => (from: today, to: today),
+        // Weeks start on Monday.
+        LedgerPeriod.week => (from: today.subtract(Duration(days: today.weekday - 1)), to: today),
+        LedgerPeriod.month => (from: DateTime(today.year, today.month), to: today),
+        LedgerPeriod.custom => from == null || to == null ? null : (from: from!, to: to!),
+      };
+
+  bool get isFiltered =>
+      query.isNotEmpty || period != LedgerPeriod.all || lgu != null || barangay != null || purok != null;
+
+  /// Pass null-returning closures to clear a location part, e.g. `purok: () => null`.
+  DuesLedgerFilter copyWith({
+    String? query,
+    LedgerPeriod? period,
+    DateTime? from,
+    DateTime? to,
+    String? Function()? lgu,
+    String? Function()? barangay,
+    String? Function()? purok,
+  }) =>
+      DuesLedgerFilter(
+        query: query ?? this.query,
+        period: period ?? this.period,
+        from: from ?? this.from,
+        to: to ?? this.to,
+        lgu: lgu != null ? lgu() : this.lgu,
+        barangay: barangay != null ? barangay() : this.barangay,
+        purok: purok != null ? purok() : this.purok,
+      );
+}
+
 /// One receipt in the ledger: a household payment's per-member rows grouped by `receipt_id`, or a
 /// single row logged on its own (then [id] is that row's id).
 class DuesReceipt {
@@ -558,6 +636,7 @@ class DuesReceipt {
   final String collectedBy;
   final String? householdName;
   final String? barangay;
+  final String? purok;
   final String memberNames;
 
   DuesReceipt({
@@ -576,10 +655,16 @@ class DuesReceipt {
     required this.collectedBy,
     this.householdName,
     this.barangay,
+    this.purok,
     required this.memberNames,
   });
 
   bool get isVoid => status == DuesPayment.statusVoid;
+
+  static String? _text(Object? v) {
+    final t = v?.toString().trim();
+    return t == null || t.isEmpty ? null : t;
+  }
 
   factory DuesReceipt.fromRow(Map<String, dynamic> r) => DuesReceipt(
         id: r['rid']?.toString() ?? '',
@@ -590,13 +675,15 @@ class DuesReceipt {
         firstMonth: r['first_month']?.toString(),
         lastMonth: r['last_month']?.toString(),
         paymentMethod: r['payment_method']?.toString() ?? 'Cash',
-        referenceNumber: r['reference_number']?.toString(),
+        // A blank reference is no reference: the ledger would otherwise show an empty "Ref".
+        referenceNumber: _text(r['reference_number']),
         notes: r['notes']?.toString(),
         status: r['status']?.toString() ?? DuesPayment.statusCompleted,
         voidReason: r['void_reason']?.toString(),
         collectedBy: r['collected_by']?.toString() ?? '',
         householdName: r['household_name']?.toString(),
         barangay: r['barangay']?.toString(),
+        purok: r['purok']?.toString(),
         memberNames: r['member_names']?.toString() ?? '',
       );
 }
@@ -692,6 +779,9 @@ class AppPermissions {
   static const publishOfflineData = 'publish_offline_data';
   static const viewAuditLogs = 'view_audit_logs';
 
+  /// The For Review page: flagged households and members, and clearing them.
+  static const reviewRecords = 'review_records';
+
   /// Permissions whose screens search the offline voter list: Tropa Finder, the member form's
   /// voter lookup, and the Voter Registry settings tab.
   static const voterListPermissions = {'tropa_finder', 'manage_members', publishOfflineData};
@@ -705,6 +795,7 @@ class AppPermissions {
       'manage_members': 'Manage members',
       duesCollection: 'Dues collection',
       deleteRecords: 'Delete records',
+      reviewRecords: 'Review records',
     },
     'Tools': {
       'view_dashboard': 'View dashboard',
@@ -731,6 +822,7 @@ class AppPermissions {
       'manage_households',
       'view_members',
       'manage_members',
+      reviewRecords,
       'dues_collection',
       'view_reports',
       'tropa_finder',
@@ -1018,6 +1110,7 @@ class VoterSearchResult {
   final String lastName;
   final String firstName;
   final String? middleName;
+  final String? ext; // name suffix (JR., SR., III, …)
   final String lgu;
   final String barangay;
   final String? purok;
@@ -1040,6 +1133,7 @@ class VoterSearchResult {
     required this.lastName,
     required this.firstName,
     this.middleName,
+    this.ext,
     required this.lgu,
     required this.barangay,
     this.purok,
@@ -1058,13 +1152,18 @@ class VoterSearchResult {
     this.householdId,
   });
 
-  String get fullName => '$lastName, $firstName${middleName != null && middleName!.isNotEmpty ? ' $middleName' : ''}';
+  String get fullName => '$lastName, $firstName${middleName != null && middleName!.isNotEmpty ? ' $middleName' : ''}'
+      '${ext != null && ext!.trim().isNotEmpty ? ' ${ext!.trim()}' : ''}';
+
+  /// First name with the suffix after it, e.g. "DOMINADOR JR.".
+  String get firstNameWithSuffix => ext != null && ext!.trim().isNotEmpty ? '$firstName ${ext!.trim()}' : firstName;
 
   factory VoterSearchResult.fromFamilyMember(Map<String, dynamic> json) => VoterSearchResult(
         id: json['id']?.toString() ?? '',
         lastName: json['lastname']?.toString() ?? '',
         firstName: json['firstname']?.toString() ?? '',
         middleName: json['middlename']?.toString(),
+        ext: json['extension']?.toString(),
         lgu: json['lgu']?.toString() ?? 'VALENCIA CITY',
         barangay: json['barangay']?.toString() ?? 'POBLACION',
         purok: json['purok']?.toString() ?? 'P-1',
@@ -1099,6 +1198,7 @@ class VoterSearchResult {
       lastName: str('lastname') ?? '',
       firstName: str('firstname') ?? '',
       middleName: str('middlename'),
+      ext: str('ext.') ?? str('ext') ?? str('extension') ?? str('suffix'),
       lgu: str('lgu') ?? 'VALENCIA CITY',
       barangay: str('brgy') ?? str('barangay') ?? '',
       purok: str('purok'),
@@ -1118,6 +1218,7 @@ class VoterSearchResult {
         lastName: v.lastname,
         firstName: v.firstname,
         middleName: v.middlename,
+        ext: v.ext,
         lgu: 'VALENCIA CITY',
         barangay: v.barangay,
         purok: 'P-1',
@@ -1158,6 +1259,10 @@ class FormTracking {
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  /// When the row entered its current [status]. Set by the service, never sent from a form;
+  /// null on rows from before the column existed, which fall back to [createdAt].
+  final DateTime? statusChangedAt;
+
   FormTracking({
     required this.id,
     required this.barangay,
@@ -1171,6 +1276,7 @@ class FormTracking {
     this.returnedReceivedBy,
     required this.createdAt,
     required this.updatedAt,
+    this.statusChangedAt,
   });
 
   factory FormTracking.fromJson(Map<String, dynamic> json) => FormTracking(
@@ -1186,7 +1292,18 @@ class FormTracking {
         returnedReceivedBy: _nonEmpty(json['returned_received_by']),
         createdAt: json['created_at'] != null ? parsePh(json['created_at'].toString()) ?? phNow() : phNow(),
         updatedAt: json['updated_at'] != null ? parsePh(json['updated_at'].toString()) ?? phNow() : phNow(),
+        statusChangedAt: json['status_changed_at'] != null ? parsePh(json['status_changed_at'].toString()) : null,
       );
+
+  /// Whole PH calendar days the row has been in its current status, as of [now].
+  int daysInStatus([DateTime? now]) {
+    DateTime day(DateTime d) {
+      final ph = toPh(d);
+      return DateTime.utc(ph.year, ph.month, ph.day);
+    }
+
+    return day(now ?? phNow()).difference(day(statusChangedAt ?? createdAt)).inDays;
+  }
 
   /// [clearReturned] drops the returned-by fields, e.g. when a row leaves the Returned stage.
   FormTracking copyWith({
@@ -1215,6 +1332,7 @@ class FormTracking {
         returnedReceivedBy: clearReturned ? null : returnedReceivedBy ?? this.returnedReceivedBy,
         createdAt: createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
+        statusChangedAt: statusChangedAt,
       );
 
   static String? _nonEmpty(Object? v) {

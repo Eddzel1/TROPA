@@ -15,6 +15,7 @@ import '../views/form_tracking_view.dart';
 import '../views/tropa_finder_view.dart';
 import '../views/settings_view.dart';
 import '../views/audit_logs_view.dart';
+import '../views/review_view.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final userAsync = ref.watch(currentAppUserProvider);
@@ -42,6 +43,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         if (can('view_dashboard')) '/dashboard',
         if (can('view_households') || can('manage_households')) '/households',
         if (can('view_members') || can('manage_members')) '/members',
+        if (can(AppPermissions.reviewRecords)) '/review',
         if (can('dues_collection')) '/dues',
         if (can('view_reports')) '/reports',
         if (can('form_tracking')) '/form-tracking',
@@ -63,6 +65,9 @@ final routerProvider = Provider<GoRouter>((ref) {
         return home;
       }
       if (path.startsWith('/members') && !(can('view_members') || can('manage_members'))) {
+        return home;
+      }
+      if (path.startsWith('/review') && !can(AppPermissions.reviewRecords)) {
         return home;
       }
       if (path.startsWith('/dues') && !can('dues_collection')) {
@@ -106,6 +111,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/members',
             pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const MembersView()),
+          ),
+          GoRoute(
+            path: '/review',
+            pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const ReviewView()),
           ),
           GoRoute(
             path: '/dues',

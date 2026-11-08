@@ -351,7 +351,7 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
 
   void _onNameChanged() {
     _nameDebounce?.cancel();
-    _nameDebounce = Timer(const Duration(milliseconds: 400), _applyNames);
+    _nameDebounce = Timer(TropaMotion.searchDebounce, _applyNames);
   }
 
   void _applyNames() {
@@ -392,7 +392,7 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
     return DropdownButtonFormField<String>(
       value: options.contains(value) ? value : 'All',
       isExpanded: true,
-      icon: Icon(Icons.keyboard_arrow_down, size: 18, color: textCol),
+      icon: TropaStyles.dropdownIcon(context),
       decoration: TropaStyles.filterField(context),
       dropdownColor: TropaColors.cardOf(context),
       style: style,
@@ -438,7 +438,8 @@ class _TropaFinderViewState extends ConsumerState<TropaFinderView> {
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: TropaColors.error, foregroundColor: Colors.black),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: TropaColors.errorOf(context), foregroundColor: TropaColors.onErrorOf(context)),
             onPressed: () async {
               await ref.read(voterNotifierProvider.notifier).flagVoter(voter.id, reasonCtrl.text.trim());
               if (ctx.mounted) Navigator.pop(ctx);

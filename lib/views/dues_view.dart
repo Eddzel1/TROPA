@@ -172,6 +172,9 @@ class _CollectTabState extends ConsumerState<_CollectTab> {
   late final _searchCtrl = TextEditingController(text: ref.read(duesSearchProvider).query);
   Timer? _debounce;
 
+  /// Hides up-to-date households from the purok checklist.
+  bool _unpaidOnly = false;
+
   @override
   void dispose() {
     _debounce?.cancel();
@@ -181,7 +184,7 @@ class _CollectTabState extends ConsumerState<_CollectTab> {
 
   void _search(String value) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 300), () {
+    _debounce = Timer(TropaMotion.searchDebounce, () {
       if (!mounted) return;
       ref.read(duesSearchProvider.notifier).update((s) => s.copyWith(query: value.trim()));
     });
@@ -206,6 +209,9 @@ class _CollectTabState extends ConsumerState<_CollectTab> {
   Widget build(BuildContext context) {
     final search = ref.watch(duesSearchProvider);
     final selection = ref.watch(duesSelectionProvider);
+    final purok = ref.watch(duesPurokProvider);
+    // A chosen purok turns the household list into a walk-through checklist.
+    final walking = search.mode == DuesSearchMode.household && purok.purok != null;
 
     return LayoutBuilder(builder: (context, constraints) {
       final wide = constraints.maxWidth >= 860;
@@ -224,6 +230,19 @@ class _CollectTabState extends ConsumerState<_CollectTab> {
             selected: {search.mode},
             onSelectionChanged: (s) => ref.read(duesSearchProvider.notifier).update((v) => v.copyWith(mode: s.first)),
           ),
+          if (search.mode == DuesSearchMode.household) ...[
+            SizedBox(height: short ? 8 : 12),
+            _LocationPickers(
+              lgu: purok.lgu,
+              barangay: purok.barangay,
+              purok: purok.purok,
+              onChanged: (lgu, barangay, p) {
+                ref.read(duesPurokProvider.notifier).state = (lgu: lgu, barangay: barangay, purok: p);
+                // The open household belongs to the old place; show the new purok's summary instead.
+                ref.read(duesSelectionProvider.notifier).state = null;
+              },
+            ),
+          ],
           SizedBox(height: short ? 8 : 12),
           TextField(
             inputFormatters: const [UpperCaseFormatter()],
@@ -232,20 +251,44 @@ class _CollectTabState extends ConsumerState<_CollectTab> {
             style: TropaStyles.fieldText(context),
             decoration: TropaStyles.filterField(
               context,
-              hint: search.mode == DuesSearchMode.household ? 'Household or member name…' : 'Member name…',
+              hint: walking
+                  ? 'Find in this purok…'
+                  : search.mode == DuesSearchMode.household
+                      ? 'Household or member name…'
+                      : 'Member name…',
               search: true,
             ),
             onChanged: _search,
           ),
+          if (walking && !short) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Expanded(child: _PurokProgress()),
+                const SizedBox(width: 10),
+                FilterChip(
+                  label: const Text('Unpaid only'),
+                  selected: _unpaidOnly,
+                  onSelected: (v) => setState(() => _unpaidOnly = v),
+                ),
+              ],
+            ),
+          ],
           SizedBox(height: short ? 8 : 12),
           Expanded(
-            child: search.mode == DuesSearchMode.household
-                ? _HouseholdResults(
-                    selectedId: selection?.id,
-                    onOpen: (id) => _open((mode: DuesSearchMode.household, id: id), wide: wide))
-                : _MemberResults(
-                    selectedId: selection?.id,
-                    onOpen: (id) => _open((mode: DuesSearchMode.member, id: id), wide: wide)),
+            child: switch (search.mode) {
+              _ when walking => _PurokChecklist(
+                  query: search.query,
+                  unpaidOnly: _unpaidOnly,
+                  selectedId: selection?.id,
+                  onOpen: (id) => _open((mode: DuesSearchMode.household, id: id), wide: wide)),
+              DuesSearchMode.household => _HouseholdResults(
+                  selectedId: selection?.id,
+                  onOpen: (id) => _open((mode: DuesSearchMode.household, id: id), wide: wide)),
+              DuesSearchMode.member => _MemberResults(
+                  selectedId: selection?.id,
+                  onOpen: (id) => _open((mode: DuesSearchMode.member, id: id), wide: wide)),
+            },
           ),
         ],
       );
@@ -259,13 +302,15 @@ class _CollectTabState extends ConsumerState<_CollectTab> {
           Expanded(
             child: _Surface(
               padding: const EdgeInsets.all(20),
-              child: selection == null
-                  ? const _EmptyState(
-                      icon: Icons.touch_app_outlined,
-                      title: 'Choose a household or member',
-                      message: 'Their unpaid months and amount due appear here.',
-                    )
-                  : _PaymentPanel(key: ValueKey(selection), selection: selection),
+              child: switch (selection) {
+                final sel? => _PaymentPanel(key: ValueKey(sel), selection: sel),
+                null when walking => const _PurokSummary(),
+                null => const _EmptyState(
+                    icon: Icons.touch_app_outlined,
+                    title: 'Choose a household or member',
+                    message: 'Their unpaid months and amount due appear here.',
+                  ),
+              },
             ),
           ),
         ],
@@ -382,6 +427,250 @@ class _MemberResults extends ConsumerWidget {
   }
 }
 
+/// Cascading LGU › Barangay › Purok dropdowns over the user's dues barangays. An LGU or barangay
+/// that is the only choice is picked for the user. With [anyLabels] an empty choice reads "All …"
+/// (ledger filters); otherwise "Choose …" (Collect).
+class _LocationPickers extends ConsumerWidget {
+  final String? lgu;
+  final String? barangay;
+  final String? purok;
+  final bool anyLabels;
+  final void Function(String? lgu, String? barangay, String? purok) onChanged;
+
+  const _LocationPickers({
+    required this.lgu,
+    required this.barangay,
+    required this.purok,
+    required this.onChanged,
+    this.anyLabels = false,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final scope = ref.watch(duesScopeProvider).value;
+    final locations = scope == null
+        ? const <LocationOption>[]
+        : scope.everywhere
+            ? ref.watch(locationsProvider).value ?? const <LocationOption>[]
+            : scope.barangays;
+    final lgus = {for (final l in locations) l.lgu}.toList()..sort();
+    final effLgu = lgu ?? (lgus.length == 1 ? lgus.first : null);
+    final barangays = [for (final l in locations) if (l.lgu == effLgu) l]..sort((a, b) => a.barangay.compareTo(b.barangay));
+    final effBarangay = barangay ?? (barangays.length == 1 ? barangays.first.barangay : null);
+    final location = barangays.where((l) => l.barangay == effBarangay).firstOrNull;
+    final puroks = location == null
+        ? const <String>[]
+        : [for (final p in ref.watch(puroksProvider(location.id)).value ?? const <({String id, String name})>[]) p.name];
+
+    Widget dropdown(String empty, String? value, List<String> items, ValueChanged<String?>? changed) {
+      final current = items.contains(value) ? value : null;
+      return DropdownButtonFormField<String?>(
+        icon: TropaStyles.dropdownIcon(context),
+        // Rebuilt when the choice or its options change, since the field keeps its own value.
+        key: ValueKey('$empty|$current|${items.length}'),
+        initialValue: current,
+        isExpanded: true,
+        style: TropaStyles.fieldText(context),
+        decoration: TropaStyles.filterField(context),
+        items: [
+          DropdownMenuItem<String?>(value: null, child: Text(empty, overflow: TextOverflow.ellipsis)),
+          for (final i in items) DropdownMenuItem<String?>(value: i, child: Text(i, overflow: TextOverflow.ellipsis)),
+        ],
+        onChanged: changed,
+      );
+    }
+
+    final lguField =
+        dropdown(anyLabels ? 'All LGUs' : 'Choose LGU', effLgu, lgus, (v) => onChanged(v, null, null));
+    final barangayField = dropdown(
+      anyLabels ? 'All barangays' : 'Choose barangay',
+      effBarangay,
+      [for (final b in barangays) b.barangay],
+      effLgu == null ? null : (v) => onChanged(effLgu, v, null),
+    );
+    final purokField = dropdown(
+      anyLabels ? 'All puroks' : 'Choose purok',
+      purok,
+      puroks,
+      location == null ? null : (v) => onChanged(effLgu, effBarangay, v),
+    );
+
+    return LayoutBuilder(builder: (context, constraints) {
+      if (constraints.maxWidth >= 520) {
+        return Row(children: [
+          Expanded(child: lguField),
+          const SizedBox(width: 8),
+          Expanded(child: barangayField),
+          const SizedBox(width: 8),
+          Expanded(child: purokField),
+        ]);
+      }
+      return Column(children: [
+        Row(children: [Expanded(child: lguField), const SizedBox(width: 8), Expanded(child: barangayField)]),
+        const SizedBox(height: 8),
+        purokField,
+      ]);
+    });
+  }
+}
+
+bool _upToDate(DuesHousehold h, List<DuesRate> rates) => _totals(h.members, rates).months <= 0;
+
+/// The chosen purok's households as a checklist in walking (name) order: ✓ when nobody owes,
+/// otherwise what is owed. [query] narrows by household or member name.
+class _PurokChecklist extends ConsumerWidget {
+  final String query;
+  final bool unpaidOnly;
+  final String? selectedId;
+  final ValueChanged<String> onOpen;
+
+  const _PurokChecklist({required this.query, required this.unpaidOnly, required this.selectedId, required this.onOpen});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rates = ref.watch(duesRatesProvider).value ?? const <DuesRate>[];
+    final textCol = TropaColors.textHigh(context);
+    final subCol = TropaColors.textMedium(context);
+    final words = query.toUpperCase().split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+    bool matches(DuesHousehold h) => words.every((w) =>
+        h.householdName.toUpperCase().contains(w) || h.members.any((m) => m.fullName.toUpperCase().contains(w)));
+
+    return ref.watch(duesPurokHouseholdsProvider).when(
+          skipLoadingOnReload: true,
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => Center(child: Text('Could not load the purok: $e')),
+          data: (all) {
+            final households =
+                all.where((h) => matches(h) && (!unpaidOnly || !_upToDate(h, rates))).toList();
+            if (households.isEmpty) {
+              return _EmptyState(
+                icon: all.isEmpty ? Icons.home_outlined : Icons.task_alt,
+                title: all.isEmpty ? 'No households here' : (unpaidOnly ? 'Everyone here is up to date' : 'No match'),
+                message: all.isEmpty ? 'No households with members to bill in this purok.' : 'Try another name.',
+              );
+            }
+            return _Surface(
+              child: ListView.separated(
+                itemCount: households.length,
+                separatorBuilder: (_, __) => Divider(height: 1, color: TropaColors.borderOf(context)),
+                itemBuilder: (context, i) {
+                  final h = households[i];
+                  final t = _totals(h.members, rates);
+                  final done = t.months <= 0;
+                  return ListTile(
+                    selected: h.id == selectedId,
+                    leading: Icon(
+                      done ? Icons.check_circle : Icons.radio_button_unchecked,
+                      color: done ? TropaColors.secondaryStrongOf(context) : TropaColors.textDisabled(context),
+                    ),
+                    title: Text(h.householdName, style: TropaText.bodyStrong(textCol)),
+                    subtitle: Text(
+                      '${h.members.length} member${h.members.length == 1 ? '' : 's'}'
+                      '${t.unbilled > 0 ? ' · ${t.unbilled} need a date' : ''}',
+                      style: TropaText.caption(subCol),
+                    ),
+                    trailing: _OwedLabel(months: t.months, amount: t.amount),
+                    onTap: () => onOpen(h.id),
+                  );
+                },
+              ),
+            );
+          },
+        );
+  }
+}
+
+/// "12 of 30 up to date" with a thin progress bar, for the chosen purok.
+class _PurokProgress extends ConsumerWidget {
+  const _PurokProgress();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rates = ref.watch(duesRatesProvider).value ?? const <DuesRate>[];
+    final households = ref.watch(duesPurokHouseholdsProvider).value;
+    if (households == null || households.isEmpty) return const SizedBox.shrink();
+    final done = households.where((h) => _upToDate(h, rates)).length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('$done of ${households.length} households up to date',
+            style: TropaText.meta(TropaColors.textMedium(context))),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: done / households.length,
+            minHeight: 6,
+            color: TropaColors.secondaryStrongOf(context),
+            backgroundColor: TropaColors.chipOf(context),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Shown beside the checklist until a household is picked: what the purok still owes, how many
+/// households are up to date, and what was collected there today.
+class _PurokSummary extends ConsumerWidget {
+  const _PurokSummary();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rates = ref.watch(duesRatesProvider).value ?? const <DuesRate>[];
+    final purok = ref.watch(duesPurokProvider);
+    final households = ref.watch(duesPurokHouseholdsProvider).value ?? const <DuesHousehold>[];
+    final today = ref.watch(duesPurokTodayProvider).value;
+    var owed = 0.0;
+    var unpaid = 0;
+    for (final h in households) {
+      final t = _totals(h.members, rates);
+      if (t.months > 0) {
+        owed += t.amount;
+        unpaid++;
+      }
+    }
+    final textCol = TropaColors.textHigh(context);
+    final subCol = TropaColors.textMedium(context);
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('${purok.purok}, ${purok.barangay}', style: TropaText.dialogTitle(textCol)),
+            Text('Pick a household on the left to record a payment.', style: TropaText.meta(subCol)),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                _StatTile(
+                  label: 'Unpaid',
+                  value: _peso.format(owed),
+                  caption: '$unpaid household${unpaid == 1 ? '' : 's'}',
+                  color: unpaid == 0 ? null : TropaColors.errorOf(context),
+                ),
+                _StatTile(
+                  label: 'Up to date',
+                  value: '${households.length - unpaid} of ${households.length}',
+                  color: TropaColors.secondaryStrongOf(context),
+                ),
+                _StatTile(
+                  label: 'Collected today',
+                  value: _peso.format(today?.total ?? 0),
+                  caption: '${today?.receipts ?? 0} receipt${today?.receipts == 1 ? '' : 's'}',
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _OwedLabel extends StatelessWidget {
   final int months;
   final double amount;
@@ -393,12 +682,18 @@ class _OwedLabel extends StatelessWidget {
     if (months <= 0) {
       return TropaBadge('Up to date', color: TropaColors.secondaryStrongOf(context), icon: Icons.check_circle_outline);
     }
+    // Calm by default; amber from 6 months behind, red from 12.
+    final color = months >= 12
+        ? TropaColors.errorOf(context)
+        : months >= 6
+            ? TropaColors.offline
+            : null;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Text(_peso.format(amount), style: TropaText.bodyStrong(TropaColors.errorOf(context))),
-        Text('$months mo unpaid', style: TropaText.caption(TropaColors.textMedium(context))),
+        Text(_peso.format(amount), style: TropaText.bodyStrong(color ?? TropaColors.textHigh(context))),
+        Text('$months mo unpaid', style: TropaText.caption(color ?? TropaColors.textMedium(context))),
       ],
     );
   }
@@ -640,7 +935,7 @@ class _PaymentPanelState extends ConsumerState<_PaymentPanel> {
                         _defaultsFor = null;
                         _syncDefaults(data, rates);
                       }),
-                      child: const Text('All owed'),
+                      child: const Text('All unpaid'),
                     ),
                     TextButton(onPressed: () => setState(_months.clear), child: const Text('Clear')),
                   ],
@@ -681,6 +976,7 @@ class _PaymentPanelState extends ConsumerState<_PaymentPanel> {
                       child: LabeledField(
                         label: 'Payment method',
                         child: DropdownButtonFormField<String>(
+                          icon: TropaStyles.dropdownIcon(context),
                           initialValue: _method,
                           style: TropaStyles.fieldText(context),
                           decoration: TropaStyles.formField(context),
@@ -836,8 +1132,9 @@ class _MemberPayRow extends StatelessWidget {
 
 class _ReceiptDialog extends StatelessWidget {
   final DuesReceipt receipt;
+  final String title;
 
-  const _ReceiptDialog({required this.receipt});
+  const _ReceiptDialog({required this.receipt, this.title = 'Payment recorded'});
 
   @override
   Widget build(BuildContext context) {
@@ -855,22 +1152,35 @@ class _ReceiptDialog extends StatelessWidget {
         );
 
     return AlertDialog(
-      title: const Text('Payment recorded'),
+      title: Text(title),
       content: SizedBox(
         width: 420,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(_peso.format(receipt.total), style: TropaText.kpi(TropaColors.secondaryStrongOf(context))),
+            Row(
+              children: [
+                Text(
+                  _peso.format(receipt.total),
+                  style: TropaText.kpi(receipt.isVoid ? subCol : TropaColors.secondaryStrongOf(context))
+                      .copyWith(decoration: receipt.isVoid ? TextDecoration.lineThrough : null),
+                ),
+                if (receipt.isVoid) ...[
+                  const SizedBox(width: 10),
+                  TropaBadge('VOID', color: TropaColors.errorOf(context)),
+                ],
+              ],
+            ),
             const SizedBox(height: 12),
             if (receipt.householdName != null) line('Household', receipt.householdName!),
             line('Members', receipt.memberNames),
-            line('Months', _ReceiptTile.monthsLabel(receipt)),
+            line('Months', receiptMonthsLabel(receipt)),
             line('Method', receipt.paymentMethod),
             if (receipt.referenceNumber != null) line('Reference', receipt.referenceNumber!),
             line('Date', formatPh(_dateTimeFormat, receipt.paymentDate)),
             line('Collected by', receipt.collectedBy),
+            if (receipt.isVoid && receipt.voidReason != null) line('Void reason', receipt.voidReason!),
           ],
         ),
       ),
@@ -964,6 +1274,7 @@ class _PrintSheetDialogState extends ConsumerState<_PrintSheetDialog> {
                 style: TropaText.meta(TropaColors.textMedium(context))),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
+              icon: TropaStyles.dropdownIcon(context),
               // Rebuilt once the location list loads, to show a preselected sole LGU.
               key: ValueKey(lgus.length),
               initialValue: _lgu,
@@ -980,6 +1291,7 @@ class _PrintSheetDialogState extends ConsumerState<_PrintSheetDialog> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
+              icon: TropaStyles.dropdownIcon(context),
               // Rebuilt per LGU, so the barangay choice resets with it.
               key: ValueKey('$_lgu|${barangays.length}'),
               initialValue: location?.id,
@@ -998,6 +1310,7 @@ class _PrintSheetDialogState extends ConsumerState<_PrintSheetDialog> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String?>(
+              icon: TropaStyles.dropdownIcon(context),
               // Rebuilt per barangay, so the purok choice resets with it.
               key: ValueKey(location?.id),
               initialValue: puroks.contains(_purok) ? _purok : null,
@@ -1011,6 +1324,7 @@ class _PrintSheetDialogState extends ConsumerState<_PrintSheetDialog> {
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<int>(
+              icon: TropaStyles.dropdownIcon(context),
               initialValue: _year,
               decoration: const InputDecoration(labelText: 'Year'),
               items: [
@@ -1044,7 +1358,7 @@ class _LedgerTab extends ConsumerStatefulWidget {
 }
 
 class _LedgerTabState extends ConsumerState<_LedgerTab> {
-  late final _searchCtrl = TextEditingController(text: ref.read(duesLedgerQueryProvider));
+  late final _searchCtrl = TextEditingController(text: ref.read(duesLedgerFilterProvider).query);
   Timer? _debounce;
 
   @override
@@ -1054,110 +1368,228 @@ class _LedgerTabState extends ConsumerState<_LedgerTab> {
     super.dispose();
   }
 
+  void _update(DuesLedgerFilter Function(DuesLedgerFilter f) change) =>
+      ref.read(duesLedgerFilterProvider.notifier).update(change);
+
   void _search(String value) {
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 300), () {
-      if (!mounted) return;
-      ref.read(duesLedgerPageProvider.notifier).state = 0;
-      ref.read(duesLedgerQueryProvider.notifier).state = value.trim();
+    _debounce = Timer(TropaMotion.searchDebounce, () {
+      if (mounted) _update((f) => f.copyWith(query: value.trim()));
     });
+  }
+
+  Future<void> _pickRange(DuesLedgerFilter filter) async {
+    final today = phToday();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: today,
+      initialDateRange: filter.from != null && filter.to != null ? DateTimeRange(start: filter.from!, end: filter.to!) : null,
+    );
+    if (picked == null) return;
+    _update((f) => f.copyWith(period: LedgerPeriod.custom, from: picked.start, to: picked.end));
   }
 
   @override
   Widget build(BuildContext context) {
+    final filter = ref.watch(duesLedgerFilterProvider);
     final page = ref.watch(duesLedgerPageProvider);
     final receiptsAsync = ref.watch(duesReceiptsProvider);
     final totals = ref.watch(duesLedgerTotalsProvider).value;
-    final hasQuery = ref.watch(duesLedgerQueryProvider).isNotEmpty;
+    final count = ref.watch(duesLedgerCountProvider).value ?? 0;
+    final subCol = TropaColors.textMedium(context);
 
-    return LayoutBuilder(builder: (context, constraints) {
-    // With the keyboard up, the totals and pager give their room to the search box and receipts.
-    final short = constraints.maxHeight < _shortTabHeight;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    final search = TextField(
+      inputFormatters: const [UpperCaseFormatter()],
+      textCapitalization: TextCapitalization.characters,
+      controller: _searchCtrl,
+      style: TropaStyles.fieldText(context),
+      decoration: TropaStyles.filterField(context, hint: 'Name, household, reference or month (YYYY-MM)…', search: true),
+      onChanged: _search,
+    );
+    final pickers = _LocationPickers(
+      lgu: filter.lgu,
+      barangay: filter.barangay,
+      purok: filter.purok,
+      anyLabels: true,
+      onChanged: (lgu, barangay, purok) =>
+          _update((f) => f.copyWith(lgu: () => lgu, barangay: () => barangay, purok: () => purok)),
+    );
+
+    final customLabel = filter.period == LedgerPeriod.custom && filter.from != null && filter.to != null
+        ? '${_dayFormat.format(filter.from!)} – ${_dayFormat.format(filter.to!)}'
+        : 'Custom…';
+    final periods = Wrap(
+      spacing: 8,
+      runSpacing: 8,
       children: [
-        TextField(
-          inputFormatters: const [UpperCaseFormatter()],
-          textCapitalization: TextCapitalization.characters,
-          controller: _searchCtrl,
-          style: TropaStyles.fieldText(context),
-          decoration: TropaStyles.filterField(context,
-              hint: 'Search by name, household, reference or month (YYYY-MM)…', search: true),
-          onChanged: _search,
-        ),
-        SizedBox(height: short ? 8 : 12),
-        if (totals != null && !short) ...[
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              _TotalTile(
-                  label: hasQuery ? 'Total collected (matching search)' : 'Total collected',
-                  amount: totals.total,
-                  caption: '${totals.receipts} receipt${totals.receipts == 1 ? '' : 's'} · voided receipts excluded'),
-              _TotalTile(label: 'Collected in ${monthLabel(currentMonthIndex())}', amount: totals.thisMonth),
-            ],
+        for (final (p, label) in [
+          (LedgerPeriod.all, 'All time'),
+          (LedgerPeriod.today, 'Today'),
+          (LedgerPeriod.week, 'This week'),
+          (LedgerPeriod.month, 'This month'),
+        ])
+          ChoiceChip(
+            label: Text(label),
+            selected: filter.period == p,
+            onSelected: (_) => _update((f) => f.copyWith(period: p)),
           ),
-          const SizedBox(height: 12),
-        ],
-        Expanded(
-          child: receiptsAsync.when(
-            skipLoadingOnReload: true,
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('Error loading ledger: $e')),
-            data: (receipts) => receipts.isEmpty
-                ? const _EmptyState(
-                    icon: Icons.account_balance_wallet_outlined,
-                    title: 'No receipts',
-                    message: 'Payments recorded on the Collect tab appear here.',
-                  )
-                : _Surface(
-                    child: ListView.separated(
-                      itemCount: receipts.length,
-                      separatorBuilder: (_, __) => Divider(height: 1, color: TropaColors.borderOf(context)),
-                      itemBuilder: (_, i) => _ReceiptTile(receipt: receipts[i]),
-                    ),
-                  ),
-          ),
+        ChoiceChip(
+          avatar: const Icon(Icons.date_range, size: 16),
+          label: Text(customLabel),
+          selected: filter.period == LedgerPeriod.custom,
+          onSelected: (_) => _pickRange(filter),
         ),
-        if (!short) ...[
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            IconButton(
-              tooltip: 'Newer',
-              icon: const Icon(Icons.chevron_left),
-              onPressed: page > 0 ? () => ref.read(duesLedgerPageProvider.notifier).state = page - 1 : null,
-            ),
-            Text('Page ${page + 1}', style: TropaText.meta(TropaColors.textMedium(context))),
-            IconButton(
-              tooltip: 'Older',
-              icon: const Icon(Icons.chevron_right),
-              onPressed: (receiptsAsync.value?.length ?? 0) >= 50
-                  ? () => ref.read(duesLedgerPageProvider.notifier).state = page + 1
-                  : null,
-            ),
-          ],
-        ),
-        ],
       ],
     );
+
+    return LayoutBuilder(builder: (context, constraints) {
+      // With the keyboard up, the totals and pager give their room to the search box and receipts.
+      final short = constraints.maxHeight < _shortTabHeight;
+      final wide = constraints.maxWidth >= _ledgerTableWidth;
+      final pages = (count / duesLedgerPageSize).ceil();
+      final first = page * duesLedgerPageSize + 1;
+      final last = first - 1 + (receiptsAsync.value?.length ?? 0);
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (wide)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [Expanded(flex: 2, child: search), const SizedBox(width: 10), Expanded(flex: 3, child: pickers)],
+            )
+          else ...[
+            search,
+            const SizedBox(height: 8),
+            pickers,
+          ],
+          if (!short) ...[
+            const SizedBox(height: 10),
+            periods,
+            if (totals != null) ...[
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  _StatTile(
+                    label: 'Collected',
+                    value: _peso.format(totals.total),
+                    color: TropaColors.secondaryStrongOf(context),
+                  ),
+                  _StatTile(label: 'Receipts', value: '${totals.receipts}'),
+                  _StatTile(label: 'Households paid', value: '${totals.households}'),
+                  _StatTile(
+                    label: 'Voided',
+                    value: '${totals.voided}',
+                    caption: totals.voided == 0 ? null : _peso.format(totals.voidedAmount),
+                    color: totals.voided == 0 ? null : TropaColors.errorOf(context),
+                  ),
+                ],
+              ),
+            ],
+          ],
+          SizedBox(height: short ? 8 : 12),
+          Expanded(
+            child: receiptsAsync.when(
+              skipLoadingOnReload: true,
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('Error loading ledger: $e')),
+              data: (receipts) => receipts.isEmpty
+                  ? _EmptyState(
+                      icon: Icons.account_balance_wallet_outlined,
+                      title: 'No receipts',
+                      message: filter.isFiltered
+                          ? 'Nothing matches these filters.'
+                          : 'Payments recorded on the Collect tab appear here.',
+                    )
+                  : _Surface(
+                      child: Column(
+                        children: [
+                          if (wide) const _LedgerHeader(),
+                          Expanded(
+                            child: ListView.separated(
+                              itemCount: receipts.length,
+                              separatorBuilder: (_, __) => Divider(height: 1, color: TropaColors.borderOf(context)),
+                              itemBuilder: (_, i) => _ReceiptRow(receipt: receipts[i], wide: wide),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+            ),
+          ),
+          if (!short && count > 0) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(child: Text('Showing $first–$last of $count', style: TropaText.meta(subCol))),
+                IconButton(
+                  tooltip: 'Newer',
+                  icon: const Icon(Icons.chevron_left),
+                  onPressed: page > 0 ? () => ref.read(duesLedgerPageProvider.notifier).state = page - 1 : null,
+                ),
+                Text('Page ${page + 1} of ${pages < 1 ? 1 : pages}', style: TropaText.meta(subCol)),
+                IconButton(
+                  tooltip: 'Older',
+                  icon: const Icon(Icons.chevron_right),
+                  onPressed: page + 1 < pages ? () => ref.read(duesLedgerPageProvider.notifier).state = page + 1 : null,
+                ),
+              ],
+            ),
+          ],
+        ],
+      );
     });
   }
 }
 
-class _ReceiptTile extends ConsumerWidget {
-  final DuesReceipt receipt;
+/// Ledger width from which receipts show as a table; narrower, each is a compact card.
+const _ledgerTableWidth = 760.0;
 
-  const _ReceiptTile({required this.receipt});
+final _dayFormat = DateFormat('MMM d');
+final _dayYearFormat = DateFormat('MMM d, yyyy');
+final _timeFormat = DateFormat('h:mm a');
 
-  static String monthsLabel(DuesReceipt r) {
-    final first = parseMonthKey(r.firstMonth);
-    final last = parseMonthKey(r.lastMonth);
-    final range = first == null ? (r.firstMonth ?? '') : monthRangeLabel(first, (last ?? first) - first + 1);
-    return r.memberCount > 1 ? '$range · ${r.monthsCovered} member-months' : range;
+/// Column widths of the ledger table, shared by the header and the rows.
+const _ledgerFlex = (date: 10, who: 26, months: 16, method: 12, collector: 14, amount: 12);
+
+class _LedgerHeader extends StatelessWidget {
+  const _LedgerHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final style = TropaText.tableHeader(TropaColors.textMedium(context));
+    Widget cell(int flex, String text, {bool end = false}) => Expanded(
+          flex: flex,
+          child: Text(text, style: style, textAlign: end ? TextAlign.end : TextAlign.start),
+        );
+    return Container(
+      color: TropaColors.chipOf(context),
+      padding: const EdgeInsets.fromLTRB(16, 10, 8, 10),
+      child: Row(
+        children: [
+          cell(_ledgerFlex.date, 'DATE'),
+          cell(_ledgerFlex.who, 'HOUSEHOLD / MEMBER'),
+          cell(_ledgerFlex.months, 'MONTHS'),
+          cell(_ledgerFlex.method, 'METHOD'),
+          cell(_ledgerFlex.collector, 'COLLECTED BY'),
+          cell(_ledgerFlex.amount, 'AMOUNT', end: true),
+          const SizedBox(width: 40),
+        ],
+      ),
+    );
   }
+}
+
+/// One ledger receipt: a table row when [wide], otherwise a compact card. Tapping opens the
+/// receipt; Void and Delete sit in its ⋯ menu.
+class _ReceiptRow extends ConsumerWidget {
+  final DuesReceipt receipt;
+  final bool wide;
+
+  const _ReceiptRow({required this.receipt, required this.wide});
 
   Future<void> _void(BuildContext context, WidgetRef ref) async {
     final reason = await promptText(
@@ -1188,6 +1620,9 @@ class _ReceiptTile extends ConsumerWidget {
     await ref.read(supabaseServiceProvider).deleteDuesReceipt(receipt.id);
   }
 
+  void _open(BuildContext context) =>
+      showTropaDialog<void>(context: context, builder: (_) => _ReceiptDialog(receipt: receipt, title: 'Receipt'));
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final canDelete = ref.watch(canPermissionProvider(AppPermissions.deleteRecords));
@@ -1195,82 +1630,140 @@ class _ReceiptTile extends ConsumerWidget {
     final subCol = TropaColors.textMedium(context);
     final r = receipt;
     final who =
-        r.householdName != null && r.memberCount > 1 ? '${r.householdName} (${r.memberCount} members)' : r.memberNames;
-
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      leading:
-          Icon(r.isVoid ? Icons.block : Icons.receipt, color: r.isVoid ? subCol : TropaColors.secondaryOf(context)),
-      title: Wrap(
-        spacing: 10,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          Text(
-            _peso.format(r.total),
-            style: TropaText.sectionTitle(r.isVoid ? subCol : TropaColors.secondaryStrongOf(context)).copyWith(
-              decoration: r.isVoid ? TextDecoration.lineThrough : null,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
+        r.householdName != null && r.memberCount > 1 ? r.householdName! : r.memberNames;
+    final place = [
+      if (r.barangay != null) r.barangay!,
+      if (r.purok != null && r.purok!.isNotEmpty) r.purok!,
+      if (r.memberCount > 1) '${r.memberCount} members',
+    ].join(' · ');
+    final paid = toPh(r.paymentDate);
+    final date = paid.year == phToday().year ? _dayFormat.format(paid) : _dayYearFormat.format(paid);
+    // Imported receipts carry a date only; their midnight is not a real time.
+    final time = paid.hour == 0 && paid.minute == 0 ? null : _timeFormat.format(paid);
+    final amount = Text(
+      _peso.format(r.total),
+      textAlign: TextAlign.end,
+      style: TropaText.bodyStrong(r.isVoid ? subCol : TropaColors.secondaryStrongOf(context)).copyWith(
+        decoration: r.isVoid ? TextDecoration.lineThrough : null,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+    );
+    final menu = PopupMenuButton<String>(
+      tooltip: 'Receipt actions',
+      icon: Icon(Icons.more_horiz, size: 18, color: subCol),
+      onSelected: (v) => switch (v) {
+        'void' => _void(context, ref),
+        'delete' => _delete(context, ref),
+        _ => _open(context),
+      },
+      itemBuilder: (_) => [
+        const PopupMenuItem(value: 'view', child: Text('View receipt')),
+        if (!r.isVoid) const PopupMenuItem(value: 'void', child: Text('Void receipt')),
+        if (canDelete)
+          PopupMenuItem(
+            value: 'delete',
+            child: Text('Delete receipt', style: TextStyle(color: TropaColors.errorOf(context))),
           ),
-          Text(who, style: TropaText.bodyStrong(textCol)),
-          if (r.isVoid) TropaBadge('VOID', color: TropaColors.errorOf(context)),
-        ],
-      ),
-      subtitle: Text(
-        [
-          monthsLabel(r),
-          if (r.barangay != null) r.barangay!,
-          r.paymentMethod,
-          if (r.referenceNumber != null) 'Ref ${r.referenceNumber}',
-          formatPh(_dateTimeFormat, r.paymentDate),
-          if (r.collectedBy.isNotEmpty) 'by ${r.collectedBy}',
-          if (r.isVoid && r.voidReason != null) 'Voided: ${r.voidReason}',
-        ].join(' · '),
-        style: TropaText.caption(subCol),
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (!r.isVoid)
-            IconButton(
-              tooltip: 'Void receipt',
-              icon: const Icon(Icons.block, size: 18),
-              onPressed: () => _void(context, ref),
+      ],
+    );
+    Widget two(String top, String? bottom, {TextStyle? topStyle}) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(top, style: topStyle ?? TropaText.body(textCol), overflow: TextOverflow.ellipsis),
+            if (bottom != null && bottom.isNotEmpty)
+              Text(bottom, style: TropaText.caption(subCol), overflow: TextOverflow.ellipsis),
+          ],
+        );
+    final voidLine = r.isVoid ? 'VOID${r.voidReason != null ? ' · ${r.voidReason}' : ''}' : null;
+
+    if (!wide) {
+      return InkWell(
+        onTap: () => _open(context),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 4, 10),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(who, style: TropaText.bodyStrong(textCol), overflow: TextOverflow.ellipsis),
+                    Text(
+                      [receiptMonthsLabel(r), '$date${time == null ? '' : ' $time'}', r.paymentMethod].join(' · '),
+                      style: TropaText.caption(subCol),
+                    ),
+                    if (voidLine != null) Text(voidLine, style: TropaText.caption(TropaColors.errorOf(context))),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              amount,
+              menu,
+            ],
+          ),
+        ),
+      );
+    }
+
+    return InkWell(
+      onTap: () => _open(context),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 0, 10),
+        child: Row(
+          children: [
+            Expanded(flex: _ledgerFlex.date, child: two(date, time, topStyle: TropaText.meta(textCol))),
+            Expanded(
+              flex: _ledgerFlex.who,
+              child: Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: two(who, voidLine ?? place, topStyle: TropaText.bodyStrong(textCol)),
+              ),
             ),
-          if (canDelete)
-            IconButton(
-              tooltip: 'Delete receipt',
-              icon: Icon(Icons.delete_outline, size: 18, color: TropaColors.errorOf(context)),
-              onPressed: () => _delete(context, ref),
+            Expanded(
+              flex: _ledgerFlex.months,
+              child: two(receiptMonthRange(r), r.memberCount > 1 ? '${r.monthsCovered} member-months' : null),
             ),
-        ],
+            Expanded(
+              flex: _ledgerFlex.method,
+              child: two(r.paymentMethod, r.referenceNumber == null ? null : 'Ref ${r.referenceNumber}'),
+            ),
+            Expanded(flex: _ledgerFlex.collector, child: two(_titleCase(r.collectedBy), null)),
+            Expanded(flex: _ledgerFlex.amount, child: Align(alignment: Alignment.centerRight, child: amount)),
+            SizedBox(width: 40, child: menu),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _TotalTile extends StatelessWidget {
-  final String label;
-  final double amount;
-  final String? caption;
+String _titleCase(String s) =>
+    s.toLowerCase().split(' ').map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}').join(' ');
 
-  const _TotalTile({required this.label, required this.amount, this.caption});
+/// A small labelled number in the ledger's totals strip.
+class _StatTile extends StatelessWidget {
+  final String label;
+  final String value;
+  final String? caption;
+  final Color? color;
+
+  const _StatTile({required this.label, required this.value, this.caption, this.color});
 
   @override
   Widget build(BuildContext context) {
     final subCol = TropaColors.textMedium(context);
     return _Surface(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(minWidth: 220),
+        constraints: const BoxConstraints(minWidth: 140),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: TropaText.meta(subCol)),
+            Text(label, style: TropaText.caption(subCol)),
             Text(
-              _peso.format(amount),
-              style: TropaText.kpi(TropaColors.secondaryStrongOf(context), size: 22)
+              value,
+              style: TropaText.kpi(color ?? TropaColors.textHigh(context), size: 18)
                   .copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
             ),
             if (caption != null) Text(caption!, style: TropaText.caption(subCol)),

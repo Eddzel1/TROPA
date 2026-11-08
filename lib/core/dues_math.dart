@@ -28,6 +28,19 @@ String monthLabel(int index) => '${_monthNames[index % 12]} ${index ~/ 12}';
 String monthRangeLabel(int first, int count) =>
     count <= 1 ? monthLabel(first) : '${monthLabel(first)} – ${monthLabel(first + count - 1)}';
 
+/// Months a ledger receipt pays for, e.g. "Oct 2026 – Dec 2026".
+String receiptMonthRange(DuesReceipt r) {
+  final first = parseMonthKey(r.firstMonth);
+  final last = parseMonthKey(r.lastMonth);
+  return first == null ? (r.firstMonth ?? '') : monthRangeLabel(first, (last ?? first) - first + 1);
+}
+
+/// [receiptMonthRange], plus member-months when the receipt covers several members.
+String receiptMonthsLabel(DuesReceipt r) {
+  final range = receiptMonthRange(r);
+  return r.memberCount > 1 ? '$range · ${r.monthsCovered} member-months' : range;
+}
+
 /// The rate for [month]: the latest rate effective on or before it. The earliest rate also covers
 /// months before it, so setting a rate never makes past months free. 0 when there are no rates.
 double rateForMonth(int month, List<DuesRate> rates) {

@@ -8,6 +8,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../core/design_system.dart';
+import '../core/motion.dart';
 import '../core/dues_math.dart';
 import '../core/geo.dart';
 import '../core/image_compress.dart';
@@ -46,6 +47,7 @@ class DependentMemberData {
   final TextEditingController contactCtrl;
   final TextEditingController phicNoCtrl;
   DateTime? birthDate;
+  String? suffix; // JR., SR., III, … (saved as `extension`)
   // Used to scroll this row back into view after a voter search
   final GlobalKey cardKey = GlobalKey();
   // Rows added by the keyboard shortcut start with the cursor here (last name is prefilled)
@@ -133,6 +135,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   final _lastNameCtrl = TextEditingController();
   final _firstNameCtrl = TextEditingController();
   final _middleNameCtrl = TextEditingController();
+  String? _suffix; // JR., SR., III, … (saved as `extension`)
   final _contactCtrl = TextEditingController();
   final _phicNoCtrl = TextEditingController();
 
@@ -326,6 +329,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       _lastNameCtrl.text = e.lastname;
       _firstNameCtrl.text = e.firstname;
       _middleNameCtrl.text = e.middlename ?? '';
+      _suffix = normalizeSuffix(e.extension) ?? _blankToNull(e.extension?.trim().toUpperCase());
       _contactCtrl.text = _displayContact(e.contactNumber);
       _phicNoCtrl.text = _formatPhic(e.phicNo ?? '');
       _birthDate = e.birthDate;
@@ -423,9 +427,12 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     });
   }
 
-  /// Household name for a new household led by this member: "LASTNAME, FIRSTNAME MIDDLENAME FAMILY".
+  /// Household name for a new household led by this member: "LASTNAME, FIRSTNAME MIDDLENAME SUFFIX FAMILY".
   String get _generatedHouseholdName => Household.familyNameFor(
-      lastname: _lastNameCtrl.text, firstname: _firstNameCtrl.text, middlename: _middleNameCtrl.text);
+      lastname: _lastNameCtrl.text,
+      firstname: _firstNameCtrl.text,
+      middlename: _middleNameCtrl.text,
+      suffix: _suffix);
 
   /// A new household is created on save only for a new leader who isn't already attached to one.
   /// Opened from a household's "Add TROPA Member": the member joins that household,
@@ -480,7 +487,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   void _onSearchFieldChanged() {
     _highlightedResult = null;
     _searchDebounce?.cancel();
-    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+    _searchDebounce = Timer(TropaMotion.searchDebounce, () {
       _executeVoterSearch();
     });
   }
@@ -581,6 +588,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
         dep.lastNameCtrl.text = voter.lastName;
         dep.firstNameCtrl.text = voter.firstName;
         dep.middleNameCtrl.text = voter.middleName ?? '';
+        dep.suffix = normalizeSuffix(voter.ext);
         dep.contactCtrl.text = _displayContact(voter.contactNumber);
         dep.phicNoCtrl.text = _formatPhic(voter.phicNo ?? '');
         if (voter.birthDate != null) dep.birthDate = DateTime.tryParse(voter.birthDate!);
@@ -608,6 +616,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       _lastNameCtrl.text = voter.lastName;
       _firstNameCtrl.text = voter.firstName;
       _middleNameCtrl.text = voter.middleName ?? '';
+      _suffix = normalizeSuffix(voter.ext);
       _contactCtrl.text = _displayContact(voter.contactNumber);
       _phicNoCtrl.text = _formatPhic(voter.phicNo ?? '');
 
@@ -1109,6 +1118,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
         firstname: _firstNameCtrl.text.trim(),
         lastname: _lastNameCtrl.text.trim(),
         middlename: _middleNameCtrl.text.trim().isNotEmpty ? _middleNameCtrl.text.trim() : null,
+        extension: _suffix,
         contactNumber: _phMobileDigits(_contactCtrl.text).isNotEmpty ? _phMobileDigits(_contactCtrl.text) : null,
         lgu: _lgu,
         barangay: _barangay,
@@ -1159,6 +1169,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             firstname: fName,
             lastname: lName,
             middlename: d.middleNameCtrl.text.trim().isNotEmpty ? d.middleNameCtrl.text.trim() : null,
+            extension: d.suffix,
             contactNumber: _phMobileDigits(d.contactCtrl.text).isNotEmpty ? _phMobileDigits(d.contactCtrl.text) : null,
             lgu: _lgu,
             barangay: _barangay,
@@ -1241,6 +1252,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       _lastNameCtrl.clear();
       _firstNameCtrl.clear();
       _middleNameCtrl.clear();
+      _suffix = null;
       _contactCtrl.clear();
       _phicNoCtrl.clear();
       _birthDate = null;
@@ -1499,7 +1511,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                     value:
                         _withCurrent(['All LGUs', ..._lgus], _searchLgu).contains(_searchLgu) ? _searchLgu : 'All LGUs',
                     isExpanded: true,
-                    icon: Icon(Icons.keyboard_arrow_down, size: 20, color: textCol),
+                    icon: TropaStyles.dropdownIcon(context),
                     decoration: _searchBoxDecoration(null, borderCol, fieldFill, primaryCol, subtextCol),
                     dropdownColor: TropaColors.cardOf(context),
                     style: fieldText,
@@ -1531,7 +1543,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                         ? _searchBarangay
                         : 'All Barangays',
                     isExpanded: true,
-                    icon: Icon(Icons.keyboard_arrow_down, size: 20, color: textCol),
+                    icon: TropaStyles.dropdownIcon(context),
                     decoration: _searchBoxDecoration(null, borderCol, fieldFill, primaryCol, subtextCol),
                     dropdownColor: TropaColors.cardOf(context),
                     style: fieldText,
@@ -1680,7 +1692,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                     child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
-                                        Text('${v.lastName}, ${v.firstName} ${v.middleName ?? ''}'.trim(),
+                                        Text(v.fullName,
                                             style: cell.copyWith(fontWeight: FontWeight.w700)),
                                         const SizedBox(height: 2),
                                         Text('${v.barangay}, ${v.lgu} · ${v.status.toUpperCase()}', style: mutedCell),
@@ -1701,7 +1713,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                   flex: 4,
                                   child: Text(v.lastName, style: cell.copyWith(fontWeight: FontWeight.w700)),
                                 ),
-                                Expanded(flex: 6, child: Text(v.firstName, style: cell)),
+                                Expanded(flex: 6, child: Text(v.firstNameWithSuffix, style: cell)),
                                 Expanded(flex: 4, child: Text(v.middleName ?? '-', style: cell)),
                                 Expanded(flex: 4, child: Text(v.lgu, style: mutedCell)),
                                 Expanded(flex: 4, child: Text(v.barangay, style: mutedCell)),
@@ -1849,7 +1861,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                     DropdownButtonFormField<String>(
                       value: _lgu.isEmpty ? null : _lgu,
                       isExpanded: true,
-                      icon: Icon(Icons.keyboard_arrow_down, size: 20, color: textCol),
+                      icon: TropaStyles.dropdownIcon(context),
                       decoration: _searchBoxDecoration(null, borderCol, _fieldFill, primaryCol, subtextCol),
                       dropdownColor: TropaColors.cardOf(context),
                       style: fieldText,
@@ -1883,7 +1895,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                       key: ValueKey('set-barangay-$_lgu'),
                       value: _barangay.isEmpty ? null : _barangay,
                       isExpanded: true,
-                      icon: Icon(Icons.keyboard_arrow_down, size: 20, color: textCol),
+                      icon: TropaStyles.dropdownIcon(context),
                       decoration: _searchBoxDecoration(null, borderCol, _fieldFill, primaryCol, subtextCol),
                       dropdownColor: TropaColors.cardOf(context),
                       style: fieldText,
@@ -2136,6 +2148,17 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                           primaryCol: primaryCol,
                                         ),
                                       ),
+                                      const SizedBox(width: 14),
+                                      SizedBox(
+                                        width: 110,
+                                        child: _buildSuffixDropdown(
+                                          value: _suffix,
+                                          onChanged: (v) => setState(() => _suffix = v),
+                                          textCol: textCol,
+                                          borderCol: borderCol,
+                                          primaryCol: primaryCol,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                   const SizedBox(height: 14),
@@ -2358,7 +2381,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                   DropdownButtonFormField<String>(
                                     value: _lgu.isEmpty ? null : _lgu,
                                     isExpanded: true,
-                                    icon: Icon(Icons.keyboard_arrow_down, size: 20, color: textCol),
+                                    icon: TropaStyles.dropdownIcon(context),
                                     decoration:
                                         _searchBoxDecoration(null, borderCol, _fieldFill, primaryCol, subtextCol),
                                     dropdownColor: TropaColors.cardOf(context),
@@ -2406,7 +2429,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                     key: ValueKey('barangay-$_lgu'),
                                     value: _barangay.isEmpty ? null : _barangay,
                                     isExpanded: true,
-                                    icon: Icon(Icons.keyboard_arrow_down, size: 20, color: textCol),
+                                    icon: TropaStyles.dropdownIcon(context),
                                     decoration:
                                         _searchBoxDecoration(null, borderCol, _fieldFill, primaryCol, subtextCol),
                                     dropdownColor: TropaColors.cardOf(context),
@@ -2668,7 +2691,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       key: ValueKey('purok-${locationId ?? _barangay}-${_unlistedPurok ?? ''}'),
       value: _purok.isEmpty || notListed ? null : _purok,
       isExpanded: true,
-      icon: Icon(Icons.keyboard_arrow_down, size: 20, color: textCol),
+      icon: TropaStyles.dropdownIcon(context),
       decoration: _searchBoxDecoration(null, borderCol, _fieldFill, primaryCol, subtextCol),
       dropdownColor: TropaColors.cardOf(context),
       menuMaxHeight: 360,
@@ -2717,7 +2740,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       DropdownButtonFormField<String>(
         value: _yearLevels.contains(value) ? value : null,
         isExpanded: true,
-        icon: Icon(Icons.keyboard_arrow_down, size: 20, color: textCol),
+        icon: TropaStyles.dropdownIcon(context),
         decoration: _searchBoxDecoration(null, borderCol, _fieldFill, primaryCol, subtextCol),
         dropdownColor: TropaColors.cardOf(context),
         hint: Text('Select Year Level', style: GoogleFonts.inter(fontSize: 13, color: textCol)),
@@ -2847,7 +2870,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: amber,
-                foregroundColor: Colors.white,
+                foregroundColor: TropaColors.onColor(amber),
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
@@ -3226,6 +3249,17 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                   textCol: textCol,
                   borderCol: borderCol,
                   fillCol: inputFill,
+                  primaryCol: primaryCol,
+                ),
+              ),
+              const SizedBox(width: 10),
+              SizedBox(
+                width: 100,
+                child: _buildSuffixDropdown(
+                  value: dep.suffix,
+                  onChanged: (v) => setState(() => dep.suffix = v),
+                  textCol: textCol,
+                  borderCol: borderCol,
                   primaryCol: primaryCol,
                 ),
               ),
@@ -3702,6 +3736,58 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  static String? _blankToNull(String? s) => (s == null || s.isEmpty) ? null : s;
+
+  /// Suffix picker (none, JR., SR., II, …). A stored value outside the list is kept as an option.
+  Widget _buildSuffixDropdown({
+    required String? value,
+    required ValueChanged<String?> onChanged,
+    required Color textCol,
+    required Color borderCol,
+    required Color primaryCol,
+  }) {
+    final subtextCol = TropaColors.textMedium(context);
+    final style = GoogleFonts.inter(fontSize: 13, color: textCol);
+    final options = _withCurrent(memberSuffixes, value ?? '');
+    return _labeledField(
+      'Suffix',
+      subtextCol,
+      // Type to pick while the field is focused: J -> JR., S -> SR., I -> II / III / IV (press
+      // again to cycle), V -> V; Backspace or Delete clears it.
+      Focus(
+        canRequestFocus: false,
+        skipTraversal: true,
+        onKeyEvent: (node, e) {
+          if (e is! KeyDownEvent && e is! KeyRepeatEvent) return KeyEventResult.ignored;
+          if (e.logicalKey == LogicalKeyboardKey.backspace || e.logicalKey == LogicalKeyboardKey.delete) {
+            if (value != null) onChanged(null);
+            return KeyEventResult.handled;
+          }
+          final ch = e.character?.toUpperCase();
+          if (ch == null || ch.length != 1 || !RegExp('[A-Z]').hasMatch(ch)) return KeyEventResult.ignored;
+          final matches = options.where((s) => s.startsWith(ch)).toList();
+          if (matches.isEmpty) return KeyEventResult.handled;
+          final next = matches[(matches.indexOf(value ?? '') + 1) % matches.length];
+          if (next != value) onChanged(next);
+          return KeyEventResult.handled;
+        },
+        child: DropdownButtonFormField<String?>(
+        value: value,
+        isExpanded: true,
+        icon: TropaStyles.dropdownIcon(context),
+        decoration: _searchBoxDecoration(null, borderCol, _fieldFill, primaryCol, subtextCol),
+        dropdownColor: TropaColors.cardOf(context),
+        items: [
+          DropdownMenuItem<String?>(value: null, child: Text('None', style: style.copyWith(color: subtextCol))),
+          for (final s in options)
+            DropdownMenuItem<String?>(value: s, child: Text(s, overflow: TextOverflow.ellipsis, style: style)),
+        ],
+        onChanged: onChanged,
+      ),
       ),
     );
   }

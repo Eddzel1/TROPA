@@ -70,6 +70,10 @@ class TropaColors {
   static Color errorOf(BuildContext context) => Theme.of(context).colorScheme.error;
 
   static Color onErrorOf(BuildContext context) => Theme.of(context).colorScheme.onError;
+
+  /// Near-black or white, whichever reads better on [background], for text on status colours
+  /// (e.g. on amber, where white is unreadable).
+  static Color onColor(Color background) => TropaTheme._onColor(background);
 }
 
 /// Branding attached only to the TROPA theme (solid blue sidebar).
@@ -429,6 +433,10 @@ class TropaStyles {
       textStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
     );
   }
+
+  /// The arrow on every dropdown, so filter bars and forms match.
+  static Widget dropdownIcon(BuildContext context) =>
+      Icon(Icons.keyboard_arrow_down, size: 18, color: TropaColors.textMedium(context));
 
   /// Text style for filter-bar fields and their dropdown items.
   static TextStyle fieldText(BuildContext context) => GoogleFonts.inter(

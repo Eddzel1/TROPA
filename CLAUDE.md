@@ -11,6 +11,11 @@ Rules:
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
 - A committed graphify-out/graph.json is rewritten whole on every build, so a large diff to it in a pull request is expected. Do not flag it as churn or suggest skipping the graph rebuild or its hooks.
 
+## Design system
+
+- `docs/DESIGN.md` is the UI reference. Any change to colours, type, spacing, components, motion or interaction patterns (including new shared widgets or styles in `lib/core/design_system.dart`, `lib/core/motion.dart`, `lib/core/theme_palettes.dart`, `lib/widgets/form_fields.dart`) must update `docs/DESIGN.md` in the same change.
+- Follow it when building UI: use `TropaColors`/`TropaText`/`TropaStyles` rather than fixed colours or sizes, `TropaStyles.dropdownIcon` on every dropdown, and `TropaMotion.searchDebounce` for search boxes.
+
 ## Formatting
 
 - Never run `dart format` in this project; it rewrites uncommitted hand-formatted code.

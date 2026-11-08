@@ -114,7 +114,7 @@ class _PublicSearchViewState extends State<PublicSearchView> {
 
   void _onNameChanged() {
     _nameDebounce?.cancel();
-    _nameDebounce = Timer(const Duration(milliseconds: 400), _search);
+    _nameDebounce = Timer(TropaMotion.searchDebounce, _search);
   }
 
   Future<void> _search() async {
@@ -182,7 +182,7 @@ class _PublicSearchViewState extends State<PublicSearchView> {
     return DropdownButtonFormField<String>(
       value: options.contains(value) ? value : 'All',
       isExpanded: true,
-      icon: Icon(Icons.keyboard_arrow_down, size: 18, color: textCol),
+      icon: TropaStyles.dropdownIcon(context),
       decoration: TropaStyles.filterField(context),
       dropdownColor: TropaColors.cardOf(context),
       style: style,

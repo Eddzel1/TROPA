@@ -196,6 +196,7 @@ class _FormTrackingDialogState extends ConsumerState<FormTrackingDialog> {
                   LabeledField(
                     label: 'LGU *',
                     child: DropdownButtonFormField<String>(
+                      icon: TropaStyles.dropdownIcon(context),
                       style: TropaStyles.fieldText(context),
                       key: ValueKey('lgu-$_lgu'),
                       initialValue: known(_lgu, lgus),
@@ -217,6 +218,7 @@ class _FormTrackingDialogState extends ConsumerState<FormTrackingDialog> {
                   LabeledField(
                     label: 'Barangay *',
                     child: DropdownButtonFormField<String>(
+                      icon: TropaStyles.dropdownIcon(context),
                       style: TropaStyles.fieldText(context),
                       key: ValueKey('brgy-$_lgu-$_locationId'),
                       initialValue: known(_locationId, barangays.map((l) => l.id)),
@@ -292,6 +294,7 @@ class _FormTrackingDialogState extends ConsumerState<FormTrackingDialog> {
                   LabeledField(
                     label: 'Assigned To',
                     child: DropdownButtonFormField<String?>(
+                      icon: TropaStyles.dropdownIcon(context),
                       style: TropaStyles.fieldText(context),
                       initialValue: known(_encodedBy, userIds),
                       isExpanded: true,
@@ -304,6 +307,7 @@ class _FormTrackingDialogState extends ConsumerState<FormTrackingDialog> {
                   LabeledField(
                     label: 'Status',
                     child: DropdownButtonFormField<String>(
+                      icon: TropaStyles.dropdownIcon(context),
                       style: TropaStyles.fieldText(context),
                       initialValue: _status,
                       isExpanded: true,
@@ -320,6 +324,7 @@ class _FormTrackingDialogState extends ConsumerState<FormTrackingDialog> {
                           child: LabeledField(
                             label: 'Returned - Released By',
                             child: DropdownButtonFormField<String?>(
+                              icon: TropaStyles.dropdownIcon(context),
                               style: TropaStyles.fieldText(context),
                               initialValue: known(_returnedReleasedBy, userIds),
                               isExpanded: true,
@@ -384,6 +389,7 @@ class _FormTrackingDialogState extends ConsumerState<FormTrackingDialog> {
             child: LabeledField(
               label: 'Purok *',
               child: DropdownButtonFormField<String>(
+                icon: TropaStyles.dropdownIcon(context),
                 style: TropaStyles.fieldText(context),
                 key: ValueKey('purok-$i-$_locationId-${entry.purok}'),
                 initialValue: options.contains(entry.purok) ? entry.purok : null,

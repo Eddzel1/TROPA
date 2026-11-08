@@ -226,6 +226,7 @@ class _UserFormDialogState extends ConsumerState<UserFormDialog> {
                 LabeledField(
                   label: 'Start from preset',
                   child: DropdownButtonFormField<String>(
+                    icon: TropaStyles.dropdownIcon(context),
                     // Keyed on the match so ticking boxes below updates the shown preset.
                     key: ValueKey(AppPermissions.matchingPreset(_permissions)),
                     initialValue: AppPermissions.matchingPreset(_permissions),

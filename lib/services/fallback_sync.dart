@@ -27,6 +27,7 @@ const fallbackTables = <FallbackTable>[
   (table: 'form_tracking', cursorColumn: 'updated_at', select: '*'),
   (table: 'officers', cursorColumn: 'updated_at', select: '*'),
   (table: 'voter_flags', cursorColumn: 'created_at', select: '*'),
+  (table: 'review_dismissals', cursorColumn: 'created_at', select: '*'),
   (table: 'locations', cursorColumn: null, select: '*'),
   (table: 'puroks', cursorColumn: null, select: 'id,location_id,name'),
   (table: 'dues_rates', cursorColumn: null, select: '*'),

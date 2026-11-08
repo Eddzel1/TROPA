@@ -116,6 +116,7 @@ const schema = Schema([
     Column.text('returned_received_by'),
     Column.text('created_at'),
     Column.text('updated_at'),
+    Column.text('status_changed_at'),
   ]),
   Table('locations', [
     Column.text('lgu'),
@@ -199,6 +200,17 @@ const schema = Schema([
     Column.text('created_at'),
   ], indexes: [
     Index('voter', [IndexedColumn('voter_id')]),
+  ]),
+  // Problems cleared on the For Review page: one row per (record, problem). Syncs both ways.
+  Table('review_dismissals', [
+    Column.text('entity_type'),
+    Column.text('entity_id'),
+    Column.text('flag'),
+    Column.text('note'),
+    Column.text('dismissed_by'),
+    Column.text('created_at'),
+  ], indexes: [
+    Index('entity', [IndexedColumn('entity_type'), IndexedColumn('entity_id')]),
   ]),
   // Written locally and uploaded; never downloaded (the audit log view reads Supabase directly).
   Table.insertOnly('activity_logs', [

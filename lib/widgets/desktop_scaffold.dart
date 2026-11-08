@@ -192,6 +192,7 @@ class DesktopScaffold extends ConsumerWidget {
     if (path.startsWith('/dashboard')) return 'Dashboard';
     if (path.startsWith('/households')) return 'Households Directory';
     if (path.startsWith('/members')) return 'TROPA Members Directory';
+    if (path.startsWith('/review')) return 'Records For Review';
     if (path.startsWith('/dues')) return 'Dues & Ledger';
     if (path.startsWith('/reports')) return 'Reports & Analytics';
     if (path.startsWith('/form-tracking')) return 'Field Form Intake Tracking';
@@ -335,6 +336,8 @@ class _Sidebar extends ConsumerWidget {
               if (can('view_dashboard')) nav(Icons.dashboard_outlined, Icons.dashboard, 'Dashboard', '/dashboard', exact: true),
               if (can('view_households')) nav(Icons.cottage_outlined, Icons.cottage, 'Households', '/households'),
               if (can('view_members')) nav(Icons.group_outlined, Icons.group, 'TROPA Members', '/members'),
+              if (can(AppPermissions.reviewRecords))
+                nav(Icons.fact_check_outlined, Icons.fact_check, 'For Review', '/review'),
               if (can('dues_collection'))
                 nav(Icons.account_balance_wallet_outlined, Icons.account_balance_wallet, 'Dues & Ledger', '/dues'),
               if (can('view_reports')) nav(Icons.analytics_outlined, Icons.analytics, 'Reports & Analytics', '/reports'),

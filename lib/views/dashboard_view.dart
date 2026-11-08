@@ -83,7 +83,7 @@ class DashboardView extends ConsumerWidget {
               error: (err, _) => Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: TropaColors.errorContainer.withOpacity(0.2),
+                  color: TropaColors.errorOf(context).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text('Failed to load live metrics: $err'),
@@ -240,7 +240,7 @@ class DashboardView extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: accentColor.withOpacity(0.15),
+                  color: accentColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(icon, color: accentColor, size: 18),

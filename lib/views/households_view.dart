@@ -417,13 +417,12 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
     required List<String> options,
     required ValueChanged<String> onChanged,
   }) {
-    final textCol = TropaColors.textHigh(context);
     // Keep the selection valid while locations are still loading
     final items = ['All', ...options, if (value != 'All' && !options.contains(value)) value];
     return DropdownButtonFormField<String>(
       value: value,
       isExpanded: true,
-      icon: Icon(Icons.keyboard_arrow_down, size: 18, color: textCol),
+      icon: TropaStyles.dropdownIcon(context),
       dropdownColor: TropaColors.cardOf(context),
       style: TropaStyles.fieldText(context),
       decoration: TropaStyles.filterField(context),
@@ -691,7 +690,7 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
                                       TropaBadge('${h.totalMembers} members', color: subtextCol),
                                       TropaBadge(
                                         h.status.toUpperCase(),
-                                        color: h.status == 'active' ? TropaColors.secondaryStrongOf(context) : Colors.grey,
+                                        color: h.status == 'active' ? TropaColors.secondaryStrongOf(context) : TropaColors.textDisabled(context),
                                       ),
                                     ]),
                                   ],
@@ -730,7 +729,7 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
                                   const SizedBox(width: 10),
                                   TropaBadge(
                                     h.status.toUpperCase(),
-                                    color: h.status == 'active' ? TropaColors.secondaryStrongOf(context) : Colors.grey,
+                                    color: h.status == 'active' ? TropaColors.secondaryStrongOf(context) : TropaColors.textDisabled(context),
                                   ),
                                   const SizedBox(width: 8),
                                   IconButton(

@@ -11,6 +11,9 @@ class TropaMotion {
   static const exitCurve = Curves.easeInCubic;
   static const move = Curves.easeInOutCubic;
 
+  /// Wait after the last keystroke before a search box runs its search.
+  static const searchDebounce = Duration(milliseconds: 300);
+
   /// Exit duration for an entrance of [d].
   static Duration exit(Duration d) => d * 0.8;
 

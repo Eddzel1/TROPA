@@ -162,7 +162,7 @@ class _TropaMapWidgetState extends ConsumerState<TropaMapWidget> {
                         color: _isActive(selected) ? TropaColors.primaryOf(context) : TropaColors.tertiary,
                         shape: BoxShape.circle,
                         boxShadow: [
-                          BoxShadow(color: Colors.black.withOpacity(0.4), blurRadius: 6, offset: const Offset(0, 2)),
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 6, offset: const Offset(0, 2)),
                         ],
                         border: Border.all(color: Colors.white, width: 3),
                       ),
@@ -181,11 +181,11 @@ class _TropaMapWidgetState extends ConsumerState<TropaMapWidget> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
             decoration: BoxDecoration(
-              color: cardBg.withOpacity(0.95),
+              color: cardBg.withValues(alpha: 0.95),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(color: borderCol),
               boxShadow: [
-                BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 8),
+                BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 8),
               ],
             ),
             child: Row(
@@ -218,7 +218,7 @@ class _TropaMapWidgetState extends ConsumerState<TropaMapWidget> {
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: TropaColors.primaryOf(context), width: 1.5),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(isDark ? 0.5 : 0.1), blurRadius: 16),
+                  BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.5 : 0.1), blurRadius: 16),
                 ],
               ),
               child: Column(
@@ -319,7 +319,7 @@ class _TropaMapWidgetState extends ConsumerState<TropaMapWidget> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: TropaColors.secondaryOf(context).withOpacity(0.2),
+                    color: TropaColors.secondaryOf(context).withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(

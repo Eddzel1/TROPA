@@ -228,7 +228,7 @@ class _ReportsAnalyticsViewState extends ConsumerState<ReportsAnalyticsView> {
                   key: ValueKey(lgu),
                   initialValue: lgu,
                   isExpanded: true,
-                  icon: Icon(Icons.keyboard_arrow_down, size: 18, color: textCol),
+                  icon: TropaStyles.dropdownIcon(context),
                   dropdownColor: TropaColors.cardOf(context),
                   style: TropaStyles.fieldText(context),
                   decoration: TropaStyles.filterField(context),

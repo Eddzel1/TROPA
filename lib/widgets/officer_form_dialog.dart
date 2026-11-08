@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/design_system.dart';
+import '../core/motion.dart';
 import '../models/models.dart';
 import '../providers/auth_provider.dart';
 import '../services/supabase_service.dart';
@@ -86,7 +87,7 @@ class _OfficerFormDialogState extends ConsumerState<OfficerFormDialog> {
   void _onQueryChanged(String v) {
     _query = v;
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 250), _search);
+    _debounce = Timer(TropaMotion.searchDebounce, _search);
   }
 
   Future<void> _save() async {
@@ -157,6 +158,7 @@ class _OfficerFormDialogState extends ConsumerState<OfficerFormDialog> {
             LabeledField(
               label: 'Position *',
               child: DropdownButtonFormField<String>(
+                icon: TropaStyles.dropdownIcon(context),
                 initialValue: _position,
                 style: TropaStyles.fieldText(context),
                 decoration: TropaStyles.formField(context),

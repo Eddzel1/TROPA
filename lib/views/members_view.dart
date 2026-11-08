@@ -67,7 +67,7 @@ class _MembersViewState extends ConsumerState<MembersView> {
 
   void _onNameChanged() {
     _nameDebounce?.cancel();
-    _nameDebounce = Timer(const Duration(milliseconds: 400), () {
+    _nameDebounce = Timer(TropaMotion.searchDebounce, () {
       _applyFilter((f) => f.copyWith(
             lastName: _lastNameCtrl.text.trim(),
             firstName: _firstNameCtrl.text.trim(),
@@ -165,7 +165,7 @@ class _MembersViewState extends ConsumerState<MembersView> {
     return DropdownButtonFormField<String>(
       value: options.contains(value) ? value : 'All',
       isExpanded: true,
-      icon: Icon(Icons.keyboard_arrow_down, size: 18, color: textCol),
+      icon: TropaStyles.dropdownIcon(context),
       decoration: TropaStyles.filterField(context),
       dropdownColor: TropaColors.cardOf(context),
       style: style,

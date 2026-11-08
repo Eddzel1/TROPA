@@ -10,7 +10,8 @@ class FormTrackingFilter {
   final String lgu;
   final String barangay;
 
-  /// Submission date order: [newestFirst] or [oldestFirst].
+  /// Order by when each row entered its column: [oldestFirst] (the default, so the longest-waiting
+  /// forms are on top) or [newestFirst].
   final String sort;
 
   static const newestFirst = 'Newest first';
@@ -21,7 +22,7 @@ class FormTrackingFilter {
     this.status = 'All',
     this.lgu = 'All',
     this.barangay = 'All',
-    this.sort = newestFirst,
+    this.sort = oldestFirst,
   });
 
   FormTrackingFilter copyWith({

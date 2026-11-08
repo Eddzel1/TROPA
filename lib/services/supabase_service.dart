@@ -9,6 +9,7 @@ import '../core/dues_math.dart';
 import '../core/geo.dart';
 import '../data/powersync_schema.dart';
 import '../models/models.dart';
+import 'review_flags.dart';
 import '../core/ph_time.dart';
 
 /// Data access for the app. Reads and writes go to the local PowerSync database, which syncs
@@ -357,6 +358,53 @@ class SupabaseService {
     });
   }
 
+  /// Dues payments (voided ones included) recorded for [householdId] or any of its members.
+  /// A household with payments can't be deleted: its receipts would lose their member.
+  Future<int> countHouseholdPayments(String householdId) async {
+    final row = await db.get(
+      'SELECT COUNT(*) AS n FROM dues_payments WHERE household_id = ? '
+      'OR member_id IN (SELECT id FROM family_members WHERE household_id = ?)',
+      [householdId, householdId],
+    );
+    return row['n'] as int;
+  }
+
+  /// Deletes [household] together with all its members (archived ones included), e.g. a household
+  /// encoded twice. Refuses (StateError) when it has dues payments, so no receipt is orphaned.
+  Future<void> deleteHouseholdWithMembers(Household household) async {
+    await db.writeTransaction((tx) async {
+      final payments = (await tx.get(
+        'SELECT COUNT(*) AS n FROM dues_payments WHERE household_id = ? '
+        'OR member_id IN (SELECT id FROM family_members WHERE household_id = ?)',
+        [household.id, household.id],
+      ))['n'] as int;
+      if (payments > 0) {
+        throw StateError('${household.householdName} has $payments dues payment(s). '
+            'Move them to the right member on the Dues page first.');
+      }
+      final members = await tx.getAll(
+        'SELECT id, lastname, firstname, middlename FROM family_members WHERE household_id = ?',
+        [household.id],
+      );
+      await tx.execute('DELETE FROM family_members WHERE household_id = ?', [household.id]);
+      await tx.execute('DELETE FROM households WHERE id = ?', [household.id]);
+      await _log(
+        tx,
+        action: 'DELETE',
+        entityType: 'Household',
+        entityId: household.id,
+        details: {
+          'name': household.householdName,
+          'barangay': household.barangay,
+          'deleted_members': [
+            for (final m in members)
+              {'id': m['id'], 'name': '${m['lastname']}, ${m['firstname']} ${m['middlename'] ?? ''}'.trim()},
+          ],
+        },
+      );
+    });
+  }
+
   // ==========================================
   // Family Members CRUD
   // ==========================================
@@ -503,6 +551,96 @@ class SupabaseService {
     });
   }
 
+  Future<FamilyMember?> getMemberById(String id) async {
+    final row = await _getRow('family_members', id);
+    return row == null ? null : FamilyMember.fromJson(row);
+  }
+
+  // ==========================================
+  // For Review page (lib/views/review_view.dart)
+  // ==========================================
+
+  /// Flagged households and members on this device (see review_flags.dart), cleared ones included.
+  Future<List<ReviewItem>> getReviewItems() async {
+    final results = await Future.wait([
+      _rows('SELECT id, household_id, lastname, firstname, middlename, birth_date, lgu, barangay, purok, '
+          'is_household_leader, created_date, created_by FROM family_members WHERE COALESCE(is_archived, 0) = 0'),
+      _rows('SELECT id, household_name, lgu, barangay, purok, created_date, created_by FROM households '
+          'WHERE COALESCE(is_archived, 0) = 0'),
+      _rows('SELECT entity_type, entity_id, flag FROM review_dismissals'),
+    ]);
+    return detectReviewItems(members: results[0], households: results[1], dismissals: results[2]);
+  }
+
+  /// Active members of [householdId] as raw rows (for the household comparison dialog),
+  /// leader first.
+  /// [includeArchived] also lists archived members (e.g. to show everyone a delete removes).
+  Future<List<Map<String, dynamic>>> getHouseholdMemberRows(String householdId, {bool includeArchived = false}) =>
+      _rows(
+        'SELECT * FROM family_members WHERE household_id = ? '
+        '${includeArchived ? '' : 'AND COALESCE(is_archived, 0) = 0 '}'
+        'ORDER BY COALESCE(is_household_leader, 0) DESC, lastname, firstname',
+        [householdId],
+      );
+
+  /// Clears [item]'s current problems; a different problem found later shows it again.
+  Future<void> clearReview(ReviewItem item, {String? note}) async {
+    final open = item.openFlags;
+    if (open.isEmpty) return;
+    final trimmed = note?.trim();
+    await db.writeTransaction((tx) async {
+      for (final f in open) {
+        await _insert(tx, 'review_dismissals', {
+          'id': uuid.v4(),
+          'entity_type': item.entityType,
+          'entity_id': item.entityId,
+          'flag': f.key,
+          'note': trimmed == null || trimmed.isEmpty ? null : trimmed,
+          'dismissed_by': currentAuthUser?.email,
+          'created_at': _now(),
+        });
+      }
+      await _log(
+        tx,
+        action: 'CLEAR_REVIEW',
+        entityType: item.isHousehold ? 'Household' : 'FamilyMember',
+        entityId: item.entityId,
+        details: {'name': item.title, 'flags': [for (final f in open) f.key], if (trimmed?.isNotEmpty == true) 'note': trimmed},
+      );
+    });
+  }
+
+  /// Puts [item]'s cleared problems back on the For Review page.
+  Future<void> restoreReview(ReviewItem item) async {
+    final keys = [for (final f in item.flags) if (f.cleared) f.key];
+    if (keys.isEmpty) return;
+    await db.writeTransaction((tx) async {
+      await tx.execute(
+        'DELETE FROM review_dismissals WHERE entity_type = ? AND entity_id = ? '
+        'AND flag IN (${List.filled(keys.length, '?').join(', ')})',
+        [item.entityType, item.entityId, ...keys],
+      );
+      await _log(
+        tx,
+        action: 'RESTORE_REVIEW',
+        entityType: item.isHousehold ? 'Household' : 'FamilyMember',
+        entityId: item.entityId,
+        details: {'name': item.title, 'flags': keys},
+      );
+    });
+  }
+
+  /// When a reviewer cleared [item]'s problems, by whom, and their note (the latest clearing).
+  Future<({String? by, String? at, String? note})?> getReviewClearing(ReviewItem item) async {
+    final row = await db.getOptional(
+      'SELECT dismissed_by, created_at, note FROM review_dismissals WHERE entity_type = ? AND entity_id = ? '
+      'ORDER BY created_at DESC LIMIT 1',
+      [item.entityType, item.entityId],
+    );
+    if (row == null) return null;
+    return (by: row['dismissed_by'] as String?, at: row['created_at'] as String?, note: row['note'] as String?);
+  }
+
   /// A non-archived member of [householdId] with the same last and first name (and birth date,
   /// when both have one), used to stop the same person being added to a household twice.
   Future<FamilyMember?> findMemberInHousehold({
@@ -631,6 +769,7 @@ class SupabaseService {
           lastname: member['lastname']?.toString() ?? '',
           firstname: member['firstname']?.toString() ?? '',
           middlename: member['middlename']?.toString(),
+          suffix: member['extension']?.toString(),
         ),
         lgu: lgu,
         barangay: barangay,
@@ -977,11 +1116,13 @@ class SupabaseService {
     return receipts.first;
   }
 
-  /// Ledger filter on `dues_payments d` joined to `family_members m`: rows in [scope] whose receipt
-  /// matches [query] (reference number, member or household name, or payment month).
-  static List<String> _duesLedgerWhere(DuesScope scope, String? query, List<Object?> params) {
+  /// Ledger filter on `dues_payments d` joined to `family_members m`: rows in [scope] that pass
+  /// [filter]. The text query matches whole receipts (reference number, member or household name,
+  /// payment month); the period matches payment dates in GMT+8; the location matches the member.
+  static List<String> _duesLedgerWhere(DuesScope scope, DuesLedgerFilter filter, List<Object?> params) {
     final where = [_duesScopeSql(scope, 'm', params)];
-    if (query != null && query.trim().isNotEmpty) {
+    final query = filter.query.trim();
+    if (query.isNotEmpty) {
       final q = '%${_escapeLike(query)}%';
       where.add('COALESCE(d.receipt_id, d.id) IN (SELECT COALESCE(d2.receipt_id, d2.id) FROM dues_payments d2 '
           'LEFT JOIN family_members m2 ON m2.id = d2.member_id LEFT JOIN households h2 ON h2.id = d2.household_id '
@@ -989,46 +1130,82 @@ class SupabaseService {
           r"OR m2.lastname LIKE ? ESCAPE '\' OR m2.firstname LIKE ? ESCAPE '\' OR h2.household_name LIKE ? ESCAPE '\')");
       params.addAll([q, q, q, q, q]);
     }
+    final days = filter.days(phToday());
+    if (days != null) {
+      // payment_date may carry +08:00 (written here) or +00:00 (synced); compare GMT+8 dates.
+      where.add("date(d.payment_date, '+8 hours') BETWEEN ? AND ?");
+      params.addAll([_isoDay(days.from), _isoDay(days.to)]);
+    }
+    for (final (col, value) in [('m.lgu', filter.lgu), ('m.barangay', filter.barangay), ('m.purok', filter.purok)]) {
+      if (value == null) continue;
+      where.add('${_n(col)} = ?');
+      params.add(value.trim().toUpperCase());
+    }
     return where;
   }
 
-  /// Totals of non-void payments matching the ledger filter: everything, and this month (GMT+8).
-  Future<({double total, double thisMonth, int receipts})> getDuesLedgerTotals({
+  static String _isoDay(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  /// Totals for the ledger filter: collected and receipts (void excluded), households that paid,
+  /// and the voided receipts and amount.
+  Future<({double total, int receipts, int households, int voided, double voidedAmount})> getDuesLedgerTotals({
     required DuesScope scope,
-    String? query,
+    DuesLedgerFilter filter = const DuesLedgerFilter(),
   }) async {
-    final params = <Object?>[monthKey(currentMonthIndex())];
-    final where = _duesLedgerWhere(scope, query, params)..add("COALESCE(d.status, 'completed') != 'void'");
+    final params = <Object?>[];
+    final where = _duesLedgerWhere(scope, filter, params);
+    const live = "COALESCE(d.status, 'completed') != 'void'";
     final row = await db.get('''
-      SELECT COALESCE(SUM(d.amount), 0) AS total,
-        -- payment_date may carry +08:00 (written here) or +00:00 (synced); compare in GMT+8.
-        COALESCE(SUM(CASE WHEN strftime('%Y-%m', d.payment_date, '+8 hours') = ? THEN d.amount END), 0) AS this_month,
-        COUNT(DISTINCT COALESCE(d.receipt_id, d.id)) AS receipts
+      SELECT COALESCE(SUM(CASE WHEN $live THEN d.amount END), 0) AS total,
+        COUNT(DISTINCT CASE WHEN $live THEN COALESCE(d.receipt_id, d.id) END) AS receipts,
+        COUNT(DISTINCT CASE WHEN $live THEN d.household_id END) AS households,
+        COUNT(DISTINCT CASE WHEN NOT $live THEN COALESCE(d.receipt_id, d.id) END) AS voided,
+        COALESCE(SUM(CASE WHEN NOT $live THEN d.amount END), 0) AS voided_amount
       FROM dues_payments d
       LEFT JOIN family_members m ON m.id = d.member_id
       ${_whereSql(where)}
     ''', params);
     return (
       total: (row['total'] as num).toDouble(),
-      thisMonth: (row['this_month'] as num).toDouble(),
       receipts: row['receipts'] as int,
+      households: row['households'] as int,
+      voided: row['voided'] as int,
+      voidedAmount: (row['voided_amount'] as num).toDouble(),
     );
   }
 
-  /// Ledger receipts in [scope], newest first. [query] matches reference numbers, member and
-  /// household names, and payment months.
+  /// Number of receipts (void included) the ledger filter matches, for the pager.
+  Future<int> countDuesReceipts({required DuesScope scope, DuesLedgerFilter filter = const DuesLedgerFilter()}) async {
+    final params = <Object?>[];
+    final where = _duesLedgerWhere(scope, filter, params);
+    final row = await db.get(
+      'SELECT COUNT(DISTINCT COALESCE(d.receipt_id, d.id)) AS n FROM dues_payments d '
+      'LEFT JOIN family_members m ON m.id = d.member_id ${_whereSql(where)}',
+      params,
+    );
+    return row['n'] as int;
+  }
+
+  /// Ledger receipts in [scope] that pass [filter], newest first; [householdId] keeps one
+  /// household's payments.
   Future<List<DuesReceipt>> getDuesReceipts({
     required DuesScope scope,
-    String? query,
+    DuesLedgerFilter filter = const DuesLedgerFilter(),
     String? receiptId,
+    String? householdId,
     int page = 0,
     int pageSize = 50,
   }) async {
     final params = <Object?>[];
-    final where = _duesLedgerWhere(scope, query, params);
+    final where = _duesLedgerWhere(scope, filter, params);
     if (receiptId != null) {
       where.add('COALESCE(d.receipt_id, d.id) = ?');
       params.add(receiptId);
+    }
+    if (householdId != null) {
+      where.add('d.household_id = ?');
+      params.add(householdId);
     }
     final rows = await _rows('''
       SELECT COALESCE(d.receipt_id, d.id) AS rid,
@@ -1046,6 +1223,7 @@ class SupabaseService {
         MAX(d.collected_by) AS collected_by,
         MAX(h.household_name) AS household_name,
         MAX(m.barangay) AS barangay,
+        MAX(m.purok) AS purok,
         GROUP_CONCAT(m.lastname || ', ' || m.firstname, '; ') AS member_names
       FROM dues_payments d
       LEFT JOIN family_members m ON m.id = d.member_id
@@ -1184,7 +1362,8 @@ class SupabaseService {
   // Form Tracking Batches CRUD
   // ==========================================
   /// [lgu] matches through `locations`, since `form_tracking` only stores the barangay name.
-  /// Rows come in submission-date order, newest first unless [oldestFirst].
+  /// Rows come in order of when they entered their current status (submission date for rows from
+  /// before that was tracked), newest first unless [oldestFirst].
   Future<List<FormTracking>> getFormBatches({
     String? query,
     String? status,
@@ -1214,7 +1393,10 @@ class SupabaseService {
         params.add(barangay.trim().toUpperCase());
       }
       final rows = await _rows(
-        'SELECT * FROM form_tracking ${_whereSql(where)} ORDER BY created_at ${oldestFirst ? 'ASC' : 'DESC'}',
+        'SELECT * FROM form_tracking ${_whereSql(where)} '
+        // julianday: the server sends UTC times and the device writes PH times, so compare instants, not text.
+        'ORDER BY julianday(COALESCE(status_changed_at, created_at)) ${oldestFirst ? 'ASC' : 'DESC'}, '
+        'julianday(created_at) ${oldestFirst ? 'ASC' : 'DESC'}',
         params,
       );
       return rows.map(FormTracking.fromJson).toList();
@@ -1226,7 +1408,9 @@ class SupabaseService {
   Future<void> createFormBatches(List<FormTracking> batches) async {
     await db.writeTransaction((tx) async {
       for (final batch in batches) {
-        await _insert(tx, 'form_tracking', batch.toJson());
+        final payload = batch.toJson();
+        payload['status_changed_at'] = payload['created_at'];
+        await _insert(tx, 'form_tracking', payload);
         await _log(
           tx,
           action: 'CREATE',
@@ -1242,6 +1426,9 @@ class SupabaseService {
     final payload = batch.toJson();
     payload['updated_at'] = _now();
     await db.writeTransaction((tx) async {
+      // Restart the day count only when the row moves to another column, not on other edits.
+      final current = await tx.getOptional('SELECT status FROM form_tracking WHERE id = ?', [batch.id]);
+      if (current?['status'] != batch.status) payload['status_changed_at'] = payload['updated_at'];
       await _update(tx, 'form_tracking', batch.id, payload);
       await _log(
         tx,

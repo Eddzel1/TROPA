@@ -87,7 +87,7 @@ class _FormTrackingViewState extends ConsumerState<FormTrackingView> {
       key: ValueKey('$allLabel-$selected'),
       initialValue: selected,
       isExpanded: true,
-      icon: Icon(Icons.keyboard_arrow_down, size: 18, color: textCol),
+      icon: TropaStyles.dropdownIcon(context),
       decoration: TropaStyles.filterField(context),
       dropdownColor: TropaColors.cardOf(context),
       style: style,
@@ -201,7 +201,7 @@ class _FormTrackingViewState extends ConsumerState<FormTrackingView> {
                 Expanded(
                   child: _filterDropdown(
                     value: filter.sort,
-                    options: const [FormTrackingFilter.newestFirst, FormTrackingFilter.oldestFirst],
+                    options: const [FormTrackingFilter.oldestFirst, FormTrackingFilter.newestFirst],
                     onChanged: (v) => _applyFilter((f) => f.copyWith(sort: v)),
                     isDark: isDark,
                     textCol: textCol,
@@ -408,6 +408,37 @@ class _SubmissionCard extends StatelessWidget {
     );
   }
 
+  /// Days in the current column: grey at first, amber from 3 days, red from 7.
+  Widget _agePill(BuildContext context) {
+    final days = batch.daysInStatus();
+    final color = days >= 7
+        ? TropaColors.errorOf(context)
+        : days >= 3
+            ? TropaColors.offline
+            : TropaColors.textMedium(context);
+    final label = days == 0 ? 'Today' : '$days ${days == 1 ? 'day' : 'days'}';
+    final since = _cardDateYearFmt.format(toPh(batch.statusChangedAt ?? batch.createdAt));
+    return Tooltip(
+      message: days == 0 ? '${batch.status} since today' : '${batch.status} for $label, since $since',
+      child: Container(
+        margin: const EdgeInsets.only(left: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+        decoration: BoxDecoration(
+          color: days >= 3 ? color.withValues(alpha: 0.12) : TropaColors.chipOf(context),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.schedule, size: 12, color: color),
+            const SizedBox(width: 3),
+            Text(label, style: TropaText.badge(color)),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _body(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final cardBg = TropaColors.cardOf(context);
@@ -521,6 +552,8 @@ class _SubmissionCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
+              if (batch.status == FormTrackingStatus.pending || batch.status == FormTrackingStatus.inProgress)
+                _agePill(context),
               _menu(context, subtextCol),
             ],
           ),

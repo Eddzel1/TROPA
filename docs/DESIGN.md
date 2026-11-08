@@ -1,199 +1,180 @@
----
-name: Civic Horizon
-colors:
-  surface: '#0b1326'
-  surface-dim: '#0b1326'
-  surface-bright: '#31394d'
-  surface-container-lowest: '#060e20'
-  surface-container-low: '#131b2e'
-  surface-container: '#171f33'
-  surface-container-high: '#222a3d'
-  surface-container-highest: '#2d3449'
-  on-surface: '#dae2fd'
-  on-surface-variant: '#bdc8d1'
-  inverse-surface: '#dae2fd'
-  inverse-on-surface: '#283044'
-  outline: '#87929a'
-  outline-variant: '#3e484f'
-  surface-tint: '#7bd0ff'
-  primary: '#8ed5ff'
-  on-primary: '#00354a'
-  primary-container: '#38bdf8'
-  on-primary-container: '#004965'
-  inverse-primary: '#00668a'
-  secondary: '#4edea3'
-  on-secondary: '#003824'
-  secondary-container: '#00a572'
-  on-secondary-container: '#00311f'
-  tertiary: '#ffc174'
-  on-tertiary: '#472a00'
-  tertiary-container: '#f59e0b'
-  on-tertiary-container: '#613b00'
-  error: '#ffb4ab'
-  on-error: '#690005'
-  error-container: '#93000a'
-  on-error-container: '#ffdad6'
-  primary-fixed: '#c4e7ff'
-  primary-fixed-dim: '#7bd0ff'
-  on-primary-fixed: '#001e2c'
-  on-primary-fixed-variant: '#004c69'
-  secondary-fixed: '#6ffbbe'
-  secondary-fixed-dim: '#4edea3'
-  on-secondary-fixed: '#002113'
-  on-secondary-fixed-variant: '#005236'
-  tertiary-fixed: '#ffddb8'
-  tertiary-fixed-dim: '#ffb95f'
-  on-tertiary-fixed: '#2a1700'
-  on-tertiary-fixed-variant: '#653e00'
-  background: '#0b1326'
-  on-background: '#dae2fd'
-  surface-variant: '#2d3449'
-typography:
-  headline-xl:
-    fontFamily: Manrope
-    fontSize: 2.25rem
-    fontWeight: '700'
-    lineHeight: 2.75rem
-    letterSpacing: -0.02em
-  headline-xl-mobile:
-    fontFamily: Manrope
-    fontSize: 1.75rem
-    fontWeight: '700'
-    lineHeight: 2.25rem
-    letterSpacing: -0.01em
-  headline-lg:
-    fontFamily: Manrope
-    fontSize: 1.5rem
-    fontWeight: '600'
-    lineHeight: 2rem
-    letterSpacing: -0.015em
-  headline-md:
-    fontFamily: Manrope
-    fontSize: 1.25rem
-    fontWeight: '600'
-    lineHeight: 1.75rem
-  body-lg:
-    fontFamily: Inter
-    fontSize: 1rem
-    fontWeight: '400'
-    lineHeight: 1.5rem
-  body-md:
-    fontFamily: Inter
-    fontSize: 0.875rem
-    fontWeight: '400'
-    lineHeight: 1.25rem
-  body-sm:
-    fontFamily: Inter
-    fontSize: 0.75rem
-    fontWeight: '400'
-    lineHeight: 1rem
-  label-lg:
-    fontFamily: Inter
-    fontSize: 0.875rem
-    fontWeight: '500'
-    lineHeight: 1.25rem
-  label-md:
-    fontFamily: JetBrains Mono
-    fontSize: 0.75rem
-    fontWeight: '500'
-    lineHeight: 1rem
-    letterSpacing: 0.02em
-  label-sm:
-    fontFamily: JetBrains Mono
-    fontSize: 0.6875rem
-    fontWeight: '400'
-    lineHeight: 0.875rem
-    letterSpacing: 0.04em
-rounded:
-  sm: 0.125rem
-  DEFAULT: 0.25rem
-  md: 0.375rem
-  lg: 0.5rem
-  xl: 0.75rem
-  full: 9999px
-spacing:
-  gutter: 1.5rem
-  gutter-mobile: 0.75rem
-  margin: 2rem
-  margin-mobile: 1rem
-  space-xs: 0.25rem
-  space-sm: 0.5rem
-  space-md: 1rem
-  space-lg: 1.5rem
-  space-xl: 2.5rem
----
+# TROPA Design System
 
-## Brand & Style
+This is the reference for how TROPA looks and behaves. It describes the code as it is: the source
+of truth is `lib/core/design_system.dart` (colours, type, field styles, breakpoints),
+`lib/core/theme_palettes.dart` (themes), `lib/core/motion.dart` (motion and timing) and
+`lib/widgets/form_fields.dart` (shared form pieces).
 
-This design system is engineered for enterprise community governance, cooperative financial stewardship, and mutual-aid operations. The aesthetic blends Corporate Modern reliability with precision Material 3 spatial logic, projecting institutional trust, operational transparency, and dignified social utility.
+**Keep this file current.** Any change to colours, type, spacing, components, motion or interaction
+patterns updates this document in the same change.
 
-The emotional signature is steady, analytical, and respectful: users must feel absolute certainty when auditing ledgers, distributing aid allocations, or tracking territorial community clusters. Visual clutter is eliminated in favor of high-legibility density, deliberate information hierarchy, and calm authoritative surfaces that keep administrative cognitive load minimal during high-volume operations.
+## Principles
 
-## Colors
-
-The palette operates in a dark slate environment built for intensive operational longevity and reduced display fatigue.
-
-- **Primary (`#38BDF8` - Electric Azure):** Used for focal interactive targets, critical system navigation, selected geospatial polygon boundaries, and primary transaction flows.
-- **Secondary (`#10B981` - Muted Emerald):** Represents operational stability, reconciled balance ledgers, active beneficiary status, and verified contributions.
-- **Tertiary (`#F59E0B` - Deep Amber):** Signals unverified identities, queued distribution batches, review-required disbursements, and conditional validations.
-- **Alert / Overdue (`#EF4444` - Controlled Crimson):** Reserved strictly for critical deficits, flagged records, overdue micro-loans, and territorial alerts.
-- **Neutral Canvas (`#0F172A` to `#1E293B`):** Dark navy-slate base surfaces that anchor information layers, providing contrast against luminous metric data without harsh pure-black cutoffs.
+1. **Calm, readable admin tool.** Officers scan many records at once, so screens are dense but
+   quiet. Colour carries meaning (status, urgency), never decoration.
+2. **One system, many themes.** Screens read colours through `TropaColors.*Of(context)` helpers,
+   never fixed values. Shapes, type and spacing stay the same across every palette; only colours
+   change.
+3. **Readable by default.** Accent and secondary text colours are adjusted until they reach WCAG AA
+   (4.5:1) on their surface. Text on a status colour uses `TropaColors.onColor(background)`.
+4. **Matches the paper records.** Names, places and reference numbers are typed and stored in
+   CAPITALS (`UpperCaseFormatter` + `TextCapitalization.characters`). Dates and times are Philippine
+   time (GMT+8, `formatPh`), and money is pesos (`₱1,234.00`).
+5. **Works offline.** Everything saves to the device first and syncs later. The sync pill in the
+   header always shows the state.
+6. **Permissions shape the screen.** Controls the user can't use are hidden rather than disabled.
+7. **Phone, tablet and desktop.** Every layout adapts at the two breakpoints below.
 
 ## Typography
 
-The typography architecture uses a three-tier engine:
-- **Manrope** provides authoritative geometric structure for headlines, operational dashboards, and modal summaries.
-- **Inter** ensures uninterrupted neutral readability across multi-column data views, descriptive fields, and system audit logs.
-- **JetBrains Mono** anchors currency values, transaction hashes, geospatial coordinates, member identification codes, and metric delta indicators, ensuring alignment across tabular displays.
+Manrope is used only for titles and big numbers; everything else is Inter. Styles live in
+`TropaText`.
 
-Letter tracking on uppercase code tags and tabular badges is slightly relaxed for immediate scanning against deep background layers.
+| Style | Font | Size / weight | Use |
+|---|---|---|---|
+| `pageTitle` | Manrope | 24 / 800 | Page titles |
+| `dialogTitle` | Manrope | 18 / 700 | Dialog and panel titles |
+| `kpi` | Manrope | 18–24 / 800, letter-spacing −0.5 | Totals, stat tiles |
+| `sectionTitle` | Inter | 14 / 700 | Card and section titles |
+| `sectionHeader` | Inter | 12.5 / 600 | Form section above a divider |
+| `body` / `bodyStrong` | Inter | 13 / 400, 600 | Body text, field text, list titles |
+| `meta` | Inter | 12, tabular figures | Table cells, IDs, dates, amounts |
+| `caption` | Inter | 11.5 | Help text, subtitles |
+| `fieldLabel` | Inter | 11.5 / 500 | Label above a field |
+| `tableHeader` | Inter | 11 / 700, spacing 0.5, caps | Table headers |
+| `badge` | Inter | 11 / 600, spacing 0.3 | Pills and badges |
+| `groupLabel` | Inter | 10.5 / 600, spacing 0.8, caps | "LOCATION", sidebar groups |
+| `action` | Inter | 12.5 / 600 | Text buttons inside cards and dialogs |
 
-## Layout & Spacing
+Numbers that line up in columns (amounts, counts, IDs) use tabular figures.
 
-The layout is built on a responsive 12-column fluid grid tailored for data-dense desktop dashboards and cooperative control panels.
+## Colour
 
-- **Desktop (1280px+):** 12 columns, 1.5rem (`24px`) gutters, 2rem margins. Accommodates persistent left navigation, split geospatial views, and side-by-side transaction ledgers.
-- **Tablet (768px - 1279px):** 8 columns, 1rem gutters, 1.5rem margins. Primary panels collapse auxiliary sidebars into slide-over drawers; KPI rows adapt to 2x2 grids.
-- **Mobile (< 768px):** 4 columns, 0.75rem gutters, 1rem margins. Full horizontal reflow; complex tables shift to stacked card lists with horizontal scroll tokens for immutable data lines.
+### Default theme (TROPA, light)
 
-## Elevation & Depth
+| Role | Value | Used for |
+|---|---|---|
+| Primary | TROPA Blue `#1F4DAA` | Primary buttons, focus outlines, selected tabs, sidebar |
+| Accent | TROPA Green `#60B358` | Success, "up to date", money collected |
+| Background / cards | `#FFFFFF` | Page and card surfaces |
+| Chip / table header | `#F1F5F9` | Chips, icon tiles, table headers |
+| Border | `#E2E8F0` | All 1px borders and dividers |
+| Text | black 87% / 60% / 38% | Main / secondary / disabled and hints |
 
-Visual hierarchy uses Material 3 tonal layering over physical drop shadows. Elevated elements gain luminance through higher-tier surface values rather than intense drop shadows:
+Users pick other palettes per device in Settings › Appearance (`t1`–`t18`; five are dark). Every
+palette fills the same 13 slots, so components never need per-theme code. Only the TROPA palette
+paints the sidebar solid blue (`TropaBrand`).
 
-- **Level 0 (Base Canvas):** `#0F172A` — Underlay screen backdrop.
-- **Level 1 (Structural Cards & Sidebars):** `#1E293B` — Surface container with a subtle 1px border (`#334155`).
-- **Level 2 (Active Controls, Hover States & Popovers):** `#334155` with ambient feathering: `0px 4px 16px -2px rgba(0, 0, 0, 0.45)`.
-- **Level 3 (Modals & Emergency Drawers):** `#1E293B` bordered by `#475569`, backed by a dark frosted scrim (`rgba(15, 23, 42, 0.8)` with an 8px blur) and `0px 12px 32px -4px rgba(0, 0, 0, 0.6)`.
+### Status colours (the same in every theme)
 
-Interactive maps feature inset boundary shadows to simulate physical recessed cartography, with selected administrative zones illuminated via an outer glow tinted with the primary hue (`rgba(56, 189, 248, 0.25)`).
+| Colour | Value | Meaning |
+|---|---|---|
+| Amber | `#F5A623` (`TropaColors.offline`) | Warning, offline, waiting 3+ days, 6+ months unpaid |
+| Red | `#B00020` light / `#CF6679` dark (`errorOf`) | Errors, overdue (7+ days, 12+ months unpaid), void, delete |
+| Teal | `#03DAC6` / `#018786` | Inactive map pins, NEW badges |
 
-## Shapes
+**Status pattern:** a 10–12% tint of the colour as the background, with the full colour for text
+or icon (`TropaBadge`, day-count pills, unpaid amounts). Amounts and counts stay neutral until they
+cross a threshold; don't paint every number red.
 
-The system relies on compact, structured shapes (`roundedness: 1` — 0.25rem / 4px base, scaling to 8px on master cards and 12px on system dialogs).
+Shadows may use black at low alpha. Any other fixed colour in screen code is a bug. Printed outputs
+(PDF sheets, the ID card) and the startup screen are exempt.
 
-This restrained edge profile reinforces an industrial, technical discipline suitable for balance sheets, legal records, and civic inventories. Pills and circular shapes are restricted strictly to micro status pips, system avatar tags, and map point clusters.
+## Layout
+
+| Width | Name | Navigation |
+|---|---|---|
+| < 600 | Phone (`isCompact`) | Drawer opened from ☰; header 56px |
+| 600–1023 | Tablet | 76px icon rail |
+| ≥ 1024 | Desktop (`isExpanded`) | 270px sidebar, collapsible to the rail (button at the bottom of the sidebar, saved per device) |
+
+- Page padding is 24px (16px on phones). `TropaPageHeader` puts the title on the left and actions on
+  the right; below 700px the actions wrap under the title.
+- List and detail screens use a list on the left and a detail panel on the right from about 860px;
+  narrower, the detail opens as a dialog.
+- Tables become compact cards on narrow widths.
+- Form rows use `ResponsiveFieldRow`, which stacks fields vertically on phones.
+
+## Shape and elevation
+
+| Element | Radius | Notes |
+|---|---|---|
+| Buttons, fields, dropdowns, segmented buttons | 8 | |
+| Cards | 10 | 1px border, elevation 1 |
+| Surfaces / panels | 12–14 | 1px border, no shadow |
+| Dialogs | 16 | Elevation 8 |
+| Badges and pills | 10–20 | |
 
 ## Components
 
+### Text fields
+
+- The label goes **above** the field, never inside it: `LabeledField` + `TropaStyles.formField`.
+  The label uses `fieldLabel`, muted, with a 6px gap.
+- Fields are dense with 13px padding, 8px corners, the field fill colour and a 1px border.
+  - Focused: primary border at 1.5px.
+  - Error: red border at 1.5px (2px when focused), with an 11px message underneath.
+- Optional extras: an 18px prefix icon and up to two lines of helper text.
+- Name, place and reference fields use `UpperCaseFormatter`.
+
+### Dropdowns
+
+- Use `DropdownButtonFormField` with `TropaStyles.filterField` (filter bars) or `formField` (forms),
+  `TropaStyles.fieldText` for the text, and **always** `icon: TropaStyles.dropdownIcon(context)`
+  (an 18px ⌄ chevron in muted text). The settings theme picker is the only exception, because it
+  previews each palette's colours.
+- Options are 13px Inter on the card colour, cut off with "…" when too long.
+- An empty choice is a real option: "All barangays" in filters, "Choose purok" where a choice is
+  required.
+- Location pickers cascade LGU → Barangay → Purok. Changing one resets the ones after it. A sole
+  option is picked automatically, and the lists only offer places within the user's scope.
+
+### Filters and search
+
+- Search boxes use `TropaStyles.filterField(search: true)`: a magnifier icon and a hint that says
+  what can be searched. They run `TropaMotion.searchDebounce` (300ms) after the last keystroke.
+  (The member form's duplicate-person check waits 500ms, because it does a heavier lookup.)
+- Filter bars put search first, then dropdowns: one row on desktop, stacked on narrow screens.
+- Quick choices are `ChoiceChip`s (date presets: Today, This week, This month, Custom…), and
+  toggles are `FilterChip`s ("Unpaid only").
+- Filters drive everything on the screen: totals, counts and the pager follow them. Changing a
+  filter returns to page 1 and closes any open detail.
+- Empty results explain themselves ("Nothing matches these filters").
+
 ### Buttons
-- **Primary:** Solid `#38BDF8` background with dark `#0F172A` semibold text. Focus ring: 2px offset in `#38BDF8`.
-- **Secondary:** Surface `#1E293B` with border `#334155` and text `#F8FAFC`. Hover brings background to `#334155`.
-- **Destructive:** Subtle crimson base tint (`rgba(239, 68, 68, 0.15)`) with crimson text and border `#EF4444`. Solid crimson on confirm action.
 
-### KPI Metric Tiles
-Cards set to Level 1 elevation with a 1px border (`#334155`). Feature a mono-spaced delta indicator (`+12.4%`) paired with secondary emerald or alert crimson backgrounds. The main metric is rendered in bold Manrope typography.
+- **Filled primary:** the one main action on a page or dialog. Page-header actions use
+  `TropaStyles.primaryAction`.
+- **Outlined:** secondary page actions, with a 6% primary tint and a 30% primary border
+  (`TropaStyles.secondaryAction`).
+- **Text:** Cancel, Close and in-card actions.
+- **Destructive actions** go behind a ⋯ menu or a confirmation (`confirmAction`), in red. Prefer
+  Void (with a reason) over Delete wherever there is an audit trail.
 
-### Data Tables
-High-contrast dense presentation. Header row uses subtle slate underlay `#1E293B` with uppercase `label-md` mono text in `#94A3B8`. Alternate row striping is omitted; clean 1px row separators in `#334155` define borders. Cells containing financial figures or dates align right using monospaced numerals.
+### Badges, lists and tables
 
-### Status Chips
-Compact pill badges with a dark tinted fill and matching border:
-- **Active / Paid:** Background `rgba(16, 185, 129, 0.12)`, text `#34D399`, border `rgba(16, 185, 129, 0.3)`.
-- **Pending / In-Review:** Background `rgba(245, 158, 11, 0.12)`, text `#FBBF24`, border `rgba(245, 158, 11, 0.3)`.
-- **Alert / Overdue:** Background `rgba(239, 68, 68, 0.12)`, text `#F87171`, border `rgba(239, 68, 68, 0.3)`.
+- `TropaBadge` gives small tinted pills for statuses and tags (TROPA MEMBER, VOTER, VOID, NEW).
+- In lists, clicking a row opens the record. Row actions sit in a ⋯ menu or as small icon buttons
+  on wide screens.
+- Table headers use `tableHeader` on the chip colour. Amounts are right-aligned with tabular
+  figures; secondary detail sits under the main value as a caption.
 
-### Form Fields & Checkboxes
-Inputs sit on base `#0F172A` with a 1px `#334155` border. Focus transitions to an electric primary glow (`#38BDF8`). Checkboxes use crisp 4px corner radii, filling solid primary with dark check glyphs when active.
+### Feedback
 
-### Geospatial Control Overlays
-Floating map panels use Level 2 elevation with semi-translucent slate backdrops (`rgba(30, 41, 59, 0.92)` + `backdrop-filter: blur(8px)`). Territory filter legends and layer toggles use compact typography and tight 8px internal padding.
+- Snackbars confirm saves ("Moved to …", "Receipt voided").
+- Loading shows a centred spinner. An empty screen shows an icon, a title and a one-line hint.
+- The sync pill shows Synced, Syncing, Offline, Upload failing or Local only, and opens the sync
+  queue.
+
+## Motion
+
+Tokens are in `TropaMotion` (`lib/core/motion.dart`).
+
+- Durations are 150 / 200 / 250ms; exits are 20% shorter than entrances. Entrances ease out, moves
+  ease in-out, and nothing bounces.
+- **Dialogs** (`showTropaDialog`): fade in while scaling up from 0.95 over 200ms, and close in 160ms.
+- **Press feedback** (`TropaPressable`): scales to 0.97 on tappable items.
+- **Staggered entrance** (`TropaStaggerIn`): items arrive 30ms apart, e.g. the dashboard KPI cards.
+- **Success pulse** (`TropaSuccessPulse`): one pulse to confirm, e.g. the sync pill on catching up.
+- **Never animate** page switches or the sidebar width. They re-lay out large tables and lag.
+- Every animation is skipped when the OS "reduce motion" setting is on.

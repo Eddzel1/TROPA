@@ -80,7 +80,8 @@ class _TransferMemberDialogState extends ConsumerState<TransferMemberDialog> {
     final subtextCol = TropaColors.textMedium(context);
     final currentName = _currentHousehold?.householdName ?? '—';
     final m = widget.member;
-    final newName = Household.familyNameFor(lastname: m.lastname, firstname: m.firstname, middlename: m.middlename);
+    final newName = Household.familyNameFor(
+        lastname: m.lastname, firstname: m.firstname, middlename: m.middlename, suffix: m.extension);
 
     return AlertDialog(
       backgroundColor: dlgBg,
