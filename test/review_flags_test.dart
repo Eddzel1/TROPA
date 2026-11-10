@@ -198,6 +198,25 @@ void main() {
         isFalse);
   });
 
+  test('member form warning: also matches when a birthday is missing, if all three names agree', () {
+    Map<String, dynamic> p(String last, String first, String? middle, {String? birth}) =>
+        {...mem('X', last, first, middle: middle, birth: birth)};
+    // Everything agrees, birthday unknown on the new entry.
+    expect(possibleDuplicateMember(p('NAVALES', 'MERIEM', 'MADERSE'), p('NAVALES', 'MERIEM', 'MADERSE', birth: '1978-06-02')),
+        isTrue);
+    // Typos only, no birthdays.
+    expect(possibleDuplicateMember(p('PATENA', 'JESON', 'CALINGCAG'), p('PATEÑA', 'JESSON', 'CALINGASAG')), isTrue);
+    // No birthday and no middle name: too little to go on.
+    expect(possibleDuplicateMember(p('CRUZ', 'ANA', null), p('CRUZ', 'ANA', null)), isFalse);
+    // Different middle name: a different person.
+    expect(possibleDuplicateMember(p('BOYLES', 'JOHNNY', 'HERMOSO'), p('BOYLES', 'JOHNNY', 'CORMINAL')), isFalse);
+    // Both birthdays known and far apart: the strict review rule decides (no match).
+    expect(
+        possibleDuplicateMember(
+            p('BOYLES', 'JOHNNY', 'HERMOSO', birth: '1981-06-25'), p('BOYLES', 'JOHNNY', 'HERMOSO', birth: '2007-03-31')),
+        isFalse);
+  });
+
   test('the comparison dialog uses the same rule as the review page', () {
     final sherly = mem('S', 'DAGWAYAN', 'SHERLY', birth: '1976-04-23');
     expect(reviewSamePerson(sherly, mem('B', 'DAGWAYAN', 'SHERLY', birth: '1976-05-23')), isTrue);

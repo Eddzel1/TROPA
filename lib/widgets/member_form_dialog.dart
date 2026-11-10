@@ -19,6 +19,7 @@ import '../providers/member_provider.dart';
 import '../providers/voter_provider.dart';
 import '../core/ph_time.dart';
 import 'form_fields.dart';
+import 'household_view_dialog.dart';
 
 enum MemberFormStep {
   encodingSet, // Step 0: LGU / barangay / purok shared by the batch being encoded
@@ -68,6 +69,10 @@ class DependentMemberData {
   Timer? matchDebounce;
   List<VoterSearchResult> possibleMatches = [];
   bool fromVoterRecord = false;
+
+  // TROPA members already encoded who may be this person, and the ones the encoder said are not
+  List<Map<String, dynamic>> encodedMatches = [];
+  final Set<String> encodedDismissed = {};
 
   // Layout: folded into a one-line summary, and whether the optional fields are shown
   bool expanded = true;
@@ -130,6 +135,13 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   // Manual entry: voter records that match the typed name, offered for review
   Timer? _matchDebounce;
   List<VoterSearchResult> _possibleMatches = [];
+
+  // New members: TROPA members already encoded in the barangay who may be the same person, checked
+  // while encoding (see _scheduleEncodedCheck) so a duplicate is caught before the whole form is filled
+  Timer? _encodedDebounce;
+  String _encodedSig = '';
+  List<Map<String, dynamic>> _encodedMatches = [];
+  final Set<String> _encodedDismissed = {};
 
   // STEP 2: Member Form Controls
   final _lastNameCtrl = TextEditingController();
@@ -458,6 +470,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   void dispose() {
     _searchDebounce?.cancel();
     _matchDebounce?.cancel();
+    _encodedDebounce?.cancel();
     _searchLastNameCtrl.dispose();
     _searchFirstNameCtrl.dispose();
     _searchMiddleNameCtrl.dispose();
@@ -1070,6 +1083,11 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       }
     }
 
+    // Possibly encoded already (anywhere in the barangay, e.g. by another encoder or the old system):
+    // show the likely matches and let the encoder go back or save anyway.
+    if (widget.existing == null && !await _confirmPossibleDuplicates()) return false;
+    if (!mounted) return false;
+
     setState(() => _isSaving = true);
     try {
       final service = ref.read(supabaseServiceProvider);
@@ -1217,6 +1235,119 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     }
   }
 
+  static String? _ymd(DateTime? d) => d == null
+      ? null
+      : '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  static Map<String, dynamic> _personMap(String last, String first, String middle, DateTime? birth) => {
+        'lastname': last.trim(),
+        'firstname': first.trim(),
+        'middlename': middle.trim(),
+        'birth_date': _ymd(birth),
+      };
+
+  /// The people a new-member save would add, each with the existing members the encoder already said
+  /// are someone else: the member first, then their filled-in household member cards.
+  List<({Map<String, dynamic> person, Set<String> dismissed, DependentMemberData? dep})> _peopleToCheck() => [
+        if (_lastNameCtrl.text.trim().isNotEmpty && _firstNameCtrl.text.trim().isNotEmpty)
+          (
+            person: _personMap(_lastNameCtrl.text, _firstNameCtrl.text, _middleNameCtrl.text, _birthDate),
+            dismissed: _encodedDismissed,
+            dep: null,
+          ),
+        for (final d in _isHouseholdLeader ? _dependentMembers : const <DependentMemberData>[])
+          if (d.firstNameCtrl.text.trim().isNotEmpty && d.lastNameCtrl.text.trim().isNotEmpty)
+            (
+              person: _personMap(d.lastNameCtrl.text, d.firstNameCtrl.text, d.middleNameCtrl.text, d.birthDate),
+              dismissed: d.encodedDismissed,
+              dep: d,
+            ),
+      ];
+
+  /// Runs on every build: when a name, birthday or the barangay changed, re-checks (after a pause in
+  /// typing) whether anyone being added is already encoded, and shows it under their name.
+  void _scheduleEncodedCheck() {
+    final active = widget.existing == null &&
+        _currentStep == MemberFormStep.memberForm &&
+        _lgu.trim().isNotEmpty &&
+        _barangay.trim().isNotEmpty;
+    final people = active ? _peopleToCheck() : const <({Map<String, dynamic> person, Set<String> dismissed, DependentMemberData? dep})>[];
+    final sig = [_lgu, _barangay, for (final p in people) p.person.values.join('|')].join('#');
+    if (sig == _encodedSig) return;
+    _encodedSig = sig;
+    _encodedDebounce?.cancel();
+    if (people.isEmpty) {
+      if (_encodedMatches.isNotEmpty || _dependentMembers.any((d) => d.encodedMatches.isNotEmpty)) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          setState(() {
+            _encodedMatches = [];
+            for (final d in _dependentMembers) {
+              d.encodedMatches = [];
+            }
+          });
+        });
+      }
+      return;
+    }
+    _encodedDebounce = Timer(const Duration(milliseconds: 500), () => _runEncodedCheck(sig, people));
+  }
+
+  Future<void> _runEncodedCheck(
+      String sig, List<({Map<String, dynamic> person, Set<String> dismissed, DependentMemberData? dep})> people) async {
+    final Map<int, List<Map<String, dynamic>>> found;
+    try {
+      found = await ref
+          .read(supabaseServiceProvider)
+          .findPossibleDuplicates(lgu: _lgu, barangay: _barangay, people: [for (final p in people) p.person]);
+    } catch (_) {
+      return;
+    }
+    if (!mounted || sig != _encodedSig) return; // typing went on meanwhile
+    setState(() {
+      _encodedMatches = [];
+      for (final d in _dependentMembers) {
+        d.encodedMatches = [];
+      }
+      for (final (i, p) in people.indexed) {
+        final list = found[i] ?? const <Map<String, dynamic>>[];
+        if (p.dep == null) {
+          _encodedMatches = list;
+        } else if (_dependentMembers.contains(p.dep)) {
+          p.dep!.encodedMatches = list;
+        }
+      }
+    });
+  }
+
+  /// Checks the member and their household member cards against everyone already encoded in the
+  /// barangay. Returns true to go on saving: nothing matched (apart from records the encoder already
+  /// marked "Not the same person"), or the encoder chose "Save anyway".
+  Future<bool> _confirmPossibleDuplicates() async {
+    final checked = _peopleToCheck();
+    final people = [for (final p in checked) p.person];
+    final Map<int, List<Map<String, dynamic>>> matches;
+    try {
+      final found = await ref
+          .read(supabaseServiceProvider)
+          .findPossibleDuplicates(lgu: _lgu, barangay: _barangay, people: people);
+      matches = {
+        for (final e in found.entries)
+          if (e.value.where((m) => !checked[e.key].dismissed.contains(m['id'])).toList() case final left
+              when left.isNotEmpty)
+            e.key: left,
+      };
+    } catch (_) {
+      return true; // the check is a courtesy: never block a save because it failed
+    }
+    if (matches.isEmpty || !mounted) return mounted;
+    final proceed = await showTropaDialog<bool>(
+      context: context,
+      builder: (_) => _PossibleDuplicatesDialog(people: people, matches: matches),
+    );
+    return proceed == true;
+  }
+
   /// "Save TROPA Member" / "Update Profile" button and Ctrl/Cmd+S.
   Future<void> _saveAndClose() async {
     if (_isSaving || _currentStep != MemberFormStep.memberForm) return;
@@ -1268,6 +1399,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       _selectedHousehold = widget.presetHousehold;
       _voterSearchDependentIndex = null;
       _possibleMatches = [];
+      _encodedMatches = [];
+      _encodedDismissed.clear();
       _isVoter = false;
       _listingStatus = 'TROPA MEMBER';
       _avatarBytes = null;
@@ -1295,6 +1428,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   Widget build(BuildContext context) {
     ref.watch(locationsProvider);
     ref.watch(barangayStartMonthsProvider);
+    _scheduleEncodedCheck();
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final dlgBg = TropaColors.cardOf(context);
     final textCol = TropaColors.textHigh(context);
@@ -2161,6 +2295,14 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                       ),
                                     ],
                                   ),
+                                  if (_visibleEncoded(_encodedMatches, _encodedDismissed) case final shown
+                                      when shown.isNotEmpty) ...[
+                                    const SizedBox(height: 12),
+                                    _EncodedMatchesBanner(
+                                      matches: shown,
+                                      onNotSame: (id) => setState(() => _encodedDismissed.add(id)),
+                                    ),
+                                  ],
                                   const SizedBox(height: 14),
 
                                   // Row 2: Birthday, Contact Number (membership month is set later in Dues)
@@ -2819,6 +2961,9 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     );
   }
 
+  static List<Map<String, dynamic>> _visibleEncoded(List<Map<String, dynamic>> matches, Set<String> dismissed) =>
+      [for (final m in matches) if (!dismissed.contains(m['id'])) m];
+
   Widget _buildPossibleMatchBanner(
     bool isDark, {
     required List<VoterSearchResult> matches,
@@ -3074,6 +3219,11 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                   style: GoogleFonts.inter(fontSize: 12, color: problems.isNotEmpty ? warn : subtextCol),
                 ),
               ),
+              if (_visibleEncoded(dep.encodedMatches, dep.encodedDismissed).isNotEmpty)
+                Tooltip(
+                  message: 'Possibly encoded already: open to check',
+                  child: Icon(Icons.warning_amber_rounded, size: 18, color: TropaColors.errorOf(context)),
+                ),
               if (dep.possibleMatches.isNotEmpty)
                 Tooltip(
                   message: 'Possible voter match: open to review',
@@ -3285,6 +3435,13 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
               ),
             ],
           ),
+          if (_visibleEncoded(dep.encodedMatches, dep.encodedDismissed) case final shown when shown.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _EncodedMatchesBanner(
+              matches: shown,
+              onNotSame: (id) => setState(() => dep.encodedDismissed.add(id)),
+            ),
+          ],
           const SizedBox(height: 14),
 
           // Row 2: Contact No., Gender (membership date is the leader's, set on save)
@@ -4166,3 +4323,246 @@ class _PhMobileFormatter extends TextInputFormatter {
   }
 }
 
+/// Warning before saving someone new who may already be encoded: lists, per person being added, the
+/// existing members they may be (where, birthday, when and by whom encoded). "Go back" is the
+/// default; "Save anyway" returns true.
+class _PossibleDuplicatesDialog extends StatelessWidget {
+  /// The people being saved (lastname, firstname, middlename, birth_date), leader first.
+  final List<Map<String, dynamic>> people;
+
+  /// Index into [people] -> existing members that may be the same person.
+  final Map<int, List<Map<String, dynamic>>> matches;
+
+  const _PossibleDuplicatesDialog({required this.people, required this.matches});
+
+  static String _name(Map<String, dynamic> m) => [
+        '${(m['lastname'] ?? '').toString().trim().toUpperCase()},',
+        (m['firstname'] ?? '').toString().trim().toUpperCase(),
+        (m['middlename'] ?? '').toString().trim().toUpperCase(),
+      ].where((s) => s.isNotEmpty).join(' ');
+
+  static String _birth(Map<String, dynamic> m) {
+    final b = (m['birth_date'] ?? '').toString();
+    return b.length >= 10 ? 'b. ${b.substring(0, 10)}' : 'no birthday';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final textCol = TropaColors.textHigh(context);
+    final subtextCol = TropaColors.textMedium(context);
+    final warn = TropaColors.errorOf(context);
+    final count = matches.length;
+
+    return AlertDialog(
+      backgroundColor: TropaColors.cardOf(context),
+      title: Row(
+        children: [
+          Icon(Icons.warning_amber_rounded, color: warn),
+          const SizedBox(width: 8),
+          Expanded(child: Text('Possibly encoded already', style: TropaText.dialogTitle(textCol))),
+        ],
+      ),
+      content: SizedBox(
+        width: 560,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              count == 1 && people.length == 1
+                  ? 'This person may already be a TROPA member in this barangay. Check before saving.'
+                  : '$count of the ${people.length} people you are saving may already be TROPA members in '
+                      'this barangay. Check before saving.',
+              style: TropaText.body(subtextCol),
+            ),
+            const SizedBox(height: 12),
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final e in matches.entries) ...[
+                      Text('Adding: ${_name(people[e.key])} (${_birth(people[e.key])})',
+                          style: TropaText.bodyStrong(textCol)),
+                      const SizedBox(height: 6),
+                      _EncodedMatchList(matches: e.value),
+                      const SizedBox(height: 6),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: Text('Save anyway', style: TextStyle(color: warn)),
+        ),
+        ElevatedButton(
+          style: TropaStyles.primaryAction(context),
+          autofocus: true,
+          onPressed: () => Navigator.pop(context, false),
+          child: const Text('Go back'),
+        ),
+      ],
+    );
+  }
+}
+
+/// One existing member who may be the person being added, as a row: name on top, then household,
+/// birthday, and when and by whom encoded. "View household" opens it; when [onNotSame] is given, a ✕
+/// marks it "Not the same person".
+class _EncodedMatchRow extends ConsumerWidget {
+  final Map<String, dynamic> member;
+  final VoidCallback? onNotSame;
+
+  const _EncodedMatchRow({required this.member, this.onNotSame});
+
+  static final _dateFmt = DateFormat('MMM d, y');
+
+  Future<void> _openHousehold(BuildContext context, WidgetRef ref, String id) async {
+    final household = await ref.read(supabaseServiceProvider).getHouseholdById(id);
+    if (household == null || !context.mounted) return;
+    await showTropaDialog<void>(context: context, builder: (_) => HouseholdViewDialog(household: household));
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final m = member;
+    final textCol = TropaColors.textHigh(context);
+    final subtextCol = TropaColors.textMedium(context);
+    final householdId = (m['household_id'] ?? '').toString();
+    final encodedBy = (m['created_by'] ?? '').toString().trim();
+    final encodedOn = parsePh(m['created_date']?.toString());
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(_PossibleDuplicatesDialog._name(m), style: TropaText.bodyStrong(textCol)),
+                const SizedBox(height: 2),
+                Text(
+                  [
+                    (m['household_name'] ?? 'No household').toString(),
+                    _PossibleDuplicatesDialog._birth(m),
+                  ].join('  ·  '),
+                  style: TropaText.meta(subtextCol),
+                ),
+                if (encodedOn != null || encodedBy.isNotEmpty)
+                  Text(
+                    [
+                      'Encoded',
+                      if (encodedOn != null) formatPh(_dateFmt, encodedOn),
+                      if (encodedBy.isNotEmpty) 'by $encodedBy',
+                    ].join(' '),
+                    style: TropaText.caption(subtextCol),
+                  ),
+              ],
+            ),
+          ),
+          if (householdId.isNotEmpty) ...[
+            const SizedBox(width: 12),
+            OutlinedButton(
+              style: TropaStyles.secondaryAction(context).copyWith(
+                padding: const WidgetStatePropertyAll(EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
+                textStyle: WidgetStatePropertyAll(TropaText.action()),
+              ),
+              onPressed: () => _openHousehold(context, ref, householdId),
+              child: const Text('View household'),
+            ),
+          ],
+          if (onNotSame != null)
+            IconButton(
+              icon: Icon(Icons.close, size: 18, color: subtextCol),
+              tooltip: 'Not the same person',
+              onPressed: onNotSame,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Existing members who may be the person being added, in one bordered box with dividers.
+class _EncodedMatchList extends StatelessWidget {
+  final List<Map<String, dynamic>> matches;
+  final void Function(String id)? onNotSame;
+  final Widget? header;
+
+  const _EncodedMatchList({required this.matches, this.onNotSame, this.header});
+
+  @override
+  Widget build(BuildContext context) {
+    final warn = TropaColors.errorOf(context);
+    final rows = [
+      for (final m in matches)
+        _EncodedMatchRow(
+          member: m,
+          onNotSame: onNotSame == null ? null : () => onNotSame!((m['id'] ?? '').toString()),
+        ),
+    ];
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+      decoration: BoxDecoration(
+        color: warn.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: warn.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (header != null) header!,
+          for (final (i, r) in rows.indexed) ...[
+            if (i > 0 || header != null) Divider(height: 1, color: warn.withValues(alpha: 0.15)),
+            r,
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Shown under a name in the member form while encoding: this person may already be a TROPA member
+/// in the barangay. The encoder can open the household, or dismiss a record as someone else.
+class _EncodedMatchesBanner extends StatelessWidget {
+  final List<Map<String, dynamic>> matches;
+  final void Function(String id) onNotSame;
+
+  const _EncodedMatchesBanner({required this.matches, required this.onNotSame});
+
+  @override
+  Widget build(BuildContext context) {
+    final warn = TropaColors.errorOf(context);
+    final textCol = TropaColors.textHigh(context);
+    final subtextCol = TropaColors.textMedium(context);
+    final shown = matches.take(3).toList();
+    final more = matches.length - shown.length;
+    return _EncodedMatchList(
+      matches: shown,
+      onNotSame: onNotSame,
+      header: Padding(
+        padding: const EdgeInsets.fromLTRB(0, 6, 8, 8),
+        child: Row(
+          children: [
+            Icon(Icons.error_outline, size: 16, color: warn),
+            const SizedBox(width: 8),
+            Text(
+              matches.length == 1 ? 'Already encoded?' : 'Already encoded? ${matches.length} similar records',
+              style: TropaText.bodyStrong(textCol),
+            ),
+            if (more > 0) ...[
+              const SizedBox(width: 8),
+              Text('(showing 3)', style: TropaText.caption(subtextCol)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}

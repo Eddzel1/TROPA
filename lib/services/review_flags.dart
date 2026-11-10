@@ -214,6 +214,19 @@ bool _samePerson(_M m, _M o) {
 /// [_samePerson] for `family_members` rows, used by the household comparison dialog.
 bool reviewSamePerson(Map<String, dynamic> a, Map<String, dynamic> b) => _samePerson(_M(a), _M(b));
 
+/// The member form's warning before saving someone new: [_samePerson], or, when either birthday is
+/// unknown (encoders often leave it blank), the same barangay with last, first and middle name all
+/// the same or a typo apart. Looser than the review page, since the encoder decides on the spot.
+bool possibleDuplicateMember(Map<String, dynamic> a, Map<String, dynamic> b) {
+  final m = _M(a), o = _M(b);
+  if (_samePerson(m, o)) return true;
+  if (m.area != o.area || (m.bd.isNotEmpty && o.bd.isNotEmpty)) return false;
+  return _closeName(m.ln, o.ln) &&
+      _closeFirstName(m.fn, o.fn) &&
+      _closeName(m.mn, o.mn) &&
+      (m.suffix == o.suffix);
+}
+
 String _date(DateTime? d) =>
     d == null ? 'unknown date' : '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 

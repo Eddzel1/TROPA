@@ -667,6 +667,33 @@ class SupabaseService {
   static String _dateOnly(DateTime d) =>
       '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
+  /// Already-encoded active members of [lgu]/[barangay] who may be the same person as each of
+  /// [people] (rows with lastname, firstname, middlename, birth_date): the member form's warning
+  /// before saving someone new. Keyed by index into [people]; people with no match are left out.
+  /// Each match carries its household's name as `household_name`.
+  Future<Map<int, List<Map<String, dynamic>>>> findPossibleDuplicates({
+    required String lgu,
+    required String barangay,
+    required List<Map<String, dynamic>> people,
+  }) async {
+    if (people.isEmpty) return {};
+    final area = {'lgu': lgu, 'barangay': barangay};
+    final rows = await _rows(
+      'SELECT m.id, m.household_id, m.lastname, m.firstname, m.middlename, m.birth_date, m.lgu, m.barangay, '
+      'm.created_date, m.created_by, h.household_name '
+      'FROM family_members m LEFT JOIN households h ON h.id = m.household_id '
+      'WHERE COALESCE(m.is_archived, 0) = 0 AND UPPER(TRIM(m.lgu)) = ? AND UPPER(TRIM(m.barangay)) = ?',
+      [lgu.trim().toUpperCase(), barangay.trim().toUpperCase()],
+    );
+    final result = <int, List<Map<String, dynamic>>>{};
+    for (final (i, p) in people.indexed) {
+      final person = {...p, ...area};
+      final matches = [for (final r in rows) if (possibleDuplicateMember(person, r)) r];
+      if (matches.isNotEmpty) result[i] = matches;
+    }
+    return result;
+  }
+
   Future<FamilyMember> createMember(FamilyMember member) async {
     await db.writeTransaction((tx) async {
       await _insert(tx, 'family_members',

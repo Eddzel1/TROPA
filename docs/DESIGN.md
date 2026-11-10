@@ -162,6 +162,17 @@ Shadows may use black at low alpha. Any other fixed colour in screen code is a b
 ### Feedback
 
 - Snackbars confirm saves ("Moved to …", "Receipt voided").
+- **Soft warnings before a save** (e.g. "Possibly encoded already" in the member form) use a dialog
+  with a warning icon and the evidence as rows in one box: a 1px red border at 35%, a 4% red tint,
+  and hairline dividers. No coloured side stripes. Each row shows the name in `bodyStrong`, details
+  in `meta`/`caption`, and a compact outlined "View …" button. The safe choice ("Go back") is the
+  filled, autofocused button. Proceeding ("Save anyway") is a red text button. Use them when the
+  user may know better; block outright only when the data is certainly wrong.
+- **Warn while typing, not only at save.** The member form re-checks 500ms after a name, birthday or
+  barangay change. It shows the same box under the person's name, with a header row: a small red
+  ⓘ and "Already encoded?" in normal text colour. Each row adds a muted ✕ (tooltip "Not the same
+  person") that hides it there and in the save dialog. At most three rows show. A folded
+  household-member row shows a red ⚠ icon instead.
 - Loading shows a centred spinner. An empty screen shows an icon, a title and a one-line hint.
 - The sync pill shows Synced, Syncing, Offline, Upload failing or Local only, and opens the sync
   queue.
