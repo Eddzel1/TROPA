@@ -160,14 +160,4 @@ class HouseholdListNotifier extends StateNotifier<AsyncValue<List<Household>>> {
       return false;
     }
   }
-
-  Future<bool> deleteHousehold(String id) async {
-    try {
-      final service = ref.read(supabaseServiceProvider);
-      await service.deleteHousehold(id);
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }
 }

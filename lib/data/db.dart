@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:powersync/powersync.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/env.dart';
+import '../core/ph_time.dart';
 import '../services/device_seed.dart';
 import '../services/fallback_sync.dart';
 import '../services/offline_auth.dart';
@@ -88,6 +89,37 @@ final pendingUploadEntriesProvider = StreamProvider<List<PendingUpload>>((ref) {
               rowId: d['id'] as String? ?? '',
               data: (d['data'] as Map?)?.cast<String, dynamic>() ?? const {},
             ),
+      ]);
+});
+
+/// A local change Supabase refused (see `upload_rejections`). [changeCount] is how many changes were
+/// dropped with it: a refused change takes the rest of its save (e.g. a household's members) along.
+typedef UploadRejection = ({
+  String id,
+  String table,
+  String op,
+  String rowId,
+  String code,
+  String message,
+  int changeCount,
+  DateTime at,
+});
+
+/// Changes Supabase refused, newest first, until dismissed.
+final uploadRejectionsProvider = StreamProvider<List<UploadRejection>>((ref) {
+  final db = ref.watch(localDbProvider);
+  return db.watch('SELECT * FROM upload_rejections ORDER BY created_at DESC').map((rows) => [
+        for (final r in rows)
+          (
+            id: r['id'] as String,
+            table: r['table_name'] as String? ?? '?',
+            op: r['op'] as String? ?? '?',
+            rowId: r['row_id'] as String? ?? '',
+            code: r['code'] as String? ?? '',
+            message: r['message'] as String? ?? '',
+            changeCount: (r['change_count'] as int?) ?? 1,
+            at: parsePh(r['created_at'] as String?) ?? phNow(),
+          ),
       ]);
 });
 

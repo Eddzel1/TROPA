@@ -368,13 +368,6 @@ class SupabaseService {
     });
   }
 
-  Future<void> deleteHousehold(String id) async {
-    await db.writeTransaction((tx) async {
-      await tx.execute('DELETE FROM households WHERE id = ?', [id]);
-      await _log(tx, action: 'DELETE', entityType: 'Household', entityId: id);
-    });
-  }
-
   /// Dues payments (voided ones included) recorded for [householdId] or any of its members.
   /// A household with payments can't be deleted: its receipts would lose their member.
   Future<int> countHouseholdPayments(String householdId) async {
@@ -403,8 +396,11 @@ class SupabaseService {
         'SELECT id, lastname, firstname, middlename FROM family_members WHERE household_id = ?',
         [household.id],
       );
-      await tx.execute('DELETE FROM family_members WHERE household_id = ?', [household.id]);
+      // Household first: Supabase deletes its members with it (family_members_household_id_fkey
+      // cascades). Deleting the members first clears the household's leader link, which Supabase
+      // refuses (fk_household_leader, 23503), and the whole delete was silently dropped.
       await tx.execute('DELETE FROM households WHERE id = ?', [household.id]);
+      await tx.execute('DELETE FROM family_members WHERE household_id = ?', [household.id]);
       await _log(
         tx,
         action: 'DELETE',

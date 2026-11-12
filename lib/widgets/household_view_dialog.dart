@@ -628,112 +628,8 @@ class _HouseholdViewDialogState extends ConsumerState<HouseholdViewDialog> {
   }
 
   Future<void> _confirmDeleteHousehold() async {
-    final h = _currentHousehold;
-    final service = ref.read(supabaseServiceProvider);
-    final dlgBg = TropaColors.cardOf(context);
-    final textCol = TropaColors.textHigh(context);
-    final subtextCol = TropaColors.textMedium(context);
-
-    final payments = await service.countHouseholdPayments(h.id);
-    if (!mounted) return;
-    if (payments > 0) {
-      await showTropaDialog<void>(
-        context: context,
-        builder: (c) => AlertDialog(
-          backgroundColor: dlgBg,
-          title: Text("Can't delete this household", style: TextStyle(color: textCol)),
-          content: Text(
-            '${h.householdName} has $payments dues payment${payments == 1 ? '' : 's'}. Deleting it would '
-            'leave those receipts without a member. Transfer the members or move the payments first.',
-            style: TextStyle(color: subtextCol),
-          ),
-          actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('OK'))],
-        ),
-      );
-      return;
-    }
-
-    final members = await service.getHouseholdMemberRows(h.id, includeArchived: true);
-    if (!mounted) return;
-    String name(Map<String, dynamic> m) => [
-          '${m['lastname'] ?? ''},',
-          m['firstname'] ?? '',
-          if ((m['middlename'] ?? '').toString().trim().isNotEmpty) m['middlename'],
-        ].join(' ');
-    final confirm = await showTropaDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        backgroundColor: dlgBg,
-        title: Text('Delete Household?', style: TextStyle(color: textCol)),
-        content: SizedBox(
-          width: 460,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(h.householdName, style: TropaText.bodyStrong(textCol)),
-              Text([h.purok, h.barangay, h.lgu].where((s) => s.trim().isNotEmpty).join(', '),
-                  style: TropaText.meta(subtextCol)),
-              const SizedBox(height: 12),
-              Text(
-                members.isEmpty
-                    ? 'This household has no members.'
-                    : 'Its ${members.length} member${members.length == 1 ? '' : 's'} will be deleted too:',
-                style: TextStyle(color: subtextCol),
-              ),
-              if (members.isNotEmpty)
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 220),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        for (final m in members)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text(
-                              '• ${name(m)}${m['is_archived'] == 1 ? ' (archived)' : ''}',
-                              style: TropaText.body(textCol),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 12),
-              Text(
-                'This cannot be undone. If anyone here belongs in another household, use Transfer first.',
-                style: TropaText.bodyStrong(TropaColors.error),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () => Navigator.pop(c, true),
-            child: const Text('Delete Household', style: TextStyle(color: TropaColors.error)),
-          ),
-        ],
-      ),
-    );
-    if (confirm != true || !mounted) return;
-
-    try {
-      await service.deleteHouseholdWithMembers(h);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(e is StateError ? e.message : 'Could not delete the household: $e'),
-        backgroundColor: TropaColors.error,
-      ));
-      return;
-    }
-    ref.read(householdListNotifierProvider.notifier).refresh();
-    if (!mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    Navigator.of(context).pop();
-    messenger.showSnackBar(SnackBar(content: Text('Deleted ${h.householdName} and ${members.length} member(s)')));
+    final deleted = await confirmAndDeleteHousehold(context, ref, _currentHousehold);
+    if (deleted && mounted) Navigator.of(context).pop();
   }
 
   /// Totals and the receipt list for the Payments tab. Read-only: voiding stays on the Dues page.
@@ -957,4 +853,117 @@ class _RenameHouseholdDialogState extends State<_RenameHouseholdDialog> {
       ],
     );
   }
+}
+
+/// Deletes [h] with all its members after confirming. Refuses a household with dues payments, and
+/// lists the members first. Used by the household dialog and the Households page; never delete only
+/// the household row (its members would be left behind, and Supabase refuses it, so it comes back).
+/// Returns whether the household was deleted.
+Future<bool> confirmAndDeleteHousehold(BuildContext context, WidgetRef ref, Household h) async {
+  final service = ref.read(supabaseServiceProvider);
+  final dlgBg = TropaColors.cardOf(context);
+  final textCol = TropaColors.textHigh(context);
+  final subtextCol = TropaColors.textMedium(context);
+
+  final payments = await service.countHouseholdPayments(h.id);
+  if (!context.mounted) return false;
+  if (payments > 0) {
+    await showTropaDialog<void>(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: dlgBg,
+        title: Text("Can't delete this household", style: TextStyle(color: textCol)),
+        content: Text(
+          '${h.householdName} has $payments dues payment${payments == 1 ? '' : 's'}. Deleting it would '
+          'leave those receipts without a member. Transfer the members or move the payments first.',
+          style: TextStyle(color: subtextCol),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(c), child: const Text('OK'))],
+      ),
+    );
+    return false;
+  }
+
+  final members = await service.getHouseholdMemberRows(h.id, includeArchived: true);
+  if (!context.mounted) return false;
+  String name(Map<String, dynamic> m) => [
+        '${m['lastname'] ?? ''},',
+        m['firstname'] ?? '',
+        if ((m['middlename'] ?? '').toString().trim().isNotEmpty) m['middlename'],
+      ].join(' ');
+  final confirm = await showTropaDialog<bool>(
+    context: context,
+    builder: (c) => AlertDialog(
+      backgroundColor: dlgBg,
+      title: Text('Delete Household?', style: TextStyle(color: textCol)),
+      content: SizedBox(
+        width: 460,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(h.householdName, style: TropaText.bodyStrong(textCol)),
+            Text([h.purok, h.barangay, h.lgu].where((s) => s.trim().isNotEmpty).join(', '),
+                style: TropaText.meta(subtextCol)),
+            const SizedBox(height: 12),
+            Text(
+              members.isEmpty
+                  ? 'This household has no members.'
+                  : 'Its ${members.length} member${members.length == 1 ? '' : 's'} will be deleted too:',
+              style: TextStyle(color: subtextCol),
+            ),
+            if (members.isNotEmpty)
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 220),
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final m in members)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text(
+                            '• ${name(m)}${m['is_archived'] == 1 ? ' (archived)' : ''}',
+                            style: TropaText.body(textCol),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            const SizedBox(height: 12),
+            Text(
+              'This cannot be undone. If anyone here belongs in another household, use Transfer first.',
+              style: TropaText.bodyStrong(TropaColors.error),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(c, false), child: const Text('Cancel')),
+        TextButton(
+          onPressed: () => Navigator.pop(c, true),
+          child: const Text('Delete Household', style: TextStyle(color: TropaColors.error)),
+        ),
+      ],
+    ),
+  );
+  if (confirm != true || !context.mounted) return false;
+
+  try {
+    await service.deleteHouseholdWithMembers(h);
+  } catch (e) {
+    if (!context.mounted) return false;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(e is StateError ? e.message : 'Could not delete the household: $e'),
+      backgroundColor: TropaColors.error,
+    ));
+    return false;
+  }
+  ref.read(householdListNotifierProvider.notifier).refresh();
+  if (context.mounted) {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text('Deleted ${h.householdName} and ${members.length} member(s)')));
+  }
+  return true;
 }

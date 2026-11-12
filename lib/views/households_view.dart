@@ -828,30 +828,6 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
     ));
   }
 
-  Future<void> _confirmDelete(BuildContext context, Household h) async {
-    final cardBg = TropaColors.cardOf(context);
-    final textCol = TropaColors.textHigh(context);
-    final subtextCol = TropaColors.textMedium(context);
-    final confirm = await showTropaDialog<bool>(
-      context: context,
-      builder: (c) => AlertDialog(
-        backgroundColor: cardBg,
-        title: Text('Delete Household?', style: TextStyle(color: textCol)),
-        content: Text('Are you sure you want to delete ${h.householdName}?',
-            style: TextStyle(color: subtextCol)),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(c, false),
-              child: const Text('Cancel')),
-          TextButton(
-              onPressed: () => Navigator.pop(c, true),
-              child:
-                  const Text('Delete', style: TextStyle(color: TropaColors.error))),
-        ],
-      ),
-    );
-    if (confirm == true) {
-      await ref.read(householdListNotifierProvider.notifier).deleteHousehold(h.id);
-    }
-  }
+  /// Same delete as the household dialog: the household and its members together.
+  Future<void> _confirmDelete(BuildContext context, Household h) => confirmAndDeleteHousehold(context, ref, h);
 }

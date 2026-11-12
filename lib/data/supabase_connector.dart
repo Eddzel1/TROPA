@@ -2,7 +2,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:powersync/powersync.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 import '../core/env.dart';
+import '../core/ph_time.dart';
 import 'powersync_schema.dart';
 
 /// Postgres error classes that will never succeed on retry:
@@ -57,21 +59,68 @@ class SupabaseConnector extends PowerSyncBackendConnector {
             await table.upsert([for (final o in batch) {..._toRemote(o.table, o.opData ?? {}), 'id': o.id}]);
           case UpdateType.patch:
             // PATCH only carries the changed columns, so concurrent edits to different fields both survive.
-            await table.update(_toRemote(op.table, op.opData ?? {})).inFilter('id', ids);
+            final changed = await table.update(_toRemote(op.table, op.opData ?? {})).inFilter('id', ids).select('id');
+            await _checkApplied(database, batch, changed, 'Supabase did not save this edit');
           case UpdateType.delete:
-            await table.delete().inFilter('id', ids);
+            final deleted = await table.delete().inFilter('id', ids).select('id');
+            await _checkApplied(database, batch, deleted, 'Supabase did not delete this record');
         }
         i = end;
       }
       await tx.complete();
     } on PostgrestException catch (e) {
       if (e.code != null && _fatalPostgresCodes.any((re) => re.hasMatch(e.code!))) {
-        // Retrying would block the queue forever; drop the transaction and keep going.
+        // Retrying would block the queue forever; drop the transaction and keep going, but record
+        // why, so the refusal shows in the sync pill instead of the change quietly coming undone.
         debugPrint('Discarding unsyncable change $lastOp: ${e.message}');
+        if (lastOp != null) {
+          await _recordRejection(database, lastOp,
+              code: e.code ?? '', message: [e.message, e.details, e.hint].whereType<Object>().join(' · '),
+              changeCount: tx.crud.length);
+        }
         await tx.complete();
       } else {
         rethrow;
       }
+    }
+  }
+
+  /// Row-level security makes Supabase skip rows it won't let this user change, without an error.
+  /// [returned] are the rows the request did change; any other row of [batch] that still exists on
+  /// the server was refused, so it is recorded (rows already gone elsewhere are fine).
+  Future<void> _checkApplied(
+      PowerSyncDatabase database, List<CrudEntry> batch, List<Map<String, dynamic>> returned, String message) async {
+    final done = {for (final r in returned) r['id'].toString().toLowerCase()};
+    final missing = [for (final o in batch) if (!done.contains(o.id.toLowerCase())) o];
+    if (missing.isEmpty) return;
+    final still = await _client.from(batch.first.table).select('id').inFilter('id', [for (final o in missing) o.id]);
+    final kept = {for (final r in still) r['id'].toString().toLowerCase()};
+    for (final o in missing.where((o) => kept.contains(o.id.toLowerCase()))) {
+      await _recordRejection(database, o,
+          code: 'RLS', message: '$message. You may not have permission for it.', changeCount: 1);
+    }
+  }
+
+  Future<void> _recordRejection(PowerSyncDatabase database, CrudEntry op,
+      {required String code, required String message, required int changeCount}) async {
+    try {
+      await database.execute(
+        'INSERT INTO upload_rejections (id, table_name, op, row_id, code, message, data, change_count, created_at) '
+        'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [
+          const Uuid().v4(),
+          op.table,
+          op.op.toJson(),
+          op.id,
+          code,
+          message,
+          op.opData == null ? null : jsonEncode(op.opData),
+          changeCount,
+          toPhIso(phNow()),
+        ],
+      );
+    } catch (e) {
+      debugPrint('Could not record the refused change: $e');
     }
   }
 

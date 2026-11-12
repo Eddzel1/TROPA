@@ -204,6 +204,18 @@ const schema = Schema([
   Table.localOnly('fallback_cursors', [
     Column.text('cursor'),
   ]),
+  // Local changes Supabase refused (lib/data/supabase_connector.dart). They are undone on the
+  // device by the next sync; these rows say what and why until someone dismisses them.
+  Table.localOnly('upload_rejections', [
+    Column.text('table_name'),
+    Column.text('op'),
+    Column.text('row_id'),
+    Column.text('code'),
+    Column.text('message'),
+    Column.text('data'),
+    Column.integer('change_count'),
+    Column.text('created_at'),
+  ]),
   // Voter flags are the only voter edits; they sync both ways like any other table.
   Table('voter_flags', [
     Column.text('voter_id'),

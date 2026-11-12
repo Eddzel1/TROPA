@@ -188,6 +188,11 @@ Shadows may use black at low alpha. Any other fixed colour in screen code is a b
 - Loading shows a centred spinner. An empty screen shows an icon, a title and a one-line hint.
 - The sync pill shows Synced, Syncing, Offline, Upload failing or Local only, and opens the sync
   queue.
+- **Refused changes are never silent.** When Supabase turns a change down (an error, or rows it
+  skips for lack of permission), the change comes undone on the device. The pill turns red with
+  "N changes refused" until dismissed, and the sync queue lists each one at the top in a red panel:
+  the operation, table, Supabase's error code and message, record id and time, with Dismiss and
+  Dismiss all.
 
 ## Motion
 
