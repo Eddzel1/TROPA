@@ -11,9 +11,11 @@ import '../models/models.dart';
 import '../providers/auth_provider.dart';
 import '../providers/dues_provider.dart';
 import '../providers/voter_provider.dart';
+import '../widgets/tropa_pager.dart';
 import '../widgets/form_fields.dart';
 import '../widgets/keyboard_safe_body.dart';
 import '../widgets/membership_date_dialog.dart';
+import 'dues_report_print.dart';
 import 'dues_sheet_print.dart';
 import 'settings/settings_common.dart';
 
@@ -135,7 +137,7 @@ class _DuesTabs extends StatelessWidget {
       // Text-only tabs (~46 px instead of 72) when the keyboard leaves little room.
       final short = constraints.maxHeight < _shortTabHeight + 80;
       return DefaultTabController(
-        length: 2,
+        length: 3,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -143,14 +145,15 @@ class _DuesTabs extends StatelessWidget {
               isScrollable: true,
               tabAlignment: TabAlignment.start,
               tabs: short
-                  ? const [Tab(text: 'Collect'), Tab(text: 'Ledger')]
+                  ? const [Tab(text: 'Collect'), Tab(text: 'Ledger'), Tab(text: 'Funds')]
                   : const [
                       Tab(icon: Icon(Icons.add_card, size: 18), text: 'Collect'),
                       Tab(icon: Icon(Icons.receipt_long, size: 18), text: 'Ledger'),
+                      Tab(icon: Icon(Icons.pie_chart_outline, size: 18), text: 'Funds'),
                     ],
             ),
             SizedBox(height: short ? 8 : 16),
-            const Expanded(child: TabBarView(children: [_CollectTab(), _LedgerTab()])),
+            const Expanded(child: TabBarView(children: [_CollectTab(), _LedgerTab(), _FundsTab()])),
           ],
         ),
       );
@@ -210,8 +213,9 @@ class _CollectTabState extends ConsumerState<_CollectTab> {
     final search = ref.watch(duesSearchProvider);
     final selection = ref.watch(duesSelectionProvider);
     final purok = ref.watch(duesPurokProvider);
-    // A chosen purok turns the household list into a walk-through checklist.
-    final walking = search.mode == DuesSearchMode.household && purok.purok != null;
+    final place = ref.watch(duesWalkPlaceProvider);
+    // A chosen barangay turns the household list into a walk-through checklist; a purok narrows it.
+    final walking = search.mode == DuesSearchMode.household && place.barangay != null;
 
     return LayoutBuilder(builder: (context, constraints) {
       final wide = constraints.maxWidth >= 860;
@@ -236,6 +240,7 @@ class _CollectTabState extends ConsumerState<_CollectTab> {
               lgu: purok.lgu,
               barangay: purok.barangay,
               purok: purok.purok,
+              allPuroks: true,
               onChanged: (lgu, barangay, p) {
                 ref.read(duesPurokProvider.notifier).state = (lgu: lgu, barangay: barangay, purok: p);
                 // The open household belongs to the old place; show the new purok's summary instead.
@@ -252,7 +257,7 @@ class _CollectTabState extends ConsumerState<_CollectTab> {
             decoration: TropaStyles.filterField(
               context,
               hint: walking
-                  ? 'Find in this purok…'
+                  ? (place.purok == null ? 'Find in this barangay…' : 'Find in this purok…')
                   : search.mode == DuesSearchMode.household
                       ? 'Household or member name…'
                       : 'Member name…',
@@ -279,6 +284,7 @@ class _CollectTabState extends ConsumerState<_CollectTab> {
             child: switch (search.mode) {
               _ when walking => _PurokChecklist(
                   query: search.query,
+                  wholeBarangay: place.purok == null,
                   unpaidOnly: _unpaidOnly,
                   selectedId: selection?.id,
                   onOpen: (id) => _open((mode: DuesSearchMode.household, id: id), wide: wide)),
@@ -429,12 +435,16 @@ class _MemberResults extends ConsumerWidget {
 
 /// Cascading LGU › Barangay › Purok dropdowns over the user's dues barangays. An LGU or barangay
 /// that is the only choice is picked for the user. With [anyLabels] an empty choice reads "All …"
-/// (ledger filters); otherwise "Choose …" (Collect).
+/// (ledger filters); otherwise "Choose …" (Collect). [allPuroks] makes only the purok field read
+/// "All puroks", where leaving it empty means the whole barangay. Without [showPurok] only the LGU
+/// and barangay are offered.
 class _LocationPickers extends ConsumerWidget {
   final String? lgu;
   final String? barangay;
   final String? purok;
   final bool anyLabels;
+  final bool allPuroks;
+  final bool showPurok;
   final void Function(String? lgu, String? barangay, String? purok) onChanged;
 
   const _LocationPickers({
@@ -443,6 +453,8 @@ class _LocationPickers extends ConsumerWidget {
     required this.purok,
     required this.onChanged,
     this.anyLabels = false,
+    this.allPuroks = false,
+    this.showPurok = true,
   });
 
   @override
@@ -489,12 +501,15 @@ class _LocationPickers extends ConsumerWidget {
       effLgu == null ? null : (v) => onChanged(effLgu, v, null),
     );
     final purokField = dropdown(
-      anyLabels ? 'All puroks' : 'Choose purok',
+      anyLabels || allPuroks ? 'All puroks' : 'Choose purok',
       purok,
       puroks,
       location == null ? null : (v) => onChanged(effLgu, effBarangay, v),
     );
 
+    if (!showPurok) {
+      return Row(children: [Expanded(child: lguField), const SizedBox(width: 8), Expanded(child: barangayField)]);
+    }
     return LayoutBuilder(builder: (context, constraints) {
       if (constraints.maxWidth >= 520) {
         return Row(children: [
@@ -516,15 +531,23 @@ class _LocationPickers extends ConsumerWidget {
 
 bool _upToDate(DuesHousehold h, List<DuesRate> rates) => _totals(h.members, rates).months <= 0;
 
-/// The chosen purok's households as a checklist in walking (name) order: ✓ when nobody owes,
-/// otherwise what is owed. [query] narrows by household or member name.
+/// The chosen barangay's or purok's households as a checklist in name order: ✓ when nobody owes,
+/// otherwise what is owed. [query] narrows by household or member name. With [wholeBarangay] each
+/// row also names its purok.
 class _PurokChecklist extends ConsumerWidget {
   final String query;
+  final bool wholeBarangay;
   final bool unpaidOnly;
   final String? selectedId;
   final ValueChanged<String> onOpen;
 
-  const _PurokChecklist({required this.query, required this.unpaidOnly, required this.selectedId, required this.onOpen});
+  const _PurokChecklist({
+    required this.query,
+    required this.wholeBarangay,
+    required this.unpaidOnly,
+    required this.selectedId,
+    required this.onOpen,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -538,7 +561,7 @@ class _PurokChecklist extends ConsumerWidget {
     return ref.watch(duesPurokHouseholdsProvider).when(
           skipLoadingOnReload: true,
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Could not load the purok: $e')),
+          error: (e, _) => Center(child: Text('Could not load the ${wholeBarangay ? 'barangay' : 'purok'}: $e')),
           data: (all) {
             final households =
                 all.where((h) => matches(h) && (!unpaidOnly || !_upToDate(h, rates))).toList();
@@ -546,7 +569,9 @@ class _PurokChecklist extends ConsumerWidget {
               return _EmptyState(
                 icon: all.isEmpty ? Icons.home_outlined : Icons.task_alt,
                 title: all.isEmpty ? 'No households here' : (unpaidOnly ? 'Everyone here is up to date' : 'No match'),
-                message: all.isEmpty ? 'No households with members to bill in this purok.' : 'Try another name.',
+                message: all.isEmpty
+                    ? 'No households with members to bill in this ${wholeBarangay ? 'barangay' : 'purok'}.'
+                    : 'Try another name.',
               );
             }
             return _Surface(
@@ -565,6 +590,7 @@ class _PurokChecklist extends ConsumerWidget {
                     ),
                     title: Text(h.householdName, style: TropaText.bodyStrong(textCol)),
                     subtitle: Text(
+                      '${wholeBarangay && h.purok.isNotEmpty ? '${h.purok} · ' : ''}'
                       '${h.members.length} member${h.members.length == 1 ? '' : 's'}'
                       '${t.unbilled > 0 ? ' · ${t.unbilled} need a date' : ''}',
                       style: TropaText.caption(subCol),
@@ -580,7 +606,7 @@ class _PurokChecklist extends ConsumerWidget {
   }
 }
 
-/// "12 of 30 up to date" with a thin progress bar, for the chosen purok.
+/// "12 of 30 up to date" with a thin progress bar, for the chosen barangay or purok.
 class _PurokProgress extends ConsumerWidget {
   const _PurokProgress();
 
@@ -610,7 +636,7 @@ class _PurokProgress extends ConsumerWidget {
   }
 }
 
-/// Shown beside the checklist until a household is picked: what the purok still owes, how many
+/// Shown beside the checklist until a household is picked: what the barangay or purok still owes, how many
 /// households are up to date, and what was collected there today.
 class _PurokSummary extends ConsumerWidget {
   const _PurokSummary();
@@ -618,7 +644,7 @@ class _PurokSummary extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final rates = ref.watch(duesRatesProvider).value ?? const <DuesRate>[];
-    final purok = ref.watch(duesPurokProvider);
+    final place = ref.watch(duesWalkPlaceProvider);
     final households = ref.watch(duesPurokHouseholdsProvider).value ?? const <DuesHousehold>[];
     final today = ref.watch(duesPurokTodayProvider).value;
     var owed = 0.0;
@@ -639,7 +665,8 @@ class _PurokSummary extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('${purok.purok}, ${purok.barangay}', style: TropaText.dialogTitle(textCol)),
+            Text(place.purok == null ? '${place.barangay}' : '${place.purok}, ${place.barangay}',
+                style: TropaText.dialogTitle(textCol)),
             Text('Pick a household on the left to record a payment.', style: TropaText.meta(subCol)),
             const SizedBox(height: 16),
             Wrap(
@@ -1378,18 +1405,6 @@ class _LedgerTabState extends ConsumerState<_LedgerTab> {
     });
   }
 
-  Future<void> _pickRange(DuesLedgerFilter filter) async {
-    final today = phToday();
-    final picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(2020),
-      lastDate: today,
-      initialDateRange: filter.from != null && filter.to != null ? DateTimeRange(start: filter.from!, end: filter.to!) : null,
-    );
-    if (picked == null) return;
-    _update((f) => f.copyWith(period: LedgerPeriod.custom, from: picked.start, to: picked.end));
-  }
-
   @override
   Widget build(BuildContext context) {
     final filter = ref.watch(duesLedgerFilterProvider);
@@ -1397,7 +1412,6 @@ class _LedgerTabState extends ConsumerState<_LedgerTab> {
     final receiptsAsync = ref.watch(duesReceiptsProvider);
     final totals = ref.watch(duesLedgerTotalsProvider).value;
     final count = ref.watch(duesLedgerCountProvider).value ?? 0;
-    final subCol = TropaColors.textMedium(context);
 
     final search = TextField(
       inputFormatters: const [UpperCaseFormatter()],
@@ -1416,40 +1430,12 @@ class _LedgerTabState extends ConsumerState<_LedgerTab> {
           _update((f) => f.copyWith(lgu: () => lgu, barangay: () => barangay, purok: () => purok)),
     );
 
-    final customLabel = filter.period == LedgerPeriod.custom && filter.from != null && filter.to != null
-        ? '${_dayFormat.format(filter.from!)} – ${_dayFormat.format(filter.to!)}'
-        : 'Custom…';
-    final periods = Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        for (final (p, label) in [
-          (LedgerPeriod.all, 'All time'),
-          (LedgerPeriod.today, 'Today'),
-          (LedgerPeriod.week, 'This week'),
-          (LedgerPeriod.month, 'This month'),
-        ])
-          ChoiceChip(
-            label: Text(label),
-            selected: filter.period == p,
-            onSelected: (_) => _update((f) => f.copyWith(period: p)),
-          ),
-        ChoiceChip(
-          avatar: const Icon(Icons.date_range, size: 16),
-          label: Text(customLabel),
-          selected: filter.period == LedgerPeriod.custom,
-          onSelected: (_) => _pickRange(filter),
-        ),
-      ],
-    );
+    final periods = _PeriodChips(filter: filter, onChanged: _update);
 
     return LayoutBuilder(builder: (context, constraints) {
       // With the keyboard up, the totals and pager give their room to the search box and receipts.
       final short = constraints.maxHeight < _shortTabHeight;
       final wide = constraints.maxWidth >= _ledgerTableWidth;
-      final pages = (count / duesLedgerPageSize).ceil();
-      final first = page * duesLedgerPageSize + 1;
-      final last = first - 1 + (receiptsAsync.value?.length ?? 0);
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1510,6 +1496,8 @@ class _LedgerTabState extends ConsumerState<_LedgerTab> {
                           if (wide) const _LedgerHeader(),
                           Expanded(
                             child: ListView.separated(
+                              // A new page starts at the top.
+                              key: ValueKey(page),
                               itemCount: receipts.length,
                               separatorBuilder: (_, __) => Divider(height: 1, color: TropaColors.borderOf(context)),
                               itemBuilder: (_, i) => _ReceiptRow(receipt: receipts[i], wide: wide),
@@ -1520,23 +1508,15 @@ class _LedgerTabState extends ConsumerState<_LedgerTab> {
                     ),
             ),
           ),
-          if (!short && count > 0) ...[
+          if (!short) ...[
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(child: Text('Showing $first–$last of $count', style: TropaText.meta(subCol))),
-                IconButton(
-                  tooltip: 'Newer',
-                  icon: const Icon(Icons.chevron_left),
-                  onPressed: page > 0 ? () => ref.read(duesLedgerPageProvider.notifier).state = page - 1 : null,
-                ),
-                Text('Page ${page + 1} of ${pages < 1 ? 1 : pages}', style: TropaText.meta(subCol)),
-                IconButton(
-                  tooltip: 'Older',
-                  icon: const Icon(Icons.chevron_right),
-                  onPressed: page + 1 < pages ? () => ref.read(duesLedgerPageProvider.notifier).state = page + 1 : null,
-                ),
-              ],
+            TropaPager(
+              page: page,
+              pageSize: duesLedgerPageSize,
+              total: count,
+              shown: receiptsAsync.value?.length ?? 0,
+              noun: 'receipts',
+              onPage: (p) => ref.read(duesLedgerPageProvider.notifier).state = p,
             ),
           ],
         ],
@@ -1546,6 +1526,284 @@ class _LedgerTabState extends ConsumerState<_LedgerTab> {
 }
 
 /// Ledger width from which receipts show as a table; narrower, each is a compact card.
+/// All time / Today / This week / This month / Custom… for a [DuesLedgerFilter], shared by the
+/// Ledger and Funds tabs. [trailing] goes after the chips (e.g. a print button).
+class _PeriodChips extends StatelessWidget {
+  final DuesLedgerFilter filter;
+  final void Function(DuesLedgerFilter Function(DuesLedgerFilter f) change) onChanged;
+  final Widget? trailing;
+
+  const _PeriodChips({required this.filter, required this.onChanged, this.trailing});
+
+  Future<void> _pickRange(BuildContext context) async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: phToday(),
+      initialDateRange: filter.from != null && filter.to != null ? DateTimeRange(start: filter.from!, end: filter.to!) : null,
+    );
+    if (picked == null) return;
+    onChanged((f) => f.copyWith(period: LedgerPeriod.custom, from: picked.start, to: picked.end));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final customLabel = filter.period == LedgerPeriod.custom && filter.from != null && filter.to != null
+        ? '${_dayFormat.format(filter.from!)} – ${_dayFormat.format(filter.to!)}'
+        : 'Custom…';
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        for (final (p, label) in [
+          (LedgerPeriod.all, 'All time'),
+          (LedgerPeriod.today, 'Today'),
+          (LedgerPeriod.week, 'This week'),
+          (LedgerPeriod.month, 'This month'),
+        ])
+          ChoiceChip(
+            label: Text(label),
+            selected: filter.period == p,
+            onSelected: (_) => onChanged((f) => f.copyWith(period: p)),
+          ),
+        ChoiceChip(
+          avatar: const Icon(Icons.date_range, size: 16),
+          label: Text(customLabel),
+          selected: filter.period == LedgerPeriod.custom,
+          onSelected: (_) => _pickRange(context),
+        ),
+        if (trailing != null) trailing!,
+      ],
+    );
+  }
+}
+
+// ==========================================
+// Funds
+// ==========================================
+
+/// Below this width the Funds table scrolls sideways instead of squeezing its eight columns.
+const _fundsTableWidth = 980.0;
+
+/// Column widths of the Funds table: LGU, barangay, purok, each fund, then the total.
+const _fundsFlex = (lgu: 12, barangay: 14, purok: 10, fund: 13, total: 12);
+
+/// What each purok collected and how it divides into the funds, for the chosen period and place,
+/// with a total row. The column headings show the current split; each payment is divided with
+/// the split in force when it was paid.
+class _FundsTab extends ConsumerWidget {
+  const _FundsTab();
+
+  static String _periodLabel(DuesLedgerFilter filter) {
+    final days = filter.days(phToday());
+    if (days == null) return 'All time';
+    return days.from == days.to
+        ? _dayYearFormat.format(days.from)
+        : '${_dayYearFormat.format(days.from)} – ${_dayYearFormat.format(days.to)}';
+  }
+
+  static String _placeLabel(DuesLedgerFilter filter) => filter.barangay != null
+      ? [filter.barangay!, if (filter.lgu != null) filter.lgu!].join(', ')
+      : filter.lgu ?? 'All barangays';
+
+  Future<void> _print(BuildContext context, WidgetRef ref, DuesLedgerFilter filter) async {
+    try {
+      final data = await ref.read(duesFundsByPurokProvider.future);
+      final allocations = await ref.read(duesAllocationsProvider.future);
+      if (!context.mounted) return;
+      final period = _periodLabel(filter);
+      final place = _placeLabel(filter);
+      await Navigator.of(context).push(MaterialPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) => DuesSheetPreview(
+          title: 'Fund Allocation · $place · $period',
+          build: (format) => buildDuesAllocationReport(
+            periodLabel: period,
+            placeLabel: place,
+            rows: data.rows,
+            funds: data.funds,
+            total: data.total,
+            percents: allocationForMonth(currentMonthIndex(), allocations),
+            changes: data.changes,
+            format: format,
+          ),
+        ),
+      ));
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not prepare the report: $e')));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final filter = ref.watch(duesFundsFilterProvider);
+    final dataAsync = ref.watch(duesFundsByPurokProvider);
+    final allocations = ref.watch(duesAllocationsProvider).value ?? const <DuesAllocation>[];
+    final percents = allocationForMonth(currentMonthIndex(), allocations);
+    final subCol = TropaColors.textMedium(context);
+    void update(DuesLedgerFilter Function(DuesLedgerFilter f) change) =>
+        ref.read(duesFundsFilterProvider.notifier).update(change);
+
+    final pickers = _LocationPickers(
+      lgu: filter.lgu,
+      barangay: filter.barangay,
+      purok: null,
+      anyLabels: true,
+      showPurok: false,
+      onChanged: (lgu, barangay, _) => update((f) => f.copyWith(lgu: () => lgu, barangay: () => barangay)),
+    );
+    final periods = _PeriodChips(
+      filter: filter,
+      onChanged: update,
+      trailing: OutlinedButton.icon(
+        onPressed: dataAsync.value?.rows.isEmpty ?? true ? null : () => _print(context, ref, filter),
+        icon: const Icon(Icons.print_outlined, size: 18),
+        label: const Text('Print report'),
+      ),
+    );
+
+    return LayoutBuilder(builder: (context, constraints) {
+      final wide = constraints.maxWidth >= 760;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (wide)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [Expanded(flex: 3, child: periods), const SizedBox(width: 10), Expanded(flex: 2, child: pickers)],
+            )
+          else ...[
+            pickers,
+            const SizedBox(height: 8),
+            periods,
+          ],
+          const SizedBox(height: 12),
+          Expanded(
+            child: dataAsync.when(
+              skipLoadingOnReload: true,
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(child: Text('Could not load the funds: $e')),
+              data: (data) => data.rows.isEmpty
+                  ? const _EmptyState(
+                      icon: Icons.pie_chart_outline,
+                      title: 'No collections in this period',
+                      message: 'Payments recorded on the Collect tab are divided into the funds here.',
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Expanded(
+                          child: _Surface(
+                            child: LayoutBuilder(builder: (context, box) {
+                              final width = box.maxWidth < _fundsTableWidth ? _fundsTableWidth : box.maxWidth;
+                              return SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: SizedBox(
+                                  width: width,
+                                  child: Column(
+                                    children: [
+                                      _FundsRow.header(percents),
+                                      Expanded(
+                                        child: ListView.separated(
+                                          itemCount: data.rows.length,
+                                          separatorBuilder: (_, __) =>
+                                              Divider(height: 1, color: TropaColors.borderOf(context)),
+                                          itemBuilder: (_, i) => _FundsRow.place(data.rows[i]),
+                                        ),
+                                      ),
+                                      _FundsRow.total(data.funds, data.total),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }),
+                          ),
+                        ),
+                        if (data.changes.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            'The split changed in ${data.changes.map(monthLabel).join(', ')}. Each payment is divided '
+                            'with the split in force when it was paid; the headings show the current split.',
+                            style: TropaText.caption(subCol),
+                          ),
+                        ],
+                      ],
+                    ),
+            ),
+          ),
+        ],
+      );
+    });
+  }
+}
+
+/// One line of the Funds table: the heading, a purok, or the total.
+class _FundsRow extends StatelessWidget {
+  final List<String> cells;
+  final bool heading;
+  final bool emphasis;
+
+  const _FundsRow._(this.cells, {this.heading = false, this.emphasis = false});
+
+  factory _FundsRow.header(Map<DuesFund, double> percents) => _FundsRow._(
+        ['LGU', 'BARANGAY', 'PUROK', for (final f in DuesFund.values) fundHeading(f, percents).toUpperCase(), 'TOTAL'],
+        heading: true,
+      );
+
+  factory _FundsRow.place(DuesFundsRow r) => _FundsRow._([
+        r.lgu,
+        r.barangay,
+        r.purok.isEmpty ? '—' : r.purok,
+        for (final f in DuesFund.values) _peso.format(r.funds[f]),
+        _peso.format(r.total),
+      ]);
+
+  factory _FundsRow.total(Map<DuesFund, double> funds, double total) => _FundsRow._(
+        ['Total', '', '', for (final f in DuesFund.values) _peso.format(funds[f]), _peso.format(total)],
+        emphasis: true,
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final textCol = TropaColors.textHigh(context);
+    final subCol = TropaColors.textMedium(context);
+    final flexes = [
+      _fundsFlex.lgu,
+      _fundsFlex.barangay,
+      _fundsFlex.purok,
+      for (final _ in DuesFund.values) _fundsFlex.fund,
+      _fundsFlex.total,
+    ];
+    TextStyle style(int i) {
+      if (heading) return TropaText.tableHeader(subCol);
+      final strong = emphasis || i == cells.length - 1;
+      return (strong ? TropaText.bodyStrong(textCol) : TropaText.body(textCol))
+          .copyWith(fontFeatures: const [FontFeature.tabularFigures()]);
+    }
+
+    return Container(
+      color: heading || emphasis ? TropaColors.chipOf(context) : null,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var i = 0; i < cells.length; i++)
+            Expanded(
+              flex: flexes[i],
+              child: Padding(
+                padding: EdgeInsets.only(left: i > 2 ? 8 : 0),
+                child: Text(cells[i], style: style(i), textAlign: i > 2 ? TextAlign.end : TextAlign.start),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 const _ledgerTableWidth = 760.0;
 
 final _dayFormat = DateFormat('MMM d');

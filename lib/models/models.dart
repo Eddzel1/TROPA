@@ -465,6 +465,52 @@ class DuesRate {
       };
 }
 
+/// The funds collected dues are split into, in display order.
+enum DuesFund {
+  mortuary('Mortuary', 'mortuary'),
+  livelihood('Livelihood', 'livelihood'),
+  purokOperations('Purok Operations', 'purok_operations'),
+  federationOperations('TROPA Federation Operations', 'federation_operations');
+
+  final String label;
+
+  /// Column in `dues_allocations`.
+  final String column;
+
+  const DuesFund(this.label, this.column);
+}
+
+/// A `dues_allocations` row: each fund's percentage (summing to 100) of dues paid from
+/// [effectiveMonth] (`YYYY-MM`) onward.
+class DuesAllocation {
+  final String id;
+  final String effectiveMonth;
+  final Map<DuesFund, double> percents;
+  final String? createdBy;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+
+  DuesAllocation({
+    required this.id,
+    required this.effectiveMonth,
+    required this.percents,
+    this.createdBy,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  double percent(DuesFund fund) => percents[fund] ?? 0;
+
+  factory DuesAllocation.fromJson(Map<String, dynamic> json) => DuesAllocation(
+        id: json['id']?.toString() ?? '',
+        effectiveMonth: json['effective_month']?.toString() ?? '',
+        percents: {for (final f in DuesFund.values) f: (json[f.column] as num?)?.toDouble() ?? 0},
+        createdBy: json['created_by']?.toString(),
+        createdAt: parsePh(json['created_at']?.toString()) ?? phNow(),
+        updatedAt: parsePh(json['updated_at']?.toString()) ?? phNow(),
+      );
+}
+
 /// A member as the Dues page sees them: who they are, where, since when, and how many months
 /// their non-void payments cover. Balances are worked out in lib/core/dues_math.dart.
 class DuesMember {

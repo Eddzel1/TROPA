@@ -148,6 +148,12 @@ class MemberListNotifier extends StateNotifier<AsyncValue<List<FamilyMember>>> {
       // Ignore stale responses if the filters changed while this request was in flight
       if (!identical(filter, ref.read(memberFilterProvider))) return;
       final page = results[0] as ({List<FamilyMember> members, int matchCount});
+      // The last page emptied (e.g. its last member was archived): step back to the new last page.
+      if (page.members.isEmpty && filter.page > 0 && page.matchCount > 0) {
+        ref.read(memberFilterProvider.notifier).state = filter.copyWith(page: (page.matchCount - 1) ~/ memberPageSize);
+        await refresh(quiet: quiet);
+        return;
+      }
       ref.read(memberCountsProvider.notifier).state = (matched: page.matchCount, total: results[1] as int);
       state = AsyncValue.data(page.members);
     } catch (e, st) {

@@ -24,9 +24,9 @@
     "semantic_hash": ""
   },
   "lib/data/powersync_schema.dart": {
-    "mtime": 1794113579.9489343,
-    "seen": 1794113817.000488,
-    "ast_hash": "0b1ad80a2fdc4ff08b9cbd0176d5cb9d",
+    "mtime": 1794456844.4189436,
+    "seen": 1794457133.346566,
+    "ast_hash": "ec82b95d2e97925bc448691616f117ad",
     "semantic_hash": ""
   },
   "lib/data/supabase_connector.dart": {
@@ -42,9 +42,9 @@
     "semantic_hash": ""
   },
   "lib/models/models.dart": {
-    "mtime": 1794151545.765486,
-    "seen": 1794151572.992917,
-    "ast_hash": "dc313fa2960155172e87d760660451c6",
+    "mtime": 1794456872.475022,
+    "seen": 1794457133.3465679,
+    "ast_hash": "34f0cc95395a28cff5d9c75ef9d0306e",
     "semantic_hash": ""
   },
   "lib/providers/activity_log_provider.dart": {
@@ -66,9 +66,9 @@
     "semantic_hash": "a207db9125ff42628a995c11df7fe75b"
   },
   "lib/providers/dues_provider.dart": {
-    "mtime": 1794104709.8205004,
-    "seen": 1794104937.871695,
-    "ast_hash": "4a69bb8234601c2cfe01a2668a2c03b4",
+    "mtime": 1794457858.9041622,
+    "seen": 1794458023.4034681,
+    "ast_hash": "fa55f715fe5ad5df351dec028b27ba84",
     "semantic_hash": ""
   },
   "lib/providers/form_tracking_provider.dart": {
@@ -78,15 +78,15 @@
     "semantic_hash": ""
   },
   "lib/providers/household_provider.dart": {
-    "mtime": 1793784854.212638,
-    "seen": 1793784897.815844,
-    "ast_hash": "06541375e09e70818417d8bf8fc0e836",
+    "mtime": 1794464105.888549,
+    "seen": 1794464135.99713,
+    "ast_hash": "1ca35c9200daa292b9ec30aa20471e20",
     "semantic_hash": ""
   },
   "lib/providers/member_provider.dart": {
-    "mtime": 1793940040.416935,
-    "seen": 1793940096.663882,
-    "ast_hash": "9906f8ead31d4a431b1775ead8f920a2",
+    "mtime": 1794464105.888788,
+    "seen": 1794464135.997131,
+    "ast_hash": "a4ed7d23c4909cc62792a27f6a880026",
     "semantic_hash": ""
   },
   "lib/providers/voter_provider.dart": {
@@ -108,9 +108,9 @@
     "semantic_hash": ""
   },
   "lib/services/supabase_service.dart": {
-    "mtime": 1794289274.4615865,
-    "seen": 1794289341.907624,
-    "ast_hash": "78eea2fdacc2636245d58af610b13873",
+    "mtime": 1794464067.2235427,
+    "seen": 1794464135.9971368,
+    "ast_hash": "75353739d17e07256dea64d85c4d66e7",
     "semantic_hash": ""
   },
   "lib/views/audit_logs_view.dart": {
@@ -126,9 +126,9 @@
     "semantic_hash": ""
   },
   "lib/views/dues_view.dart": {
-    "mtime": 1794151032.7863777,
-    "seen": 1794151125.334591,
-    "ast_hash": "16f4489dab48c0d152bc22a38610ec97",
+    "mtime": 1794464109.7223787,
+    "seen": 1794464135.997142,
+    "ast_hash": "bb7def285e14e895266ed40d43db5e23",
     "semantic_hash": ""
   },
   "lib/views/form_tracking_view.dart": {
@@ -138,9 +138,9 @@
     "semantic_hash": ""
   },
   "lib/views/households_view.dart": {
-    "mtime": 1794151055.0623455,
-    "seen": 1794151125.334592,
-    "ast_hash": "d3cc9e9e775a8fc3616efd4376230f75",
+    "mtime": 1794464067.2314506,
+    "seen": 1794464135.997143,
+    "ast_hash": "87b0ca002066ce3e57b7e4ed8a39d656",
     "semantic_hash": ""
   },
   "lib/views/login_view.dart": {
@@ -150,9 +150,9 @@
     "semantic_hash": ""
   },
   "lib/views/members_view.dart": {
-    "mtime": 1794151032.7868207,
-    "seen": 1794151125.334594,
-    "ast_hash": "928f4bdd681fd3c3dc19694e693e2e79",
+    "mtime": 1794464092.788064,
+    "seen": 1794464135.9971452,
+    "ast_hash": "16440aa980523b63c37a7f2deeee87e8",
     "semantic_hash": ""
   },
   "lib/views/reports_view.dart": {
@@ -162,9 +162,9 @@
     "semantic_hash": ""
   },
   "lib/views/settings_view.dart": {
-    "mtime": 1792363496.1712546,
-    "seen": 1792389918.848761,
-    "ast_hash": "61b921f5ce14bf134e2e745870b4a21f",
+    "mtime": 1794456956.4206991,
+    "seen": 1794457133.3465931,
+    "ast_hash": "08486be3fc00cfa8fc23a4c5e395cc5c",
     "semantic_hash": ""
   },
   "lib/views/tropa_finder_view.dart": {
@@ -240,9 +240,9 @@
     "semantic_hash": ""
   },
   "powersync/sync-rules.yaml": {
-    "mtime": 1794113579.148882,
-    "seen": 1794113817.000561,
-    "ast_hash": "3dd30743003c1ce8fd840431cf4e6d1d",
+    "mtime": 1794456844.4185922,
+    "seen": 1794457133.346643,
+    "ast_hash": "7fcb233a286e31a420b4c9a1c5be0237",
     "semantic_hash": ""
   },
   "pubspec.yaml": {
@@ -414,9 +414,9 @@
     "semantic_hash": ""
   },
   ".claude/settings.local.json": {
-    "mtime": 1793939961.5029712,
-    "seen": 1793940096.6638641,
-    "ast_hash": "43fae07dcf18e85409f3eba769188cfd",
+    "mtime": 1794458267.1073697,
+    "seen": 1794464135.997112,
+    "ast_hash": "27d950b655fc9923af1d941bd7423b7b",
     "semantic_hash": ""
   },
   "lib/providers/reports_provider.dart": {
@@ -426,9 +426,9 @@
     "semantic_hash": ""
   },
   "docs/DESIGN.md": {
-    "mtime": 1794294388.3988857,
-    "seen": 1794294389.630795,
-    "ast_hash": "0361558ec9d8a798f439a5aa5125aa89",
+    "mtime": 1794464122.0031188,
+    "seen": 1794464135.997194,
+    "ast_hash": "7dcbb1e06d2a325ff288a7f68eb5a2d9",
     "semantic_hash": ""
   },
   "docs/architecture_spec.md": {
@@ -552,9 +552,9 @@
     "semantic_hash": ""
   },
   "lib/services/fallback_sync.dart": {
-    "mtime": 1794113580.7282033,
-    "seen": 1794113817.0005,
-    "ast_hash": "7ae749368b5b746be721ce35816c53b5",
+    "mtime": 1794456872.4746196,
+    "seen": 1794457133.346578,
+    "ast_hash": "d6a4d3ed3d83964d24118230b7558bee",
     "semantic_hash": ""
   },
   "supabase/migrations/20261016000000_fallback_sync.sql": {
@@ -636,15 +636,15 @@
     "semantic_hash": ""
   },
   "lib/core/dues_math.dart": {
-    "mtime": 1794104763.1420026,
-    "seen": 1794104937.87168,
-    "ast_hash": "8c85103d6fa05d82c539bd988b7b5d0b",
+    "mtime": 1794457085.528607,
+    "seen": 1794457133.346559,
+    "ast_hash": "84ef5123f333b5fdd483e9246e9b679d",
     "semantic_hash": ""
   },
   "lib/views/settings/dues_rate_tab.dart": {
-    "mtime": 1792283291.5180383,
-    "seen": 1792283374.8396218,
-    "ast_hash": "7b6b111c930e99e9b78432711c91e208",
+    "mtime": 1794457085.5294478,
+    "seen": 1794457133.34659,
+    "ast_hash": "69f6db3bad456d4f0d32f5521f3570b9",
     "semantic_hash": ""
   },
   "lib/widgets/membership_date_dialog.dart": {
@@ -660,9 +660,9 @@
     "semantic_hash": ""
   },
   "test/dues_math_test.dart": {
-    "mtime": 1792285365.0240457,
-    "seen": 1792285376.3374898,
-    "ast_hash": "ee2884383f767e72a2824ff2caeb2039",
+    "mtime": 1794457091.840448,
+    "seen": 1794457133.3466282,
+    "ast_hash": "d63eac83e9a5b9f2856be451d7873130",
     "semantic_hash": ""
   },
   "supabase/migrations/20261019010000_dues_match_by_email.sql": {
@@ -828,8 +828,8 @@
     "semantic_hash": ""
   },
   "lib/views/dues_sheet_print.dart": {
-    "mtime": 1793777722.4792604,
-    "seen": 1793777755.563371,
+    "mtime": 1794456967.007814,
+    "seen": 1794457133.346584,
     "ast_hash": "c11c9a1e655b22d52e35f569527950bd",
     "semantic_hash": ""
   },
@@ -951,6 +951,24 @@
     "mtime": 1794151047.617595,
     "seen": 1794151125.3346019,
     "ast_hash": "cb440b6c1c94b6f78a3b7d7bf95c2a1b",
+    "semantic_hash": ""
+  },
+  "lib/views/dues_report_print.dart": {
+    "mtime": 1794457919.0787096,
+    "seen": 1794458023.4034822,
+    "ast_hash": "e503c1dd1fdf678f27527fe4ece8d03b",
+    "semantic_hash": ""
+  },
+  "supabase/migrations/20261112000000_dues_allocations.sql": {
+    "mtime": 1794456843.429131,
+    "seen": 1794457133.346625,
+    "ast_hash": "cc6a722693ecc99a7ed6d5466cfcfe19",
+    "semantic_hash": ""
+  },
+  "lib/widgets/tropa_pager.dart": {
+    "mtime": 1794464066.2608657,
+    "seen": 1794464135.99716,
+    "ast_hash": "aab9f2796ca5d794da7ff5fd3bd0a745",
     "semantic_hash": ""
   }
 }

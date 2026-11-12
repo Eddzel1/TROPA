@@ -104,6 +104,18 @@ const schema = Schema([
     Column.text('created_at'),
     Column.text('updated_at'),
   ]),
+  // How collected dues split into funds (percentages summing to 100); like dues_rates, the row with
+  // the latest effective_month on or before a payment's month applies to it.
+  Table('dues_allocations', [
+    Column.text('effective_month'),
+    Column.real('mortuary'),
+    Column.real('livelihood'),
+    Column.real('purok_operations'),
+    Column.real('federation_operations'),
+    Column.text('created_by'),
+    Column.text('created_at'),
+    Column.text('updated_at'),
+  ]),
   Table('form_tracking', [
     Column.text('barangay'),
     Column.text('purok'),

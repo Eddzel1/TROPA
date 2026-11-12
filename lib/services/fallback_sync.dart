@@ -31,6 +31,7 @@ const fallbackTables = <FallbackTable>[
   (table: 'locations', cursorColumn: null, select: '*'),
   (table: 'puroks', cursorColumn: null, select: 'id,location_id,name'),
   (table: 'dues_rates', cursorColumn: null, select: '*'),
+  (table: 'dues_allocations', cursorColumn: null, select: '*'),
 ];
 
 const _deletesCursorKey = '__deletes';

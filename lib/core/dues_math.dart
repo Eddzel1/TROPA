@@ -63,6 +63,79 @@ double rateForMonth(int month, List<DuesRate> rates) {
   return best ?? earliest ?? 0;
 }
 
+/// A percentage to at most two decimals without trailing zeros: "60%", "7.5%", "55.33%".
+String percentLabel(double value) {
+  final text = ((value * 100).round() / 100).toStringAsFixed(2);
+  return '${text.replaceFirst(RegExp(r'\.?0+$'), '')}%';
+}
+
+/// The agreed split, used until a split is saved in Settings.
+const defaultAllocation = {
+  DuesFund.mortuary: 60.0,
+  DuesFund.livelihood: 30.0,
+  DuesFund.purokOperations: 7.0,
+  DuesFund.federationOperations: 3.0,
+};
+
+/// The split row in force for [month], picked like [rateForMonth]: the latest effective on or
+/// before it, the earliest also covering months before it. Null when there are none.
+DuesAllocation? allocationRowForMonth(int month, List<DuesAllocation> allocations) {
+  DuesAllocation? earliest;
+  int? earliestMonth;
+  DuesAllocation? best;
+  int? bestMonth;
+  for (final a in allocations) {
+    final m = parseMonthKey(a.effectiveMonth);
+    if (m == null) continue;
+    if (earliestMonth == null || m < earliestMonth) {
+      earliestMonth = m;
+      earliest = a;
+    }
+    if (m <= month && (bestMonth == null || m > bestMonth)) {
+      bestMonth = m;
+      best = a;
+    }
+  }
+  return best ?? earliest;
+}
+
+/// Each fund's percentage for dues paid in [month].
+Map<DuesFund, double> allocationForMonth(int month, List<DuesAllocation> allocations) =>
+    allocationRowForMonth(month, allocations)?.percents ?? defaultAllocation;
+
+/// What each fund gets from [collectedByMonth] (amount paid per payment month), each month split
+/// with the percentages in force then. Amounts are in centavos-exact pesos; the rounding remainder
+/// goes to Mortuary so the funds always add up to what was collected.
+Map<DuesFund, double> allocate(Map<int, double> collectedByMonth, List<DuesAllocation> allocations) {
+  final cents = {for (final f in DuesFund.values) f: 0};
+  for (final e in collectedByMonth.entries) {
+    final total = (e.value * 100).round();
+    final percents = allocationForMonth(e.key, allocations);
+    var rest = total;
+    for (final f in DuesFund.values.skip(1)) {
+      final share = (total * (percents[f] ?? 0) / 100).round();
+      cents[f] = cents[f]! + share;
+      rest -= share;
+    }
+    cents[DuesFund.mortuary] = cents[DuesFund.mortuary]! + rest;
+  }
+  return {for (final e in cents.entries) e.key: e.value / 100};
+}
+
+/// The months among [months] where a different split takes over from the one before, in order,
+/// e.g. to note that a report's period spans a change.
+List<int> allocationChanges(Iterable<int> months, List<DuesAllocation> allocations) {
+  final sorted = months.toSet().toList()..sort();
+  final changes = <int>[];
+  DuesAllocation? previous;
+  for (var i = 0; i < sorted.length; i++) {
+    final row = allocationRowForMonth(sorted[i], allocations);
+    if (i > 0 && row?.id != previous?.id) changes.add(sorted[i]);
+    previous = row;
+  }
+  return changes;
+}
+
 /// Sum of the rates for [count] months starting at [first].
 double amountForMonths(int first, int count, List<DuesRate> rates) {
   var total = 0.0;

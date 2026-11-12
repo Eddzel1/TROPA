@@ -5,6 +5,20 @@ import 'package:tropa_v2/models/models.dart';
 DuesRate rate(double amount, String month) =>
     DuesRate(id: month, amount: amount, effectiveMonth: month, createdAt: DateTime(2026), updatedAt: DateTime(2026));
 
+DuesAllocation split(String month, double mortuary, double livelihood, double purok, double federation) =>
+    DuesAllocation(
+      id: month,
+      effectiveMonth: month,
+      percents: {
+        DuesFund.mortuary: mortuary,
+        DuesFund.livelihood: livelihood,
+        DuesFund.purokOperations: purok,
+        DuesFund.federationOperations: federation,
+      },
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+    );
+
 DuesMember member({DateTime? since, int paid = 0, bool coop = true}) => DuesMember(
       id: 'm',
       firstname: 'Juan',
@@ -125,5 +139,46 @@ void main() {
     final b = balanceFor(member(since: DateTime(2026, 12, 1)), [rate(20, '2026-01')], currentMonth: oct2026)!;
     expect(b.monthsOwed, 0);
     expect(b.statusLabel, 'Starts Dec 2026');
+  });
+
+  group('fund allocation', () {
+    final standard = split('2000-01', 60, 30, 7, 3);
+
+    test('splits a month with the split in force', () {
+      final funds = allocate({oct2026: 1000}, [standard]);
+      expect(funds[DuesFund.mortuary], 600);
+      expect(funds[DuesFund.livelihood], 300);
+      expect(funds[DuesFund.purokOperations], 70);
+      expect(funds[DuesFund.federationOperations], 30);
+    });
+
+    test('uses the default split when none is saved', () {
+      expect(allocate({oct2026: 100}, const []), allocate({oct2026: 100}, [standard]));
+    });
+
+    test('each month uses its own split', () {
+      final changed = split('2026-11', 50, 40, 7, 3);
+      final funds = allocate({oct2026: 100, oct2026 + 1: 100}, [standard, changed]);
+      expect(funds[DuesFund.mortuary], 110);
+      expect(funds[DuesFund.livelihood], 70);
+      expect(allocationChanges([oct2026, oct2026 + 1], [standard, changed]), [oct2026 + 1]);
+      expect(allocationChanges([oct2026], [standard, changed]), isEmpty);
+    });
+
+    test('percent labels drop trailing zeros', () {
+      expect(percentLabel(60), '60%');
+      expect(percentLabel(7.000000001), '7%');
+      expect(percentLabel(7.5), '7.5%');
+      expect(percentLabel(55.3333), '55.33%');
+    });
+
+    test('rounding remainder goes to Mortuary so funds add up', () {
+      final funds = allocate({oct2026: 10.01}, [standard]);
+      final sum = funds.values.fold<double>(0, (a, b) => a + b);
+      expect((sum * 100).round(), 1001);
+      expect(funds[DuesFund.purokOperations], 0.70);
+      expect(funds[DuesFund.federationOperations], 0.30);
+      expect(funds[DuesFund.mortuary], 6.01);
+    });
   });
 }

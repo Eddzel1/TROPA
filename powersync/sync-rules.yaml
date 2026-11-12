@@ -20,6 +20,8 @@ bucket_definitions:
       - SELECT * FROM officers
       - SELECT * FROM voter_flags
       - SELECT * FROM dues_rates
+      # How collected dues split into funds (supabase/migrations/20261112000000_dues_allocations.sql).
+      - SELECT * FROM dues_allocations
       # Problems cleared on the For Review page (supabase/migrations/20261108000000_review_dismissals.sql).
       - SELECT * FROM review_dismissals
       # voters (the COMELEC registry) is not synced through PowerSync: devices install a compressed

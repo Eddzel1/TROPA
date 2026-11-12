@@ -46,6 +46,12 @@ final householdFilterProvider = StateProvider<HouseholdFilter>((ref) {
   return const HouseholdFilter();
 });
 
+/// Rows per page on the Households page.
+const householdPageSize = 50;
+
+/// Households matching the current filters, across all pages, for the pager.
+final householdMatchCountProvider = StateProvider<int>((ref) => 0);
+
 final householdsAsyncProvider = FutureProvider<List<Household>>((ref) async {
   final service = ref.watch(supabaseServiceProvider);
   final filter = ref.watch(householdFilterProvider);
@@ -100,15 +106,26 @@ class HouseholdListNotifier extends StateNotifier<AsyncValue<List<Household>>> {
     try {
       final service = ref.read(supabaseServiceProvider);
       final filter = ref.read(householdFilterProvider);
-      final list = await service.getHouseholds(
+      final result = await service.getHouseholdsWithCount(
         query: filter.query,
         lgu: filter.lgu == 'All' ? null : filter.lgu,
         barangay: filter.barangay == 'All' ? null : filter.barangay,
         purok: filter.purok == 'All' ? null : filter.purok,
         archived: filter.archived,
         page: filter.page,
+        pageSize: householdPageSize,
       );
-      state = AsyncValue.data(list);
+      // Ignore stale responses if the filters changed while this request was in flight
+      if (!identical(filter, ref.read(householdFilterProvider))) return;
+      // The last page emptied (e.g. its last household was archived): step back to the new last page.
+      if (result.households.isEmpty && filter.page > 0 && result.matchCount > 0) {
+        ref.read(householdFilterProvider.notifier).state =
+            filter.copyWith(page: (result.matchCount - 1) ~/ householdPageSize);
+        await refresh(quiet: quiet);
+        return;
+      }
+      ref.read(householdMatchCountProvider.notifier).state = result.matchCount;
+      state = AsyncValue.data(result.households);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
     }

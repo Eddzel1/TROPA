@@ -220,6 +220,21 @@ class SupabaseService {
     int page = 0,
     int pageSize = 50,
   }) async {
+    final result = await getHouseholdsWithCount(
+        query: query, lgu: lgu, barangay: barangay, purok: purok, archived: archived, page: page, pageSize: pageSize);
+    return result.households;
+  }
+
+  /// Filtered page of households plus the total number of rows matching the filters.
+  Future<({List<Household> households, int matchCount})> getHouseholdsWithCount({
+    String? query,
+    String? lgu,
+    String? barangay,
+    String? purok,
+    bool archived = false,
+    int page = 0,
+    int pageSize = 50,
+  }) async {
     try {
       final where = <String>['COALESCE(is_archived, 0) = ?'];
       final params = <Object?>[archived ? 1 : 0];
@@ -239,13 +254,15 @@ class SupabaseService {
         where.add(r"household_name LIKE ? ESCAPE '\'");
         params.add('%${_escapeLike(query)}%');
       }
+      final whereSql = _whereSql(where);
       final rows = await _rows(
-        'SELECT * FROM households ${_whereSql(where)} ORDER BY created_date DESC LIMIT ? OFFSET ?',
+        'SELECT * FROM households $whereSql ORDER BY created_date DESC LIMIT ? OFFSET ?',
         [...params, pageSize, page * pageSize],
       );
-      return rows.map(Household.fromJson).toList();
+      final count = await db.get('SELECT COUNT(*) AS n FROM households $whereSql', params);
+      return (households: rows.map(Household.fromJson).toList(), matchCount: count['n'] as int);
     } catch (e) {
-      return [];
+      return (households: <Household>[], matchCount: 0);
     }
   }
 
@@ -1202,6 +1219,41 @@ class SupabaseService {
     );
   }
 
+  /// Non-void amounts the ledger filter matches, per place (the member's LGU, barangay and purok,
+  /// upper-cased and trimmed) and payment month (GMT+8), for the fund split. Sorted by place.
+  Future<List<({String lgu, String barangay, String purok, Map<int, double> byMonth})>> getDuesCollectedByPurok({
+    required DuesScope scope,
+    DuesLedgerFilter filter = const DuesLedgerFilter(),
+  }) async {
+    final params = <Object?>[];
+    final where = [..._duesLedgerWhere(scope, filter, params), "COALESCE(d.status, 'completed') != 'void'"];
+    final rows = await _rows('''
+      SELECT ${_n('m.lgu')} AS lgu, ${_n('m.barangay')} AS barangay, UPPER(TRIM(COALESCE(m.purok, ''))) AS purok,
+        strftime('%Y-%m', d.payment_date, '+8 hours') AS month, COALESCE(SUM(d.amount), 0) AS total
+      FROM dues_payments d
+      LEFT JOIN family_members m ON m.id = d.member_id
+      ${_whereSql(where)}
+      GROUP BY 1, 2, 3, 4
+    ''', params);
+    final places = <String, ({String lgu, String barangay, String purok, Map<int, double> byMonth})>{};
+    for (final r in rows) {
+      final month = parseMonthKey(r['month'] as String?);
+      if (month == null) continue;
+      final lgu = r['lgu'] as String? ?? '';
+      final barangay = r['barangay'] as String? ?? '';
+      final purok = r['purok'] as String? ?? '';
+      final place = places.putIfAbsent(
+          '$lgu|$barangay|$purok', () => (lgu: lgu, barangay: barangay, purok: purok, byMonth: <int, double>{}));
+      place.byMonth[month] = (place.byMonth[month] ?? 0) + (r['total'] as num).toDouble();
+    }
+    // By LGU and barangay, then purok in natural order (P-2 before P-10).
+    return places.values.toList()
+      ..sort((a, b) {
+        final byPlace = '${a.lgu}|${a.barangay}'.compareTo('${b.lgu}|${b.barangay}');
+        return byPlace != 0 ? byPlace : _naturalCompare(a.purok, b.purok);
+      });
+  }
+
   /// Number of receipts (void included) the ledger filter matches, for the pager.
   Future<int> countDuesReceipts({required DuesScope scope, DuesLedgerFilter filter = const DuesLedgerFilter()}) async {
     final params = <Object?>[];
@@ -1382,6 +1434,54 @@ class SupabaseService {
           entityType: 'DuesRate',
           entityId: rate.id,
           details: {'amount': rate.amount, 'effective_month': rate.effectiveMonth});
+    });
+  }
+
+  Stream<List<DuesAllocation>> watchDuesAllocations() => db
+      .watch('SELECT * FROM dues_allocations ORDER BY effective_month')
+      .map((rows) => rows.map((r) => DuesAllocation.fromJson(Map<String, dynamic>.from(r))).toList());
+
+  /// Sets the fund split (percentages summing to 100) from [effectiveMonth] onward, replacing a
+  /// split already set for that month.
+  Future<void> saveDuesAllocation({required Map<DuesFund, double> percents, required String effectiveMonth}) async {
+    final total = DuesFund.values.fold<double>(0, (sum, f) => sum + (percents[f] ?? 0));
+    if ((total - 100).abs() > 0.001) throw Exception('The percentages must add up to 100%.');
+    final values = {for (final f in DuesFund.values) f.column: percents[f] ?? 0};
+    await db.writeTransaction((tx) async {
+      final existing =
+          await tx.getOptional('SELECT id FROM dues_allocations WHERE effective_month = ?', [effectiveMonth]);
+      final now = _now();
+      final String id;
+      if (existing != null) {
+        id = existing['id'] as String;
+        await _update(tx, 'dues_allocations', id, {...values, 'updated_at': now});
+      } else {
+        id = uuid.v4();
+        await _insert(tx, 'dues_allocations', {
+          'id': id,
+          'effective_month': effectiveMonth,
+          ...values,
+          'created_by': currentAuthUser?.email,
+          'created_at': now,
+          'updated_at': now,
+        });
+      }
+      await _log(tx,
+          action: 'SET_DUES_ALLOCATION',
+          entityType: 'DuesAllocation',
+          entityId: id,
+          details: {'effective_month': effectiveMonth, ...values});
+    });
+  }
+
+  Future<void> deleteDuesAllocation(DuesAllocation allocation) async {
+    await db.writeTransaction((tx) async {
+      await tx.execute('DELETE FROM dues_allocations WHERE id = ?', [allocation.id]);
+      await _log(tx,
+          action: 'DELETE',
+          entityType: 'DuesAllocation',
+          entityId: allocation.id,
+          details: {'effective_month': allocation.effectiveMonth});
     });
   }
 

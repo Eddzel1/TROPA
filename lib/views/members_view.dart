@@ -8,6 +8,7 @@ import 'package:printing/printing.dart';
 import '../core/design_system.dart';
 import '../core/motion.dart';
 import '../core/geo.dart';
+import '../widgets/tropa_pager.dart';
 import '../widgets/form_fields.dart';
 import '../widgets/household_view_dialog.dart';
 import '../models/models.dart';
@@ -515,7 +516,7 @@ class _MembersViewState extends ConsumerState<MembersView> {
             if (narrow) SingleChildScrollView(scrollDirection: Axis.horizontal, child: filterRow) else filterRow,
             const SizedBox(height: 16),
             Text(
-              'Showing ${NumberFormat('#,##0').format(membersAsync.valueOrNull?.length ?? 0)}${counts.matched > (membersAsync.valueOrNull?.length ?? 0) ? ' of ${NumberFormat('#,##0').format(counts.matched)}' : ''} matching out of ${NumberFormat('#,##0').format(counts.total)} ${filter.archived ? 'archived' : 'total'} members',
+              '${NumberFormat('#,##0').format(counts.matched)} matching out of ${NumberFormat('#,##0').format(counts.total)} ${filter.archived ? 'archived' : 'total'} members',
               style: TropaText.body(subtextCol),
             ),
             const SizedBox(height: 12),
@@ -561,6 +562,8 @@ class _MembersViewState extends ConsumerState<MembersView> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(14),
                       child: ListView.separated(
+                        // A new page starts at the top.
+                        key: ValueKey(filter.page),
                         itemCount: members.length,
                         separatorBuilder: (_, __) => Divider(height: 1, color: borderCol),
                         itemBuilder: (context, index) {
@@ -703,6 +706,18 @@ class _MembersViewState extends ConsumerState<MembersView> {
                   );
                 },
               ),
+            ),
+            const SizedBox(height: 8),
+            TropaPager(
+              page: filter.page,
+              pageSize: memberPageSize,
+              total: counts.matched,
+              shown: membersAsync.valueOrNull?.length ?? 0,
+              noun: filter.archived ? 'archived members' : 'members',
+              onPage: (page) {
+                ref.read(memberFilterProvider.notifier).update((f) => f.copyWith(page: page));
+                ref.read(memberListNotifierProvider.notifier).refresh();
+              },
             ),
           ],
         ),

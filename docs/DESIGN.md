@@ -158,6 +158,18 @@ Shadows may use black at low alpha. Any other fixed colour in screen code is a b
   on wide screens.
 - Table headers use `tableHeader` on the chip colour. Amounts are right-aligned with tabular
   figures; secondary detail sits under the main value as a caption.
+- Totals sit in stat tiles (label, `kpi` value, caption).
+- Breakdowns by place (e.g. Dues › Funds: one row per purok) are summary tables in their own tab,
+  not extra tiles on a busy screen. Percentages go in the column headings ("Mortuary 60%"), money
+  columns are right-aligned, and a bold total row on the chip colour closes the table. Each row's
+  parts add up exactly to its total. Below the table's minimum width it scrolls sideways.
+- Long lists are paged, never loaded whole. `TropaPager` (`lib/widgets/tropa_pager.dart`) sits
+  under the list: "Showing 51–100 of 1,234 households" on the left and first / previous /
+  "Page 2 of 25" / next / last on the right. On phones it shortens to "51–100 of 1,234" and drops
+  first/last. Page sizes are Households 50, Members 100 and Dues Ledger 50. A new page scrolls
+  the list back to the top. Changing any filter or search returns to page 1, and a page that
+  empties (e.g. after archiving its last row) steps back to the new last page. Used on
+  Households, Members and the Dues Ledger.
 
 ### Feedback
 

@@ -1,7 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/db.dart';
+import '../core/dues_math.dart';
+import '../core/geo.dart';
 import '../models/models.dart';
 import 'auth_provider.dart';
+import 'voter_provider.dart';
 
 /// Tables whose changes can move a dues balance or the ledger.
 const _duesTables = 'dues_payments,family_members,households,locations';
@@ -132,29 +135,102 @@ final duesPurokProvider = StateProvider<DuesPurok>((ref) {
   return (lgu: null, barangay: null, purok: null);
 });
 
-/// Households of the chosen purok with their in-scope members, by name; empty until a purok is chosen.
+/// [duesPurokProvider] with an LGU or barangay that is the user's only choice filled in, as the
+/// Collect pickers show it picked.
+final duesWalkPlaceProvider = Provider<DuesPurok>((ref) {
+  final p = ref.watch(duesPurokProvider);
+  final scope = ref.watch(duesScopeProvider).value;
+  if (scope == null) return p;
+  final locations =
+      scope.everywhere ? ref.watch(locationsProvider).value ?? const <LocationOption>[] : scope.barangays;
+  final lgus = {for (final l in locations) l.lgu};
+  final lgu = p.lgu ?? (lgus.length == 1 ? lgus.first : null);
+  final barangays = {for (final l in locations) if (l.lgu == lgu) l.barangay};
+  final barangay = p.barangay ?? (barangays.length == 1 ? barangays.first : null);
+  return (lgu: lgu, barangay: barangay, purok: p.purok);
+});
+
+/// Households of the chosen barangay (and purok, when one is chosen) with their in-scope members,
+/// by name; empty until a barangay is chosen.
 final duesPurokHouseholdsProvider = FutureProvider<List<DuesHousehold>>((ref) async {
   ref.watch(tableChangesProvider(_duesTables));
   final scope = await ref.watch(duesScopeProvider.future);
-  final p = ref.watch(duesPurokProvider);
-  if (scope.isEmpty || p.lgu == null || p.barangay == null || p.purok == null) return [];
+  final p = ref.watch(duesWalkPlaceProvider);
+  if (scope.isEmpty || p.lgu == null || p.barangay == null) return [];
   final list = await ref
       .watch(supabaseServiceProvider)
       .getDuesHouseholdsByPurok(scope: scope, lgu: p.lgu!, barangay: p.barangay!, purok: p.purok);
   return list..sort((a, b) => a.householdName.compareTo(b.householdName));
 });
 
-/// What was collected today (GMT+8) in the chosen purok, for the Collect tab's summary.
+/// What was collected today (GMT+8) in the chosen barangay or purok, for the Collect tab's summary.
 final duesPurokTodayProvider = FutureProvider<({double total, int receipts, int households, int voided, double voidedAmount})?>(
     (ref) async {
   ref.watch(tableChangesProvider(_duesTables));
   final scope = await ref.watch(duesScopeProvider.future);
-  final p = ref.watch(duesPurokProvider);
-  if (scope.isEmpty || p.purok == null) return null;
+  final p = ref.watch(duesWalkPlaceProvider);
+  if (scope.isEmpty || p.barangay == null) return null;
   return ref.watch(supabaseServiceProvider).getDuesLedgerTotals(
         scope: scope,
         filter: DuesLedgerFilter(period: LedgerPeriod.today, lgu: p.lgu, barangay: p.barangay, purok: p.purok),
       );
+});
+
+/// Every fund split, oldest effective month first. Live.
+final duesAllocationsProvider = StreamProvider<List<DuesAllocation>>((ref) {
+  return ref.watch(supabaseServiceProvider).watchDuesAllocations();
+});
+
+/// The Funds tab's period and place. The text query and purok are not used there.
+final duesFundsFilterProvider = StateProvider<DuesLedgerFilter>((ref) {
+  ref.watch(_duesUserIdProvider);
+  return const DuesLedgerFilter();
+});
+
+/// One purok's collections for the Funds tab, split into funds.
+typedef DuesFundsRow = ({String lgu, String barangay, String purok, double total, Map<DuesFund, double> funds});
+
+/// What each purok collected in the Funds tab's period and place, split into funds (each payment
+/// with the split in force when it was paid), with the grand totals and the months where the
+/// split changes within the period.
+final duesFundsByPurokProvider = FutureProvider<
+    ({
+      List<DuesFundsRow> rows,
+      Map<DuesFund, double> funds,
+      double total,
+      List<int> changes,
+    })>((ref) async {
+  ref.watch(tableChangesProvider(_duesTables));
+  final scope = await ref.watch(duesScopeProvider.future);
+  final allocations = await ref.watch(duesAllocationsProvider.future);
+  final places = scope.isEmpty
+      ? const <({String lgu, String barangay, String purok, Map<int, double> byMonth})>[]
+      : await ref
+          .watch(supabaseServiceProvider)
+          .getDuesCollectedByPurok(scope: scope, filter: ref.watch(duesFundsFilterProvider));
+  final rows = <DuesFundsRow>[];
+  final totals = {for (final f in DuesFund.values) f: 0.0};
+  final months = <int>{};
+  for (final p in places) {
+    final funds = allocate(p.byMonth, allocations);
+    for (final f in DuesFund.values) {
+      totals[f] = totals[f]! + funds[f]!;
+    }
+    months.addAll(p.byMonth.keys);
+    rows.add((
+      lgu: p.lgu,
+      barangay: p.barangay,
+      purok: p.purok,
+      total: funds.values.fold(0.0, (a, b) => a + b),
+      funds: funds,
+    ));
+  }
+  return (
+    rows: rows,
+    funds: totals,
+    total: rows.fold(0.0, (a, r) => a + r.total),
+    changes: allocationChanges(months, allocations),
+  );
 });
 
 /// Dues starting month (`YYYY-MM`) per barangay that has one, keyed `LGU|BARANGAY` (upper-cased,

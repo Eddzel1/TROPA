@@ -34,7 +34,7 @@ class SettingsAdminView extends ConsumerWidget {
     final tabs = <((IconData, String), Widget)>[
       if (can(AppPermissions.manageUsers)) ...[
         (tab(Icons.manage_accounts, 'Users & Permissions'), scrollable(const UsersTab())),
-        (tab(Icons.payments_outlined, 'Dues Rate'), scrollable(const DuesRateTab())),
+        (tab(Icons.payments_outlined, 'Dues Rate & Funds'), scrollable(const DuesRateTab())),
       ],
       if (can(AppPermissions.manageLocations)) ...[
         (tab(Icons.map_outlined, 'Locations & Barangays'), scrollable(const LocationsTab())),

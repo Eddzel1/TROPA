@@ -8,6 +8,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:uuid/uuid.dart';
 import '../core/design_system.dart';
 import '../core/motion.dart';
+import '../widgets/tropa_pager.dart';
 import '../widgets/form_fields.dart';
 import '../core/geo.dart';
 import '../models/models.dart';
@@ -406,8 +407,14 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
     );
   }
 
+  /// Any filter or search change starts again from page 1.
   void _applyFilter(HouseholdFilter Function(HouseholdFilter) update) {
-    ref.read(householdFilterProvider.notifier).update(update);
+    ref.read(householdFilterProvider.notifier).update((f) => update(f).copyWith(page: 0));
+    ref.read(householdListNotifierProvider.notifier).refresh();
+  }
+
+  void _goToPage(int page) {
+    ref.read(householdFilterProvider.notifier).update((f) => f.copyWith(page: page));
     ref.read(householdListNotifierProvider.notifier).refresh();
   }
 
@@ -483,20 +490,12 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
             icon: const Icon(Icons.clear, size: 18),
             onPressed: () {
               _searchCtrl.clear();
-              ref.read(householdFilterProvider.notifier).update(
-                    (s) => s.copyWith(query: ''),
-                  );
-              ref.read(householdListNotifierProvider.notifier).refresh();
+              _applyFilter((s) => s.copyWith(query: ''));
             },
           )
         : null,
   ),
-  onSubmitted: (val) {
-    ref.read(householdFilterProvider.notifier).update(
-          (s) => s.copyWith(query: val.trim()),
-        );
-    ref.read(householdListNotifierProvider.notifier).refresh();
-  },
+  onSubmitted: (val) => _applyFilter((s) => s.copyWith(query: val.trim())),
 );
         final lguFilter = _filterDropdown(
   value: filter.lgu,
@@ -647,6 +646,8 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(14),
                       child: ListView.separated(
+                        // A new page starts at the top.
+                        key: ValueKey(filter.page),
                         itemCount: households.length,
                         separatorBuilder: (_, __) => Divider(height: 1, color: borderCol),
                         itemBuilder: (context, index) {
@@ -771,6 +772,15 @@ class _HouseholdsViewState extends ConsumerState<HouseholdsView> {
                   );
                 },
               ),
+            ),
+            const SizedBox(height: 8),
+            TropaPager(
+              page: filter.page,
+              pageSize: householdPageSize,
+              total: ref.watch(householdMatchCountProvider),
+              shown: householdsAsync.valueOrNull?.length ?? 0,
+              noun: filter.archived ? 'archived households' : 'households',
+              onPage: _goToPage,
             ),
           ],
         ),
