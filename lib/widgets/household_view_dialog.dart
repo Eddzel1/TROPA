@@ -262,7 +262,7 @@ class _HouseholdViewDialogState extends ConsumerState<HouseholdViewDialog> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '${m.sector} · ${m.gender ?? "Gender not set"} · Age: ${m.age ?? "N/A"} · Contact: ${(m.contactNumber ?? '').trim().isEmpty ? "None" : m.contactNumber}',
+                              '${m.sector} · ${m.gender ?? "Gender not set"} · Age: ${m.age ?? "N/A"} · Contact: ${(m.contactNumber ?? '').trim().isEmpty ? "None" : m.contactNumber}${(m.religion ?? '').trim().isEmpty ? '' : ' · ${m.religion}'}',
                               style: TropaText.caption(subtextCol),
                             ),
                             if (narrow && badges.isNotEmpty) ...[
@@ -582,6 +582,12 @@ class _HouseholdViewDialogState extends ConsumerState<HouseholdViewDialog> {
         ),
       ),
       actions: [
+        if (canEdit && _roster.isNotEmpty)
+          TextButton.icon(
+            onPressed: _setReligionForAll,
+            icon: const Icon(Icons.groups_outlined, size: 18),
+            label: const Text('Set religion for all'),
+          ),
         if (canDelete)
           TextButton.icon(
             onPressed: _confirmDeleteHousehold,
@@ -625,6 +631,33 @@ class _HouseholdViewDialogState extends ConsumerState<HouseholdViewDialog> {
       content: Text(ok ? 'Renamed to $newName' : 'Could not rename the household'),
       backgroundColor: ok ? null : TropaColors.error,
     ));
+  }
+
+  /// Sets one religion on every member of this household (or only those with none yet).
+  Future<void> _setReligionForAll() async {
+    final picked = await showTropaDialog<({String? religion, bool onlyBlank})>(
+      context: context,
+      builder: (_) => _HouseholdReligionDialog(roster: _roster),
+    );
+    if (picked == null || !mounted) return;
+    try {
+      final n = await ref
+          .read(supabaseServiceProvider)
+          .setHouseholdReligion(_currentHousehold.id, picked.religion, onlyBlank: picked.onlyBlank);
+      await _fetchRoster();
+      ref.read(memberListNotifierProvider.notifier).refresh();
+      if (!mounted) return;
+      final what = picked.religion == null ? 'Cleared religion' : 'Set religion to ${picked.religion}';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(n == 0 ? 'No members needed changing' : '$what for $n member${n == 1 ? '' : 's'}'),
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Could not update religion: $e'),
+        backgroundColor: TropaColors.error,
+      ));
+    }
   }
 
   Future<void> _confirmDeleteHousehold() async {
@@ -776,6 +809,125 @@ class _HouseholdViewDialogState extends ConsumerState<HouseholdViewDialog> {
       _fetchRoster();
       ref.read(householdListNotifierProvider.notifier).refresh();
     }
+  }
+}
+
+/// Picks a religion to apply to the whole household: the member form's list, "Other…" with a typed
+/// value, or "—" to clear. Returns null on Cancel.
+class _HouseholdReligionDialog extends StatefulWidget {
+  final List<FamilyMember> roster;
+
+  const _HouseholdReligionDialog({required this.roster});
+
+  @override
+  State<_HouseholdReligionDialog> createState() => _HouseholdReligionDialogState();
+}
+
+class _HouseholdReligionDialogState extends State<_HouseholdReligionDialog> {
+  // Starts on the religion most members already share, if any.
+  late String? _choice = _common();
+  final _otherCtrl = TextEditingController();
+  bool _onlyBlank = false;
+
+  String? _common() {
+    final counts = <String, int>{};
+    for (final m in widget.roster) {
+      final r = m.religion?.trim() ?? '';
+      if (r.isNotEmpty) counts[r] = (counts[r] ?? 0) + 1;
+    }
+    if (counts.isEmpty) return null;
+    final top = counts.entries.reduce((a, b) => b.value > a.value ? b : a).key;
+    for (final r in memberReligions) {
+      if (r.toLowerCase() == top.toLowerCase()) return r;
+    }
+    _otherCtrl.text = top.toUpperCase();
+    return religionOther;
+  }
+
+  @override
+  void dispose() {
+    _otherCtrl.dispose();
+    super.dispose();
+  }
+
+  String? get _value {
+    if (_choice != religionOther) return _choice;
+    final t = _otherCtrl.text.trim().toUpperCase();
+    return t.isEmpty ? null : t;
+  }
+
+  bool get _canSave => _choice != religionOther || _otherCtrl.text.trim().isNotEmpty;
+
+  @override
+  Widget build(BuildContext context) {
+    final textCol = TropaColors.textHigh(context);
+    final subtextCol = TropaColors.textMedium(context);
+    final withReligion = widget.roster.where((m) => (m.religion ?? '').trim().isNotEmpty).length;
+    final n = widget.roster.length;
+    Text item(String t) => Text(t, style: TropaStyles.fieldText(context), overflow: TextOverflow.ellipsis);
+    return AlertDialog(
+      backgroundColor: TropaColors.cardOf(context),
+      title: Text('Set Religion for Household', style: TextStyle(color: textCol)),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Applies to all $n member${n == 1 ? '' : 's'} of this household'
+              '${withReligion > 0 ? ' ($withReligion already have one).' : '.'}',
+              style: TropaText.caption(subtextCol),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String?>(
+              initialValue: _choice,
+              isExpanded: true,
+              icon: TropaStyles.dropdownIcon(context),
+              decoration: TropaStyles.formField(context),
+              dropdownColor: TropaColors.cardOf(context),
+              hint: Text('Select religion', style: TropaText.body(subtextCol)),
+              items: [
+                DropdownMenuItem<String?>(value: null, child: item('— (clear religion)')),
+                for (final r in memberReligions) DropdownMenuItem<String?>(value: r, child: item(r)),
+                DropdownMenuItem<String?>(value: religionOther, child: item(religionOther)),
+              ],
+              onChanged: (v) => setState(() => _choice = v),
+            ),
+            if (_choice == religionOther) ...[
+              const SizedBox(height: 10),
+              TextFormField(
+                controller: _otherCtrl,
+                autofocus: true,
+                inputFormatters: const [UpperCaseFormatter()],
+                textCapitalization: TextCapitalization.characters,
+                style: TropaText.body(textCol),
+                decoration: TropaStyles.formField(context, hint: 'Specify religion, e.g. UCCP'),
+                onChanged: (_) => setState(() {}),
+              ),
+            ],
+            if (withReligion > 0) ...[
+              const SizedBox(height: 6),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                controlAffinity: ListTileControlAffinity.leading,
+                value: _onlyBlank,
+                onChanged: (v) => setState(() => _onlyBlank = v ?? false),
+                title: Text('Only members with no religion yet', style: TropaText.body(textCol)),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        TextButton(
+          onPressed: _canSave ? () => Navigator.pop(context, (religion: _value, onlyBlank: _onlyBlank)) : null,
+          child: const Text('Apply'),
+        ),
+      ],
+    );
   }
 }
 

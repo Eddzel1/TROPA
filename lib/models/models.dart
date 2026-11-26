@@ -176,6 +176,21 @@ class Household {
 // ==========================================
 // 2. FamilyMember
 // ==========================================
+/// Religion choices on the member form (optional). Anything else is typed in after [religionOther].
+const memberReligions = [
+  'Roman Catholic',
+  'Islam',
+  'Iglesia ni Cristo',
+  'Born Again / Evangelical',
+  'Seventh-day Adventist',
+  'Aglipayan',
+  'Baptist',
+  "Jehovah's Witness",
+  'Latter-day Saints',
+  'None',
+];
+const religionOther = 'Other…';
+
 class FamilyMember {
   final String id;
   final String householdId;
@@ -324,7 +339,7 @@ class FamilyMember {
         if (age != null) 'age': age,
         if (latitude != null) 'latitude': latitude,
         if (longitude != null) 'longitude': longitude,
-        if (religion != null) 'religion': religion,
+        'religion': religion, // sent even when null, so picking "—" clears it
         if (school != null) 'school': school,
         if (yearLevel != null) 'year_level': yearLevel,
         if (gender != null) 'gender': gender,

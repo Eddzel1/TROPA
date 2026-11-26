@@ -1,17 +1,17 @@
-# Graph Report - TROPAV2  (2026-11-12)
+# Graph Report - TROPAV2  (2026-11-26)
 
 ## Corpus Check
-- 150 files · ~170,010 words
+- 152 files · ~173,259 words
 - Verdict: corpus is large enough that graph structure adds value.
 - Unclassified: 7 file(s) not represented in the graph (top: (none) 3, .ttf 3, .toml 1)
 
 ## Summary
-- 2905 nodes · 4099 edges · 148 communities (100 shown, 48 thin omitted)
+- 2963 nodes · 4189 edges · 156 communities (102 shown, 54 thin omitted)
 - Extraction: 100% EXTRACTED · 0% INFERRED · 0% AMBIGUOUS
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `f9fec13c`
+- Built from commit: `bc5bf5e6`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -26,7 +26,7 @@
 - member_provider.dart
 - db.dart
 - 20261022000000_barangay_sync.sql
-- ConsumerWidget
+- duesScopeProvider
 - tropa_map_widget.dart
 - members_view.dart
 - dues_provider.dart
@@ -49,7 +49,7 @@
 - package:flutter/material.dart
 - member_id_view.dart
 - users_tab.dart
-- ConsumerState
+- supabaseServiceProvider
 - device_seed_card.dart
 - device_seed_io.dart
 - fallback_sync.dart
@@ -58,7 +58,7 @@
 - supabase_connector.dart
 - ph_time.dart
 - 20261016000000_fallback_sync.sql
-- image_compress.dart
+- tropa_id_export.dart
 - form_tracking_view.dart
 - login_view.dart
 - offline_auth.dart
@@ -70,12 +70,12 @@
 - deno.d.ts
 - 20261014000000_voter_snapshot.sql
 - tropa_animated_logo.dart
-- package:flutter/material.dart
+- ConsumerWidget
 - TextInputFormatter
 - dues_rate_tab.dart
 - gen_sw.mjs
 - router.dart
-- List
+- package:flutter/material.dart
 - tropa_id_card.dart
 - Cross-Platform Flutter Desktop & Web Application Architecture
 - form_tracking_status_changed_at
@@ -98,7 +98,7 @@
 - tropa_member.dart
 - TropaScreen
 - 20261018030000_match_profile_by_email.sql
-- duesAllocationsProvider
+- activity_log_provider.dart
 - public.can_collect_dues_for
 - State
 - voter_list_print.dart
@@ -111,45 +111,51 @@
 - auth_provider.dart
 - household_compare_dialog.dart
 - public.can_manage_members
-- households_view.dart
+- ../core/design_system.dart
 - public.public_household_members
-- package:flutter/material.dart
+- Widget
 - static const
-- puroksProvider
+- currentAppUserProvider
 - review_provider.dart
 - 20261023000000_barangay_start_month.sql
 - geo.dart
 - reports_view.dart
 - build
 - public.public_household_members
-- ../core/design_system.dart
+- package:intl/intl.dart
 - public.public_member_search
-- build
-- localDbProvider
-- ../core/design_system.dart
-- DashboardView
-- voter_registry_tab.dart
+- sync_status_pill.dart
+- _ReviewViewState
+- audit_logs_view.dart
+- canPermissionProvider
+- image_compress.dart
 - public.update_household_member_counts
 - StateNotifier
 - 20261108000000_review_dismissals.sql
 - GEMINI.md
 - CustomPainter
 - big_household_audit.sql
-- _PromptDialog
 - package:flutter/material.dart
+- 20261015000000_admin_settings.sql
+- _CollectTabState
+- activity_logs_search_text_trgm
 - TropaBrand
+- _PromptDialog
+- DashboardView
+- _BarangayPickerDialog
+- PowerSyncDatabase
 
 ## God Nodes (most connected - your core abstractions)
 1. `_` - 148 edges
-2. `supabaseServiceProvider` - 79 edges
+2. `supabaseServiceProvider` - 80 edges
 3. `build` - 23 edges
-4. `locationsProvider` - 17 edges
-5. `puroksProvider` - 15 edges
-6. `canPermissionProvider` - 14 edges
-7. `duesRatesProvider` - 13 edges
-8. `householdListNotifierProvider` - 12 edges
-9. `localDbProvider` - 11 edges
-10. `currentAppUserProvider` - 11 edges
+4. `canPermissionProvider` - 17 edges
+5. `locationsProvider` - 17 edges
+6. `householdListNotifierProvider` - 15 edges
+7. `puroksProvider` - 15 edges
+8. `memberListNotifierProvider` - 14 edges
+9. `duesRatesProvider` - 13 edges
+10. `localDbProvider` - 11 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `_` --references--> `DuesBalance`  [EXTRACTED]
@@ -166,15 +172,15 @@
 ## Import Cycles
 - None detected.
 
-## Communities (148 total, 48 thin omitted)
+## Communities (156 total, 54 thin omitted)
 
 ### Community 0 - "models.dart"
 Cohesion: 0.01
-Nodes (190): action, activeMembers, ActivityLog, age, all, amount, AppPermissions, asBool (+182 more)
+Nodes (189): action, activeMembers, ActivityLog, age, all, amount, AppPermissions, asBool (+181 more)
 
 ### Community 1 - "member_form_dialog.dart"
 Cohesion: 0.01
-Nodes (209): _addDependentRow, _addDependentRowFromShortcut, _ageOn, _applyDependentSeniorRule, _applySeniorRule, _avatarBytes, _avatarName, _backToSearch (+201 more)
+Nodes (216): _addDependentRow, _addDependentRowFromShortcut, _ageOn, _applyDependentSeniorRule, _applySeniorRule, _avatarBytes, _avatarName, _backToSearch (+208 more)
 
 ### Community 2 - "design_system.dart"
 Cohesion: 0.02
@@ -186,11 +192,11 @@ Nodes (126): _adminUsers, _checkUniqueLocation, _checkUniquePurok, clearReview, 
 
 ### Community 5 - "household_view_dialog.dart"
 Cohesion: 0.06
-Nodes (39): canPermissionProvider, householdListNotifierProvider, _ReceiptRow, SettingsAdminView, build, _canSeePayments, confirm, confirmAndDeleteHousehold (+31 more)
+Nodes (40): householdListNotifierProvider, memberListNotifierProvider, _confirmDelete, _delete, _move, _canSeePayments, confirm, confirmAndDeleteHousehold (+32 more)
 
 ### Community 6 - "tropa_finder_view.dart"
-Cohesion: 0.08
-Nodes (30): voterFilterProvider, voterNotifierProvider, _actionWidth, _applyFilter, _applyNames, build, _cell, _columns (+22 more)
+Cohesion: 0.07
+Nodes (29): voterFilterProvider, voterNotifierProvider, _actionWidth, _applyFilter, _applyNames, build, _cell, _columns (+21 more)
 
 ### Community 7 - "settings_common.dart"
 Cohesion: 0.04
@@ -202,23 +208,23 @@ Nodes (30): addMember, addMembersBulk, archived, barangay, _changes, copyWith, d
 
 ### Community 9 - "db.dart"
 Cohesion: 0.06
-Nodes (27): auth, backup, backupPhase, _connect, db, dbGeneration, _ensureVoterListFor, ensureVoterSnapshot (+19 more)
+Nodes (26): auth, backup, backupPhase, _connect, db, dbGeneration, _ensureVoterListFor, ensureVoterSnapshot (+18 more)
 
 ### Community 10 - "20261022000000_barangay_sync.sql"
 Cohesion: 0.16
 Nodes (12): dues_payments_sync_key_idx, family_members_sync_key_idx, households_sync_key_idx, move_payments_sync_key, public.can_collect_dues_in(), public.move_member_payments_sync_key(), public.refresh_user_sync_scopes(), public.set_payment_sync_key() (+4 more)
 
-### Community 11 - "ConsumerWidget"
-Cohesion: 0.15
-Nodes (18): duesHouseholdResultsProvider, duesMemberResultsProvider, duesPanelProvider, duesPurokHouseholdsProvider, duesRatesProvider, duesScopeProvider, DuesCollectionView, _HouseholdResults (+10 more)
+### Community 11 - "duesScopeProvider"
+Cohesion: 0.29
+Nodes (7): duesPanelProvider, duesScopeProvider, DuesCollectionView, _PaymentPanel, _PaymentPanelState, _record, _fetchPayments
 
 ### Community 12 - "tropa_map_widget.dart"
 Cohesion: 0.07
 Nodes (21): build, _buildCircles, _circles, createState, didChangeDependencies, didUpdateWidget, dispose, _hitNotifier (+13 more)
 
 ### Community 13 - "members_view.dart"
-Cohesion: 0.07
-Nodes (30): memberCountsProvider, memberFilterProvider, MemberListNotifier, memberListNotifierProvider, purokNamesProvider, _applyFilter, build, _confirmDelete (+22 more)
+Cohesion: 0.10
+Nodes (17): createState, dispose, _filterDropdown, _firstNameCtrl, _householdFilter, _isPrinting, _lastNameCtrl, _middleNameCtrl (+9 more)
 
 ### Community 14 - "dues_provider.dart"
 Cohesion: 0.05
@@ -226,7 +232,7 @@ Nodes (35): DuesLedgerFilter, DuesScope, 0, allocations, barangay, barangays, co
 
 ### Community 15 - "desktop_scaffold.dart"
 Cohesion: 0.13
-Nodes (16): userPermissionsProvider, build, child, _collapseToggle, collapsible, currentPath, DesktopScaffold, inDrawer (+8 more)
+Nodes (15): build, child, _collapseToggle, collapsible, currentPath, DesktopScaffold, inDrawer, _loadPreference (+7 more)
 
 ### Community 16 - "form_tracking_provider.dart"
 Cohesion: 0.10
@@ -238,7 +244,7 @@ Nodes (20): addHousehold, archived, barangay, _changes, copyWith, dispose, filte
 
 ### Community 18 - "user_form_dialog.dart"
 Cohesion: 0.07
-Nodes (26): _applyPreset, _BarangayPickerDialog, _BarangayPickerDialogState, build, createState, dispose, _duesBarangays, _email (+18 more)
+Nodes (25): _applyPreset, build, createState, dispose, _duesBarangays, _email, _firstname, _formKey (+17 more)
 
 ### Community 19 - "form_tracking_dialog.dart"
 Cohesion: 0.08
@@ -257,8 +263,8 @@ Cohesion: 0.03
 Nodes (77): DuesMember, DuesReceipt, _, allPuroks, amount, anyLabels, balance, barangay (+69 more)
 
 ### Community 23 - "locations_tab.dart"
-Cohesion: 0.06
-Nodes (37): supabaseServiceProvider, _delete, _editDate, _void, _addPurok, _barangay, _clearStartMonth, _coordValidator (+29 more)
+Cohesion: 0.08
+Nodes (26): adminLocationsProvider, _barangay, build, _clearStartMonth, _coordValidator, createState, _deleteLocation, _deletePurok (+18 more)
 
 ### Community 24 - "motion.dart"
 Cohesion: 0.07
@@ -269,8 +275,8 @@ Cohesion: 0.06
 Nodes (32): bytes, clean, count, decodeVoterSnapshot, encodeVoterSnapshot, ensureVoterSnapshot, error, _fetchManifest (+24 more)
 
 ### Community 28 - "package:flutter_riverpod/flutter_riverpod.dart"
-Cohesion: 0.17
-Nodes (9): items, service, watch, getDashboardMetrics, service, db, onChange, _reportSourceChangesProvider (+1 more)
+Cohesion: 0.20
+Nodes (7): watch, getDashboardMetrics, service, db, onChange, _reportSourceChangesProvider, watch
 
 ### Community 29 - "env.dart"
 Cohesion: 0.29
@@ -290,19 +296,19 @@ Nodes (9): build, _count, noun, onPage, page, pageSize, shown, total (+1 more)
 
 ### Community 37 - "member_id_view.dart"
 Cohesion: 0.10
-Nodes (16): _backKey, build, createState, ext, _frontKey, idNumber, member, MemberIdView (+8 more)
+Nodes (19): FamilyMember, _backKey, build, createState, ext, _frontKey, idNumber, member (+11 more)
 
 ### Community 38 - "users_tab.dart"
 Cohesion: 0.08
 Nodes (24): AppUser, SettingsPalette, barangayNames, createState, _delete, _HeaderRow, _initials, isSelf (+16 more)
 
-### Community 39 - "ConsumerState"
+### Community 39 - "supabaseServiceProvider"
 Cohesion: 0.09
-Nodes (37): adminUsersProvider, currentAppUserProvider, barangayStartMonthsProvider, formTrackingFilterProvider, locationsProvider, _LedgerTab, _PrintSheetDialog, _PrintSheetDialogState (+29 more)
+Nodes (33): supabaseServiceProvider, _delete, _editDate, _PrintSheetDialog, _PrintSheetDialogState, _void, HouseholdsView, MembersView (+25 more)
 
 ### Community 40 - "device_seed_card.dart"
-Cohesion: 0.17
-Nodes (10): build, createState, DeviceSeedCard, _DeviceSeedCardState, _download, initState, _loading, _localBuckets (+2 more)
+Cohesion: 0.07
+Nodes (26): localDbProvider, voterSnapshotStatusProvider, build, createState, DeviceSeedCard, _DeviceSeedCardState, _download, initState (+18 more)
 
 ### Community 41 - "device_seed_io.dart"
 Cohesion: 0.13
@@ -332,29 +338,29 @@ Nodes (12): formatPh, _hasOffset, _hasTime, p, parsePh, phNow, phOffset, phToday
 Cohesion: 0.15
 Nodes (13): deleted_records_deleted_at_idx, dues_payments_updated_date_idx, family_members_updated_date_idx, form_tracking_updated_at_idx, households_updated_date_idx, log_deleted_record, officers_updated_at_idx, public.deleted_records (+5 more)
 
-### Community 50 - "image_compress.dart"
-Cohesion: 0.07
-Nodes (22): buffer, codec, compressPhoto, descriptor, encodeJpg, flat, frame, h (+14 more)
+### Community 50 - "tropa_id_export.dart"
+Cohesion: 0.13
+Nodes (9): boundary, build, captureKey, captureTropaIdPng, child, data, image, ratio (+1 more)
 
 ### Community 51 - "form_tracking_view.dart"
-Cohesion: 0.06
-Nodes (32): formBatchNotifierProvider, _agePill, _applyFilter, assignedTo, batch, _body, _cardDateFmt, _cardDateYearFmt (+24 more)
+Cohesion: 0.07
+Nodes (27): _agePill, assignedTo, batch, _body, _cardDateFmt, _cardDateYearFmt, cardWidth, _columnGap (+19 more)
 
 ### Community 52 - "login_view.dart"
-Cohesion: 0.13
-Nodes (10): build, createState, dispose, _emailCtrl, _errorMessage, _handleLogin, initState, _isLoading (+2 more)
+Cohesion: 0.12
+Nodes (12): build, createState, dispose, _emailCtrl, _errorMessage, _handleLogin, initState, _isLoading (+4 more)
 
 ### Community 53 - "offline_auth.dart"
-Cohesion: 0.10
-Nodes (15): _credentialKey, isLocked, _iterations, localDbOwner, _lockedKey, OfflineAuth, _ownerKey, _pbkdf2 (+7 more)
+Cohesion: 0.14
+Nodes (12): _credentialKey, isLocked, _iterations, localDbOwner, _lockedKey, OfflineAuth, _ownerKey, _pbkdf2 (+4 more)
 
 ### Community 54 - "officers_tab.dart"
-Cohesion: 0.11
-Nodes (11): Location, createState, location, _locationId, officers, _open, purok, _PurokOfficers (+3 more)
+Cohesion: 0.14
+Nodes (11): Location, createState, location, _locationId, _OfficerSlate, OfficersTab, _OfficersTabState, _open (+3 more)
 
 ### Community 55 - "review_view.dart"
-Cohesion: 0.08
-Nodes (26): reviewFilterProvider, reviewItemsProvider, ReviewItem, build, _clear, _ClearReviewDialog, _ClearReviewDialogState, _count (+18 more)
+Cohesion: 0.10
+Nodes (16): ReviewItem, _count, createState, _dateFmt, dispose, _dropdown, _editMember, _flagColor (+8 more)
 
 ### Community 57 - "voter_provider.dart"
 Cohesion: 0.07
@@ -376,25 +382,25 @@ Nodes (5): public.apply_voter_flag(), public.is_tropa_admin(), public.voter_flag
 Cohesion: 0.06
 Nodes (27): _brandGreen, build, createState, _ctrl, _cycleMs, didChangeDependencies, dispose, dx (+19 more)
 
-### Community 63 - "package:flutter/material.dart"
-Cohesion: 0.25
-Nodes (4): build, error, onRetry, StartupScreen
+### Community 63 - "ConsumerWidget"
+Cohesion: 0.19
+Nodes (12): officersProvider, puroksProvider, _LocationPickers, _ReceiptRow, _openHouseholdDialog, _LocationDetail, _BarangayOfficers, build (+4 more)
 
 ### Community 64 - "TextInputFormatter"
 Cohesion: 0.40
 Nodes (4): UpperCaseFormatter, _DateSlashFormatter, _PhicFormatter, _PhMobileFormatter
 
 ### Community 66 - "dues_rate_tab.dart"
-Cohesion: 0.11
-Nodes (18): _amount, createState, _delete, dispose, DuesRateTab, _DuesRateTabState, _fields, _FundAllocationCard (+10 more)
+Cohesion: 0.12
+Nodes (14): _amount, createState, _delete, dispose, _fields, _month, _percents, _percentText (+6 more)
 
 ### Community 67 - "gen_sw.mjs"
 Cohesion: 0.13
 Nodes (10): CANVASKIT, files, hash, indexPath, output, precache, SKIP_NAMES, templatePath (+2 more)
 
-### Community 69 - "List"
-Cohesion: 0.22
-Nodes (7): actions, below, build, subtitle, title, titleTrailing, TropaPageHeader
+### Community 69 - "package:flutter/material.dart"
+Cohesion: 0.12
+Nodes (11): actions, below, build, subtitle, title, titleTrailing, TropaPageHeader, build (+3 more)
 
 ### Community 70 - "tropa_id_card.dart"
 Cohesion: 0.04
@@ -449,12 +455,12 @@ Cohesion: 0.03
 Nodes (69): a, barangay, _birthKeys, byBirth, byHousehold, cleared, _closeBirth, _closeFirstName (+61 more)
 
 ### Community 95 - "tropa_member.dart"
-Cohesion: 0.06
+Cohesion: 0.07
 Nodes (27): address, authorizedSignature, birthDate, dateIssued, firstName, formatIdDate, fullName, hotline (+19 more)
 
-### Community 98 - "duesAllocationsProvider"
-Cohesion: 0.40
-Nodes (6): duesAllocationsProvider, duesFundsByPurokProvider, duesFundsFilterProvider, _FundsTab, _print, build
+### Community 98 - "activity_log_provider.dart"
+Cohesion: 0.07
+Nodes (24): LedgerPeriod, action, actions, ActivityLogFilter, activityLogPageSize, copyWith, days, entity (+16 more)
 
 ### Community 100 - "State"
 Cohesion: 0.16
@@ -465,12 +471,12 @@ Cohesion: 0.09
 Nodes (20): bold, border, buildVoterList, cell, columnHeader, columns, columnWidths, doc (+12 more)
 
 ### Community 102 - "package:supabase_flutter/supabase_flutter.dart"
-Cohesion: 0.10
-Nodes (11): booleanColumns, jsonColumns, schema, snapshotVoterLgus, deviceSeedSupported, false, installDeviceSeed, publishDeviceSeed (+3 more)
+Cohesion: 0.12
+Nodes (10): booleanColumns, jsonColumns, schema, snapshotVoterLgus, deviceSeedSupported, false, installDeviceSeed, publishDeviceSeed (+2 more)
 
 ### Community 103 - "transfer_member_dialog.dart"
 Cohesion: 0.12
-Nodes (16): FamilyMember, Household, build, createState, _currentHousehold, _householdPicker, initState, _isSaving (+8 more)
+Nodes (15): Household, build, createState, _currentHousehold, _householdPicker, initState, _isSaving, _leavesEmpty (+7 more)
 
 ### Community 106 - "package:flutter_test/flutter_test.dart"
 Cohesion: 0.06
@@ -493,24 +499,24 @@ Cohesion: 0.10
 Nodes (17): authStateStreamProvider, _blockedReason, contains, _deactivatedMessage, _endSession, _logLogin, _noAccessMessage, permissions (+9 more)
 
 ### Community 116 - "household_compare_dialog.dart"
+Cohesion: 0.10
+Nodes (18): _Column, createState, _dateFmt, _draggable, _Dragged, _groups, HouseholdCompareDialog, _HouseholdCompareDialogState (+10 more)
+
+### Community 119 - "../core/design_system.dart"
+Cohesion: 0.10
+Nodes (7): _kpiCard, _confirmDelete, createState, dispose, _filterDropdown, _searchCtrl, _toggleArchived
+
+### Community 121 - "Widget"
 Cohesion: 0.14
-Nodes (10): build, _Column, createState, _dateFmt, _groups, householdIds, _matchColors, _member (+2 more)
-
-### Community 119 - "households_view.dart"
-Cohesion: 0.09
-Nodes (15): householdFilterProvider, HouseholdListNotifier, householdMatchCountProvider, _kpiCard, _applyFilter, build, _confirmDelete, createState (+7 more)
-
-### Community 121 - "package:flutter/material.dart"
-Cohesion: 0.25
-Nodes (5): build, child, KeyboardSafeBody, minHeight, padding
+Nodes (8): build, child, KeyboardSafeBody, minHeight, padding, build, child, WebKeyboardInset
 
 ### Community 122 - "static const"
-Cohesion: 0.29
-Nodes (4): AppThemeNotifier, _loadPreference, _prefKey, setTheme
+Cohesion: 0.20
+Nodes (4): _loadPreference, _prefKey, setTheme, main
 
-### Community 123 - "puroksProvider"
-Cohesion: 0.28
-Nodes (9): adminLocationsProvider, officersProvider, puroksProvider, _openHouseholdDialog, build, _LocationDetail, _BarangayOfficers, build (+1 more)
+### Community 123 - "currentAppUserProvider"
+Cohesion: 0.16
+Nodes (18): adminUsersProvider, currentAppUserProvider, formBatchNotifierProvider, formTrackingFilterProvider, _applyFilter, build, _confirmDelete, FormTrackingView (+10 more)
 
 ### Community 125 - "review_provider.dart"
 Cohesion: 0.10
@@ -525,36 +531,32 @@ Cohesion: 0.12
 Nodes (14): barangayReportProvider, reportLguFilterProvider, _breakdownTable, build, createState, _dec1, _dec2, _int (+6 more)
 
 ### Community 129 - "build"
-Cohesion: 0.19
-Nodes (16): duesLedgerCountProvider, duesLedgerFilterProvider, duesLedgerPageProvider, duesLedgerTotalsProvider, duesPurokProvider, duesPurokTodayProvider, duesReceiptsProvider, duesSearchProvider (+8 more)
+Cohesion: 0.13
+Nodes (25): duesAllocationsProvider, duesFundsByPurokProvider, duesFundsFilterProvider, duesHouseholdResultsProvider, duesLedgerCountProvider, duesLedgerFilterProvider, duesLedgerPageProvider, duesLedgerTotalsProvider (+17 more)
 
-### Community 131 - "../core/design_system.dart"
-Cohesion: 0.14
-Nodes (7): PendingUpload, compact, entry, isDark, _QueueTile, instant, main
+### Community 133 - "sync_status_pill.dart"
+Cohesion: 0.18
+Nodes (15): PendingUpload, pendingUploadEntriesProvider, pendingUploadsProvider, syncStateProvider, syncStatusProvider, uploadRejectionsProvider, fallbackSyncStateProvider, build (+7 more)
 
-### Community 133 - "build"
-Cohesion: 0.39
-Nodes (9): pendingUploadEntriesProvider, pendingUploadsProvider, syncStateProvider, syncStatusProvider, uploadRejectionsProvider, fallbackSyncStateProvider, build, SyncQueueDialog (+1 more)
+### Community 134 - "_ReviewViewState"
+Cohesion: 0.28
+Nodes (9): userPermissionsProvider, reviewFilterProvider, reviewItemsProvider, build, _clear, initState, _restore, ReviewView (+1 more)
 
-### Community 134 - "localDbProvider"
-Cohesion: 0.29
-Nodes (8): localDbProvider, voterSnapshotStatusProvider, _load, _publish, _publish, _RefusedChanges, build, VoterSnapshotStatusLine
+### Community 135 - "audit_logs_view.dart"
+Cohesion: 0.12
+Nodes (17): activityLogFilterProvider, activityLogsAsyncProvider, LogActionGroup, ActivityLogsView, _ActivityLogsViewState, _applyFilter, build, _clearFilters (+9 more)
 
-### Community 135 - "../core/design_system.dart"
-Cohesion: 0.40
-Nodes (3): activityLogsAsyncProvider, ActivityLogsView, build
+### Community 136 - "canPermissionProvider"
+Cohesion: 0.18
+Nodes (18): canPermissionProvider, barangayStartMonthsProvider, householdMatchCountProvider, memberCountsProvider, memberFilterProvider, MemberListNotifier, locationsProvider, purokNamesProvider (+10 more)
 
-### Community 136 - "DashboardView"
-Cohesion: 0.67
-Nodes (4): dashboardMetricsProvider, householdCoordinatesProvider, build, DashboardView
-
-### Community 137 - "voter_registry_tab.dart"
-Cohesion: 0.17
-Nodes (9): build, createState, initState, _loadingManifest, _loadManifest, _manifest, _progress, VoterRegistryTab (+1 more)
+### Community 137 - "image_compress.dart"
+Cohesion: 0.13
+Nodes (13): buffer, codec, compressPhoto, descriptor, encodeJpg, flat, frame, h (+5 more)
 
 ### Community 139 - "StateNotifier"
-Cohesion: 0.43
-Nodes (5): AppUserNotifier, FormBatchNotifier, ReviewItemsNotifier, VoterNotifier, SidebarCollapsedNotifier
+Cohesion: 0.23
+Nodes (10): AppThemeNotifier, AppUserNotifier, FormBatchNotifier, householdFilterProvider, HouseholdListNotifier, ReviewItemsNotifier, VoterNotifier, _applyFilter (+2 more)
 
 ### Community 140 - "20261108000000_review_dismissals.sql"
 Cohesion: 0.70
@@ -564,29 +566,41 @@ Nodes (4): log_deleted_record, public.review_dismissals, review_dismissals_creat
 Cohesion: 0.50
 Nodes (3): Design system, Formatting, graphify
 
-### Community 148 - "package:flutter/material.dart"
+### Community 145 - "package:flutter/material.dart"
 Cohesion: 0.29
 Nodes (3): main, page, scrolls
 
+### Community 146 - "20261015000000_admin_settings.sql"
+Cohesion: 0.33
+Nodes (3): officers, officers_touch_updated_at, public.is_tropa_admin()
+
+### Community 147 - "_CollectTabState"
+Cohesion: 0.33
+Nodes (6): duesPurokProvider, duesSearchProvider, duesSelectionProvider, _CollectTab, _CollectTabState, _search
+
+### Community 151 - "DashboardView"
+Cohesion: 0.67
+Nodes (4): dashboardMetricsProvider, householdCoordinatesProvider, build, DashboardView
+
 ## Knowledge Gaps
-- **1932 isolated node(s):** `TropaColors`, `TropaTheme`, `TropaText`, `TropaStyles`, `TropaBreakpoints` (+1927 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 2212 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **48 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **1973 isolated node(s):** `TropaColors`, `TropaTheme`, `TropaText`, `TropaStyles`, `TropaBreakpoints` (+1968 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 2257 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **54 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `_` connect `dues_view.dart` to `build`, `../core/design_system.dart`, `household_view_dialog.dart`, `../core/design_system.dart`, `ConsumerWidget`, `dues_provider.dart`, `form_tracking_provider.dart`, `package:flutter/material.dart`, `locations_tab.dart`, `package:flutter_riverpod/flutter_riverpod.dart`, `package:flutter/material.dart`, `ConsumerState`, `dues_math.dart`, `login_view.dart`, `officers_tab.dart`, `dues_report_print.dart`, `package:flutter/material.dart`, `dues_rate_tab.dart`, `List`, `form_fields.dart`, `StatelessWidget`, `duesAllocationsProvider`, `settings_view.dart`, `theme_palettes.dart`, `households_view.dart`, `package:flutter/material.dart`, `static const`, `review_provider.dart`?**
-  _High betweenness centrality (0.117) - this node is a cross-community bridge._
+- **Why does `_` connect `dues_view.dart` to `build`, `package:intl/intl.dart`, `audit_logs_view.dart`, `duesScopeProvider`, `dues_provider.dart`, `package:flutter/material.dart`, `_CollectTabState`, `locations_tab.dart`, `package:flutter_riverpod/flutter_riverpod.dart`, `package:flutter/material.dart`, `supabaseServiceProvider`, `device_seed_card.dart`, `dues_math.dart`, `login_view.dart`, `officers_tab.dart`, `dues_report_print.dart`, `ConsumerWidget`, `dues_rate_tab.dart`, `package:flutter/material.dart`, `form_fields.dart`, `StatelessWidget`, `settings_view.dart`, `theme_palettes.dart`, `../core/design_system.dart`, `Widget`, `static const`, `review_provider.dart`?**
+  _High betweenness centrality (0.097) - this node is a cross-community bridge._
 - **What connects `TropaColors`, `TropaTheme`, `TropaText` to the rest of the system?**
-  _1932 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _1973 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `models.dart` be split into smaller, more focused modules?**
-  _Cohesion score 0.010471204188481676 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.010526315789473684 - nodes in this community are weakly interconnected._
+- **Why does `supabaseServiceProvider` connect `supabaseServiceProvider` to `build`, `household_view_dialog.dart`, `_ReviewViewState`, `tropa_finder_view.dart`, `member_provider.dart`, `canPermissionProvider`, `StateNotifier`, `duesScopeProvider`, `members_view.dart`, `tropa_map_widget.dart`, `form_tracking_provider.dart`, `household_provider.dart`, `user_form_dialog.dart`, `locations_tab.dart`, `users_tab.dart`, `officers_tab.dart`, `review_view.dart`, `voter_provider.dart`, `ConsumerWidget`, `dues_rate_tab.dart`, `transfer_member_dialog.dart`, `auth_provider.dart`, `household_compare_dialog.dart`, `currentAppUserProvider`, `review_provider.dart`?**
+  _High betweenness centrality (0.008) - this node is a cross-community bridge._
 - **Should `member_form_dialog.dart` be split into smaller, more focused modules?**
-  _Cohesion score 0.0091324200913242 - nodes in this community are weakly interconnected._
+  _Cohesion score 0.008849557522123894 - nodes in this community are weakly interconnected._
+- **Why does `Household` connect `transfer_member_dialog.dart` to `models.dart`, `member_form_dialog.dart`, `household_view_dialog.dart`, `tropa_map_widget.dart`, `members_view.dart`?**
+  _High betweenness centrality (0.003) - this node is a cross-community bridge._
 - **Should `design_system.dart` be split into smaller, more focused modules?**
   _Cohesion score 0.024691358024691357 - nodes in this community are weakly interconnected._
-- **Should `supabase_service.dart` be split into smaller, more focused modules?**
-  _Cohesion score 0.015037593984962405 - nodes in this community are weakly interconnected._
-- **Should `household_view_dialog.dart` be split into smaller, more focused modules?**
-  _Cohesion score 0.05574912891986063 - nodes in this community are weakly interconnected._

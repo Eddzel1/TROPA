@@ -126,6 +126,16 @@ Shadows may use black at low alpha. Any other fixed colour in screen code is a b
 - Options are 13px Inter on the card colour, cut off with "…" when too long.
 - An empty choice is a real option: "All barangays" in filters, "Choose purok" where a choice is
   required.
+- An optional field starts on the hint ("Select religion") and lists "—" first, so a choice can be
+  cleared. When a fixed list can't cover every answer, end it with "Other…", which shows an
+  uppercase "Specify …" text box under the dropdown. The typed text is saved in place of the choice.
+  An example is the member form's Religion field.
+- "Same value for the whole household" actions are a compact `TextButton.icon` with the
+  `groups_outlined` icon. In the member form, "Use for all household members" sits under the main
+  member's field and copies the choice into the rows being added. In Household details, "Set
+  religion for all" opens a small dialog with the same dropdown, preset to the religion most members
+  already have. It also offers "Only members with no religion yet" and ends with a snackbar saying
+  how many members changed.
 - Location pickers cascade LGU → Barangay → Purok. Changing one resets the ones after it. A sole
   option is picked automatically, and the lists only offer places within the user's scope.
 
@@ -140,6 +150,10 @@ Shadows may use black at low alpha. Any other fixed colour in screen code is a b
 - Filters drive everything on the screen: totals, counts and the pager follow them. Changing a
   filter returns to page 1 and closes any open detail.
 - Empty results explain themselves ("Nothing matches these filters").
+- When any filter is set, a "Clear filters" text button sits after the chips and resets them all.
+  Audit Logs uses this bar: search (names in the details, user, action or record ID; every word
+  must match), an action dropdown (Created, Updated, Deleted & voided, Uploads & installs,
+  Sign-ins & system, Other), a record type dropdown, and the date chips. Its filters run on the server, so they cover every log.
 
 ### Buttons
 
@@ -163,13 +177,20 @@ Shadows may use black at low alpha. Any other fixed colour in screen code is a b
   not extra tiles on a busy screen. Percentages go in the column headings ("Mortuary 60%"), money
   columns are right-aligned, and a bold total row on the chip colour closes the table. Each row's
   parts add up exactly to its total. Below the table's minimum width it scrolls sideways.
+- **Drag and drop moves records between groups**, e.g. members between households in Compare
+  households and form submissions between stages on Form Tracking. Mouse users drag straight away;
+  on phones it starts with a long press. Cards show a grab cursor, a dimmed copy stays behind while
+  dragging, and the drop target gets a primary border, a light primary tint and a "Drop to move
+  here" line. A drop always asks for confirmation and says what else changes (e.g. the old
+  household losing its leader, or being deleted when it empties). Every drag has a ⋯ menu
+  alternative (Move to …, Delete) for keyboard and touch users.
 - Long lists are paged, never loaded whole. `TropaPager` (`lib/widgets/tropa_pager.dart`) sits
   under the list: "Showing 51–100 of 1,234 households" on the left and first / previous /
   "Page 2 of 25" / next / last on the right. On phones it shortens to "51–100 of 1,234" and drops
-  first/last. Page sizes are Households 50, Members 100 and Dues Ledger 50. A new page scrolls
+  first/last. Page sizes are Households 50, Members 100, Dues Ledger 50 and Audit Logs 50. A new page scrolls
   the list back to the top. Changing any filter or search returns to page 1, and a page that
   empties (e.g. after archiving its last row) steps back to the new last page. Used on
-  Households, Members and the Dues Ledger.
+  Households, Members, the Dues Ledger and Audit Logs.
 
 ### Feedback
 

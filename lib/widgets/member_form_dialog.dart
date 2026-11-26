@@ -59,6 +59,8 @@ class DependentMemberData {
   final Set<String> sectors = {'General'};
   String? yearLevel;
   String? gender; // 'Male' / 'Female'
+  String? religion; // a [memberReligions] entry, or [religionOther]
+  final TextEditingController religionOtherCtrl = TextEditingController();
   bool trucareMember = false;
   bool phicMember = false;
 
@@ -98,6 +100,7 @@ class DependentMemberData {
     middleNameCtrl.dispose();
     contactCtrl.dispose();
     phicNoCtrl.dispose();
+    religionOtherCtrl.dispose();
     lastNameFocus.dispose();
     firstNameFocus.dispose();
     phicNoFocus.dispose();
@@ -168,6 +171,10 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
   String? _gender; // 'Male' / 'Female', required
   static const _genders = ['Male', 'Female'];
   static const _yearLevels = ['Elementary', 'High School', 'College'];
+  // Optional; the choices are [memberReligions], anything else goes in the "Other…" box.
+  static const _religions = memberReligions;
+  String? _religion;
+  final _religionOtherCtrl = TextEditingController();
   final List<String> _sectorOptions = [
     'General',
     'Youth',
@@ -351,6 +358,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
         ..addAll(_splitSectors(e.sector));
       _yearLevel = e.yearLevel;
       _gender = _genders.contains(e.gender) ? e.gender : null;
+      _religion = _religionChoice(e.religion, _religionOtherCtrl);
       _trucareMember = e.trucareMember ?? false;
       _phicMember = e.phicMember ?? false;
       _lgu = e.lgu.trim().toUpperCase();
@@ -483,6 +491,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
     _middleNameCtrl.dispose();
     _contactCtrl.dispose();
     _phicNoCtrl.dispose();
+    _religionOtherCtrl.dispose();
     for (var d in _dependentMembers) {
       d.dispose();
     }
@@ -1145,6 +1154,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
         sector: _joinSectors(_selectedSectors),
         yearLevel: _selectedSectors.contains('Student') ? _yearLevel : null,
         gender: _gender,
+        religion: _religionValue(_religion, _religionOtherCtrl),
         birthDate: _birthDate,
         membershipDate: _effectiveMembershipDate,
         age: age,
@@ -1196,6 +1206,7 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
             sector: _joinSectors(d.sectors),
             yearLevel: d.sectors.contains('Student') ? d.yearLevel : null,
             gender: d.gender,
+            religion: _religionValue(d.religion, d.religionOtherCtrl),
             birthDate: d.birthDate,
             membershipDate: _effectiveMembershipDate, // household members share the leader's membership date
             age: depAge,
@@ -1393,6 +1404,8 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
       _seniorAutoChecked = false;
       _yearLevel = null;
       _gender = null;
+      _religion = null;
+      _religionOtherCtrl.clear();
       _trucareMember = false;
       _phicMember = false;
       _isHouseholdLeader = false;
@@ -2344,7 +2357,33 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
                                         ),
                                       ),
                                       const SizedBox(width: 14),
-                                      const Expanded(child: SizedBox.shrink()),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            _buildReligionField(
+                                              value: _religion,
+                                              otherCtrl: _religionOtherCtrl,
+                                              onChanged: (v) => setState(() => _religion = v),
+                                              textCol: textCol,
+                                              borderCol: borderCol,
+                                              fillCol: inputFill,
+                                              primaryCol: primaryCol,
+                                              subtextCol: subtextCol,
+                                            ),
+                                            if (_religion != null && _dependentMembers.isNotEmpty)
+                                              TextButton.icon(
+                                                style: TextButton.styleFrom(
+                                                    padding: EdgeInsets.zero, visualDensity: VisualDensity.compact),
+                                                onPressed: _applyReligionToAll,
+                                                icon: const Icon(Icons.groups_outlined, size: 16),
+                                                label: Text('Use for all household members',
+                                                    style: TropaText.action()),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
                                     ],
                                   ),
                                   const SizedBox(height: 16),
@@ -2895,6 +2934,92 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
           if (v != null) onChanged(v);
         },
       ),
+    );
+  }
+
+  /// Copies the main member's religion (and any "Other…" text) to every household-member row.
+  void _applyReligionToAll() {
+    setState(() {
+      for (final d in _dependentMembers) {
+        d.religion = _religion;
+        d.religionOtherCtrl.text = _religion == religionOther ? _religionOtherCtrl.text : '';
+      }
+    });
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('Religion copied to ${_dependentMembers.length} household member'
+          '${_dependentMembers.length == 1 ? '' : 's'}'),
+    ));
+  }
+
+  /// Edit prefill: a stored religion that matches the list (any case) selects it; anything else
+  /// selects "Other…" and goes in [otherCtrl].
+  static String? _religionChoice(String? stored, TextEditingController otherCtrl) {
+    final v = stored?.trim() ?? '';
+    if (v.isEmpty) return null;
+    for (final r in _religions) {
+      if (r.toLowerCase() == v.toLowerCase()) return r;
+    }
+    otherCtrl.text = v.toUpperCase();
+    return religionOther;
+  }
+
+  /// What is saved: the list entry, the typed "Other…" text, or null when nothing is chosen.
+  static String? _religionValue(String? choice, TextEditingController otherCtrl) {
+    if (choice == null) return null;
+    if (choice != religionOther) return choice;
+    final typed = otherCtrl.text.trim().toUpperCase();
+    return typed.isEmpty ? null : typed;
+  }
+
+  /// Optional religion dropdown; "Other…" opens a text box under it.
+  Widget _buildReligionField({
+    required String? value,
+    required TextEditingController otherCtrl,
+    required ValueChanged<String?> onChanged,
+    required Color textCol,
+    required Color borderCol,
+    required Color fillCol,
+    required Color primaryCol,
+    required Color subtextCol,
+  }) {
+    final current = value == religionOther || _religions.contains(value) ? value : null;
+    Text item(String t) => Text(t, style: GoogleFonts.inter(fontSize: 13, color: textCol));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _labeledField(
+          'Religion',
+          subtextCol,
+          DropdownButtonFormField<String?>(
+            value: current,
+            isExpanded: true,
+            icon: TropaStyles.dropdownIcon(context),
+            decoration: _searchBoxDecoration(null, borderCol, _fieldFill, primaryCol, subtextCol),
+            dropdownColor: TropaColors.cardOf(context),
+            hint: Text('Select religion',
+                style: GoogleFonts.inter(fontSize: 13, color: subtextCol.withValues(alpha: 0.75))),
+            items: [
+              DropdownMenuItem<String?>(value: null, child: item('—')),
+              for (final r in _religions) DropdownMenuItem<String?>(value: r, child: item(r)),
+              DropdownMenuItem<String?>(value: religionOther, child: item(religionOther)),
+            ],
+            onChanged: onChanged,
+          ),
+        ),
+        if (current == religionOther) ...[
+          const SizedBox(height: 8),
+          _buildTextField(
+            controller: otherCtrl,
+            label: 'Specify religion',
+            hint: 'e.g. UCCP',
+            textCol: textCol,
+            borderCol: borderCol,
+            fillCol: fillCol,
+            primaryCol: primaryCol,
+          ),
+        ],
+      ],
     );
   }
 
@@ -3465,7 +3590,19 @@ class _MemberFormDialogState extends ConsumerState<MemberFormDialog> {
               ),
               const SizedBox(width: 10),
               Expanded(
-                flex: 3,
+                child: _buildReligionField(
+                  value: dep.religion,
+                  otherCtrl: dep.religionOtherCtrl,
+                  onChanged: (v) => setState(() => dep.religion = v),
+                  textCol: textCol,
+                  borderCol: borderCol,
+                  fillCol: inputFill,
+                  primaryCol: primaryCol,
+                  subtextCol: subtextCol,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
                 child: _buildGenderField(
                   // Keyed per row so each card keeps its own field state
                   key: ValueKey('gender-${identityHashCode(dep)}'),

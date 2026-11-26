@@ -54,7 +54,9 @@ class _TropaStartupState extends State<TropaStartup> {
         if (snapshot.hasError) {
           return StartupScreen(
             error: '${snapshot.error}',
-            onRetry: () => setState(() => _ready = _start()),
+            onRetry: () => setState(() {
+              _ready = _start();
+            }),
           );
         }
         // A new scope is created whenever the local database is replaced by a starter database,

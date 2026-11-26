@@ -379,6 +379,13 @@ class SupabaseService {
     return row['n'] as int;
   }
 
+  /// Dues payments (voided ones included) recorded for one member. Supabase deletes them with the
+  /// member, so a member with payments must not be deleted.
+  Future<int> countMemberPayments(String memberId) async {
+    final row = await db.get('SELECT COUNT(*) AS n FROM dues_payments WHERE member_id = ?', [memberId]);
+    return row['n'] as int;
+  }
+
   /// Deletes [household] together with all its members (archived ones included), e.g. a household
   /// encoded twice. Refuses (StateError) when it has dues payments, so no receipt is orphaned.
   Future<void> deleteHouseholdWithMembers(Household household) async {
@@ -764,6 +771,35 @@ class SupabaseService {
     return FamilyMember.fromJson((await _getRow('family_members', member.id))!);
   }
 
+  /// Sets [religion] (null clears it) on every member of [householdId]. With [onlyBlank], members
+  /// who already have a religion keep it. Returns how many members changed.
+  Future<int> setHouseholdReligion(String householdId, String? religion, {bool onlyBlank = false}) async {
+    var changed = 0;
+    await db.writeTransaction((tx) async {
+      final rows = await tx.getAll(
+        'SELECT id, religion FROM family_members WHERE household_id = ?'
+        "${onlyBlank ? " AND TRIM(COALESCE(religion, '')) = ''" : ''}",
+        [householdId],
+      );
+      final now = _now();
+      for (final r in rows) {
+        if ((r['religion'] as String?) == religion) continue;
+        await _update(tx, 'family_members', r['id'] as String, {'religion': religion, 'updated_date': now});
+        changed++;
+      }
+      if (changed > 0) {
+        await _log(
+          tx,
+          action: 'UPDATE',
+          entityType: 'Household',
+          entityId: householdId,
+          details: {'religion': religion ?? '(cleared)', 'members': changed},
+        );
+      }
+    });
+    return changed;
+  }
+
   /// Points [memberId]'s dues payments at [householdId], after the member moves there.
   Future<void> moveMemberDues(String memberId, String householdId) async {
     await db.execute('UPDATE dues_payments SET household_id = ? WHERE member_id = ?', [householdId, memberId]);
@@ -926,8 +962,35 @@ class SupabaseService {
 
   Future<void> deleteMember(String id) async {
     await db.writeTransaction((tx) async {
+      // Keep who was deleted in the log, so Audit Logs can find them by name afterwards.
+      final m = await tx.getOptional(
+        'SELECT m.lastname, m.firstname, m.middlename, m.extension, m.birth_date, m.lgu, m.barangay, m.purok, '
+        'm.household_id, h.household_name FROM family_members m '
+        'LEFT JOIN households h ON h.id = m.household_id WHERE m.id = ?',
+        [id],
+      );
       await tx.execute('DELETE FROM family_members WHERE id = ?', [id]);
-      await _log(tx, action: 'DELETE', entityType: 'FamilyMember', entityId: id);
+      await _log(
+        tx,
+        action: 'DELETE',
+        entityType: 'FamilyMember',
+        entityId: id,
+        details: m == null
+            ? null
+            : {
+                'name': [
+                  '${m['lastname'] ?? ''}, ${m['firstname'] ?? ''}',
+                  m['middlename'],
+                  m['extension'],
+                ].whereType<String>().where((s) => s.trim().isNotEmpty).join(' ').trim(),
+                'birth_date': m['birth_date'],
+                'lgu': m['lgu'],
+                'barangay': m['barangay'],
+                'purok': m['purok'],
+                'household_id': m['household_id'],
+                'household_name': m['household_name'],
+              },
+      );
     });
   }
 
@@ -1965,12 +2028,76 @@ class SupabaseService {
   // Activity Logs Query
   // ==========================================
   /// Online only: activity logs are uploaded from every device but never downloaded.
-  Future<List<ActivityLog>> getActivityLogs({int limit = 100}) async {
+  ///
+  /// Newest first, [limit] rows from [offset], with the total number of matches. [query] matches
+  /// the user, action, record type or record ID; [actions] / [excludeActions] and [entityTypes]
+  /// limit the codes; [fromDay] and [toDay] are inclusive GMT+8 calendar days.
+  Future<({List<ActivityLog> logs, int total})> getActivityLogs({
+    String query = '',
+    List<String>? actions,
+    List<String>? excludeActions,
+    List<String>? entityTypes,
+    DateTime? fromDay,
+    DateTime? toDay,
+    int offset = 0,
+    int limit = 50,
+  }) async {
+    // Commas, parentheses and quotes would break PostgREST's filter syntax; % and * are wildcards.
+    final term = query.trim().replaceAll(RegExp(r'[,()"\\%*]'), ' ').trim();
     try {
-      final response = await client.from('activity_logs').select().order('created_at', ascending: false).limit(limit);
-      return (response as List).map((row) => ActivityLog.fromJson(row as Map<String, dynamic>)).toList();
+      return await _activityLogsPage(term, true, actions, excludeActions, entityTypes, fromDay, toDay, offset, limit);
+    } on PostgrestException {
+      // search_text comes from the 20261118 migration; before it runs, search without details.
+      if (term.isEmpty) return (logs: <ActivityLog>[], total: 0);
+      try {
+        return await _activityLogsPage(term, false, actions, excludeActions, entityTypes, fromDay, toDay, offset, limit);
+      } catch (_) {
+        return (logs: <ActivityLog>[], total: 0);
+      }
     } catch (e) {
-      return [];
+      return (logs: <ActivityLog>[], total: 0);
+    }
+  }
+
+  /// With [searchText], every word of [term] must appear somewhere in the entry, details
+  /// included, so "juan dela cruz" finds "DELA CRUZ, JUAN". Without it, [term] is matched whole
+  /// against the user, action, record type and record ID.
+  Future<({List<ActivityLog> logs, int total})> _activityLogsPage(
+    String term,
+    bool searchText,
+    List<String>? actions,
+    List<String>? excludeActions,
+    List<String>? entityTypes,
+    DateTime? fromDay,
+    DateTime? toDay,
+    int offset,
+    int limit,
+  ) async {
+    {
+      var q = client.from('activity_logs').select();
+      if (term.isNotEmpty) {
+        if (searchText) {
+          for (final word in term.toLowerCase().split(RegExp(r'\s+'))) {
+            q = q.like('search_text', '%$word%');
+          }
+        } else {
+          q = q.or(['user_name', 'action', 'entity_type', 'entity_id'].map((c) => '$c.ilike.%$term%').join(','));
+        }
+      }
+      if (actions != null) q = q.inFilter('action', actions);
+      if (excludeActions != null && excludeActions.isNotEmpty) q = q.not('action', 'in', excludeActions);
+      if (entityTypes != null) q = q.inFilter('entity_type', entityTypes);
+      // A GMT+8 calendar day starts at 16:00 UTC the day before.
+      DateTime dayStart(DateTime d) => DateTime.utc(d.year, d.month, d.day).subtract(phOffset);
+      if (fromDay != null) q = q.gte('created_at', dayStart(fromDay).toIso8601String());
+      if (toDay != null) q = q.lt('created_at', dayStart(toDay).add(const Duration(days: 1)).toIso8601String());
+
+      final response = await q
+          .order('created_at', ascending: false)
+          .range(offset, offset + limit - 1)
+          .count(CountOption.exact);
+      final logs = response.data.map((row) => ActivityLog.fromJson(row)).toList();
+      return (logs: logs, total: response.count);
     }
   }
 
